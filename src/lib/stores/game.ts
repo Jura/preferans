@@ -71,7 +71,7 @@ function createGameStore() {
 		});
 
 		ws.addEventListener('error', () => {
-			update((s) => ({ ...s, status: 'error', error: 'Ошибка соединения' }));
+			update((s) => ({ ...s, status: 'error', error: 'Connection error' }));
 		});
 	}
 

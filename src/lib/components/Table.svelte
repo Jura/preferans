@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CardComponent from './Card.svelte';
+	import { t } from '$lib/i18n';
 	import type { Trick, Player, Card } from '$lib/types/preferans';
 
 	interface Props {
@@ -19,7 +20,7 @@
 	};
 
 	function getPlayerName(playerId: string): string {
-		return players.find((p) => p.id === playerId)?.name ?? 'Игрок';
+		return players.find((p) => p.id === playerId)?.name ?? $t('app.table.fallbackPlayer');
 	}
 
 	function getCardForPlayer(playerId: string): Card | null {
@@ -27,11 +28,11 @@
 	}
 </script>
 
-<div class="table" aria-label="Стол">
+<div class="table" aria-label={$t('app.table.aria')}>
 	{#if trump}
-		<div class="trump-indicator" title="Козырь">
+		<div class="trump-indicator" title={$t('app.game.trump')}>
 			<span class="trump-suit">{SUIT_SYMBOLS[trump]}</span>
-			<span class="trump-label">козырь</span>
+			<span class="trump-label">{$t('app.game.trump')}</span>
 		</div>
 	{/if}
 
@@ -48,7 +49,7 @@
 					{#if card}
 						<CardComponent {card} playable={false} />
 					{:else}
-						<div class="empty-slot" aria-label="Карта ещё не сыграна"></div>
+						<div class="empty-slot" aria-label={$t('app.table.emptySlot')}></div>
 					{/if}
 				</div>
 			</div>
@@ -57,7 +58,7 @@
 
 	{#if trick?.winnerId}
 		<div class="trick-winner" role="status">
-			{getPlayerName(trick.winnerId)} берёт взятку!
+			{$t('app.table.winner', { name: getPlayerName(trick.winnerId) })}
 		</div>
 	{/if}
 </div>

@@ -1,0 +1,120 @@
+{
+	"app": {
+		"name": "Преферанс",
+		"homeAria": "Главная",
+		"footerTagline": "Преферанс онлайн — классическая карточная игра",
+		"phase": {
+			"waiting": "Ожидание",
+			"dealing": "Раздача",
+			"bidding": "Торговля",
+			"widow": "Прикуп",
+			"discard": "Сброс",
+			"playing": "Игра",
+			"scoring": "Счёт",
+			"finished": "Завершена"
+		},
+		"language": {
+			"label": "Язык",
+			"en": "English",
+			"ru": "Русский",
+			"uk": "Українська"
+		},
+		"auth": {
+			"login": "Войти",
+			"logout": "Выйти"
+		},
+		"errors": {
+			"unsupportedLocale": "Неподдерживаемая локаль. Допустимые значения: en, ru, uk.",
+			"localeUpdateFailed": "Не удалось сохранить языковые настройки"
+		},
+		"lobby": {
+			"title": "Лобби — Преферанс",
+			"heroTitle": "🃏 Преферанс онлайн",
+			"heroSubtitle": "Классическая русская карточная игра для трёх игроков",
+			"createGame": "Создать игру",
+			"signInAndPlay": "Войти и играть",
+			"openGames": "Открытые игры",
+			"emptyGames": "Пока нет открытых игр. Создайте первую!",
+			"gamesListAria": "Список игр",
+			"playersCount": "{{count}}/3 игроков",
+			"joinGameAria": "Присоединиться к игре {{hostName}}",
+			"join": "Войти",
+			"watch": "Смотреть",
+			"rules": "Правила игры",
+			"ruleGoalTitle": "🎯 Цель",
+			"ruleGoalText": "Выполнить взятый контракт, собрав нужное количество взяток.",
+			"ruleDeckTitle": "🃏 Колода",
+			"ruleDeckText": "32 карты — от 7 до туза. Три игрока, каждому раздаётся по 10 карт и 2 карты в прикуп.",
+			"ruleBiddingTitle": "📣 Торговля",
+			"ruleBiddingText": "Игроки по очереди объявляют контракт. Победитель берёт прикуп и выбирает козырь.",
+			"ruleScoringTitle": "🏆 Счёт",
+			"ruleScoringText": "Очки начисляются на основе выполнения контракта. Мизер — особый контракт без взяток."
+		},
+		"login": {
+			"title": "Войти — Преферанс",
+			"heading": "🃏 Войти в игру",
+			"subtitle": "Войдите через Google, чтобы играть в преферанс онлайн",
+			"google": "Войти через Google"
+		},
+		"game": {
+			"title": "Игра — Преферанс",
+			"status": {
+				"disconnected": "⚫ Отключено",
+				"connecting": "🟡 Подключение…",
+				"connected": "🟢 Подключено",
+				"error": "🔴 Ошибка"
+			},
+			"trump": "Козырь",
+			"contract": "Контракт",
+			"misere": "Мизер",
+			"grand": "Гранд",
+			"openMisere": "Открытый мизер",
+			"declarer": "Играет: {{name}}",
+			"connecting": "Подключение к игре…",
+			"loadingAria": "Загрузка",
+			"waitingPlayers": "Ожидание игроков… ({{count}}/3)",
+			"widow": "Прикуп",
+			"turn": "Ход: {{name}}",
+			"yourTurn": "Ваш ход!",
+			"yourCards": "Ваши карты",
+			"playHint": "Нажмите на карту ещё раз, чтобы сыграть",
+			"noTrumpShort": "БК",
+			"gameNotFound": "Игра не найдена",
+			"connectionError": "Ошибка соединения"
+		},
+		"scoreboard": {
+			"aria": "Счёт",
+			"title": "Счёт — раунд {{roundNumber}}",
+			"player": "Игрок",
+			"points": "Очки"
+		},
+		"hand": {
+			"empty": "Нет карт"
+		},
+		"table": {
+			"fallbackPlayer": "Игрок",
+			"aria": "Стол",
+			"emptySlot": "Карта ещё не сыграна",
+			"winner": "{{name}} берёт взятку!"
+		},
+		"card": {
+			"faceDown": "Карта рубашкой",
+			"cardAria": "{{rank}} {{suit}}"
+		},
+		"bidding": {
+			"aria": "Торговля",
+			"title": "Ваш ход — сделайте ставку",
+			"noTrump": "Без козыря",
+			"noTrumpShort": "БК",
+			"announce": "Объявить {{level}} {{suit}}",
+			"misere": "Мизер",
+			"pass": "Пас",
+			"suitName": {
+				"spades": "Пики",
+				"clubs": "Трефы",
+				"diamonds": "Бубны",
+				"hearts": "Червы"
+			}
+		}
+	}
+}

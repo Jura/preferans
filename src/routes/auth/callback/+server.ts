@@ -1,7 +1,9 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { DEFAULT_LOCALE, isSupportedLocale } from '$lib/i18n/locales';
 
 const SESSION_COOKIE = 'pref_session';
+const LOCALE_COOKIE = 'pref_locale';
 const SESSION_DURATION_DAYS = 30;
 
 interface GoogleTokenResponse {
@@ -34,6 +36,8 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	}
 
 	const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, DB } = platform.env;
+	const localeCookie = cookies.get(LOCALE_COOKIE);
+	const preferredLocale = isSupportedLocale(localeCookie) ? localeCookie : DEFAULT_LOCALE;
 	const redirectUri = `${url.origin}/auth/callback`;
 
 	// Exchange code for tokens
@@ -70,14 +74,14 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	// Upsert user in D1
 	const userId = `google_${googleUser.sub}`;
 	await DB.prepare(
-		`INSERT INTO users (id, name, email, avatar_url, created_at)
-		 VALUES (?, ?, ?, ?, datetime('now'))
+		`INSERT INTO users (id, name, email, avatar_url, preferred_locale, created_at)
+		 VALUES (?, ?, ?, ?, ?, datetime('now'))
 		 ON CONFLICT(id) DO UPDATE SET
 		   name = excluded.name,
 		   email = excluded.email,
 		   avatar_url = excluded.avatar_url`
 	)
-		.bind(userId, googleUser.name, googleUser.email, googleUser.picture ?? null)
+		.bind(userId, googleUser.name, googleUser.email, googleUser.picture ?? null, preferredLocale)
 		.run();
 
 	// Create session
@@ -96,6 +100,13 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 		secure: url.protocol === 'https:',
 		sameSite: 'lax',
 		maxAge: SESSION_DURATION_DAYS * 24 * 60 * 60
+	});
+	cookies.set(LOCALE_COOKIE, preferredLocale, {
+		path: '/',
+		httpOnly: false,
+		secure: url.protocol === 'https:',
+		sameSite: 'lax',
+		maxAge: 365 * 24 * 60 * 60
 	});
 
 	redirect(303, '/');

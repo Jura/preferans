@@ -5,6 +5,7 @@
 	import Table from '$lib/components/Table.svelte';
 	import Scoreboard from '$lib/components/Scoreboard.svelte';
 	import BiddingPanel from '$lib/components/BiddingPanel.svelte';
+	import { t } from '$lib/i18n';
 	import type { PageData } from './$types';
 	import type { Card, Bid, Contract } from '$lib/types/preferans';
 
@@ -43,38 +44,21 @@
 		game.send({ type: 'bid', bid });
 	}
 
-	const STATUS_LABEL: Record<string, string> = {
-		disconnected: '⚫ Отключено',
-		connecting: '🟡 Подключение…',
-		connected: '🟢 Подключено',
-		error: '🔴 Ошибка'
-	};
-
-	const PHASE_LABEL: Record<string, string> = {
-		waiting: 'Ожидание игроков',
-		dealing: 'Раздача карт',
-		bidding: 'Торговля',
-		widow: 'Прикуп',
-		discard: 'Сброс карт',
-		playing: 'Идёт игра',
-		scoring: 'Подсчёт очков',
-		finished: 'Игра завершена'
-	};
 </script>
 
 <svelte:head>
-	<title>Игра — Преферанс</title>
+	<title>{$t('app.game.title')}</title>
 </svelte:head>
 
 <div class="game-page">
 	<!-- Status bar -->
 	<div class="status-bar">
-		<span class="connection-status">{STATUS_LABEL[$game.status]}</span>
+		<span class="connection-status">{$t(`app.game.status.${$game.status}`)}</span>
 		{#if $game.state}
-			<span class="phase-label">{PHASE_LABEL[$gamePhase] ?? $gamePhase}</span>
+			<span class="phase-label">{$t(`app.phase.${$gamePhase}`)}</span>
 			{#if $game.state.trump}
 				<span class="trump-label">
-					Козырь: {$game.state.trump === 'spades'
+					{$t('app.game.trump')}: {$game.state.trump === 'spades'
 						? '♠'
 						: $game.state.trump === 'clubs'
 							? '♣'
@@ -103,16 +87,16 @@
 				<!-- Contract info -->
 				{#if $game.state.contract}
 					<div class="contract-info">
-						<h4>Контракт</h4>
+						<h4>{$t('app.game.contract')}</h4>
 						{#if $game.state.contract.type === 'misere'}
-							<p>{$game.state.contract.open ? 'Открытый мизер' : 'Мизер'}</p>
+							<p>{$game.state.contract.open ? $t('app.game.openMisere') : $t('app.game.misere')}</p>
 						{:else if $game.state.contract.type === 'grand'}
-							<p>Гранд {$game.state.contract.level}</p>
+							<p>{$t('app.game.grand')} {$game.state.contract.level}</p>
 						{:else}
 							<p>
 								{$game.state.contract.level}
 								{$game.state.contract.suit === 'no_trump'
-									? 'БК'
+									? $t('app.game.noTrumpShort')
 									: $game.state.contract.suit === 'spades'
 										? '♠'
 										: $game.state.contract.suit === 'clubs'
@@ -124,7 +108,9 @@
 						{/if}
 						{#if $game.state.declarerId}
 							<p class="declarer">
-								Играет: {$game.state.players.find((p) => p.id === $game.state!.declarerId)?.name}
+								{$t('app.game.declarer', {
+									name: $game.state.players.find((p) => p.id === $game.state!.declarerId)?.name
+								})}
 							</p>
 						{/if}
 					</div>
@@ -136,13 +122,13 @@
 		<div class="center-area">
 			{#if $game.status === 'connecting'}
 				<div class="connecting-msg">
-					<div class="spinner" aria-label="Загрузка"></div>
-					<p>Подключение к игре…</p>
+					<div class="spinner" aria-label={$t('app.game.loadingAria')}></div>
+					<p>{$t('app.game.connecting')}</p>
 				</div>
 			{:else if !$game.state || $gamePhase === 'waiting'}
 				<div class="waiting-msg">
 					<span class="waiting-icon">⏳</span>
-					<p>Ожидание игроков… ({$game.state?.players.length ?? 0}/3)</p>
+					<p>{$t('app.game.waitingPlayers', { count: $game.state?.players.length ?? 0 })}</p>
 				</div>
 			{:else}
 				<!-- Playing table -->
@@ -156,7 +142,7 @@
 				<!-- Widow cards (during widow phase for declarer) -->
 				{#if $gamePhase === 'widow' && $game.state.widow.length > 0 && $game.state.declarerId === data.user?.id}
 					<div class="widow-area">
-						<h3>Прикуп</h3>
+						<h3>{$t('app.game.widow')}</h3>
 						<div class="widow-cards">
 							{#each $game.state.widow as card}
 								<Hand cards={[card]} playable={false} />
@@ -183,10 +169,12 @@
 				<!-- Turn indicator -->
 				{#if $game.state.currentPlayerId && $game.state.currentPlayerId !== data.user?.id}
 					<div class="turn-indicator" role="status">
-						Ход: {$game.state.players.find((p) => p.id === $game.state!.currentPlayerId)?.name}
+						{$t('app.game.turn', {
+							name: $game.state.players.find((p) => p.id === $game.state!.currentPlayerId)?.name
+						})}
 					</div>
 				{:else if isMyTurn && $gamePhase === 'playing'}
-					<div class="turn-indicator my-turn" role="status">Ваш ход!</div>
+					<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
 				{/if}
 			{/if}
 
@@ -198,10 +186,10 @@
 						playable={canPlayCard}
 						{selectedCard}
 						onPlayCard={handlePlayCard}
-						label="Ваши карты"
+						label={$t('app.game.yourCards')}
 					/>
 					{#if canPlayCard && selectedCard}
-						<p class="play-hint">Нажмите на карту ещё раз, чтобы сыграть</p>
+						<p class="play-hint">{$t('app.game.playHint')}</p>
 					{/if}
 				</div>
 			{/if}

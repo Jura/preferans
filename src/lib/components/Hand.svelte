@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CardComponent from './Card.svelte';
+	import { t } from '$lib/i18n';
 	import type { Card } from '$lib/types/preferans';
 
 	interface Props {
@@ -15,7 +16,7 @@
 		playable = false,
 		selectedCard = null,
 		onPlayCard,
-		label = 'Ваши карты'
+		label
 	}: Props = $props();
 
 	function isSelected(card: Card): boolean {
@@ -29,7 +30,7 @@
 	}
 </script>
 
-<div class="hand" aria-label={label} role="group">
+<div class="hand" aria-label={label ?? $t('app.game.yourCards')} role="group">
 	{#each cards as card (card.suit + card.rank)}
 		<CardComponent
 			{card}
@@ -39,7 +40,7 @@
 		/>
 	{/each}
 	{#if cards.length === 0}
-		<span class="empty">Нет карт</span>
+		<span class="empty">{$t('app.hand.empty')}</span>
 	{/if}
 </div>
 
