@@ -217,14 +217,16 @@ export function scoreRound(
 	if (declarerTricks >= contractLevel) {
 		// Fulfilled: gain points per extra trick too
 		const overtricks = declarerTricks - contractLevel;
-		scores[declarerId] = pointValue + overtricks * (contract.type === 'suit' ? CONTRACT_BASE_VALUE[contract.suit] : 10);
+		const overtrickValue = contract.type === 'suit' ? CONTRACT_BASE_VALUE[contract.suit] : 10;
+		scores[declarerId] = pointValue + overtricks * overtrickValue;
 	} else {
 		// Underfulfilled: lose double points
 		scores[declarerId] = -pointValue * 2;
 		// Defenders each score whist points for tricks taken
+		const trickValue = contract.type === 'suit' ? CONTRACT_BASE_VALUE[contract.suit] : 10;
 		for (const def of defenderIds) {
 			const defTricks = tricks.filter((t) => t.winnerId === def).length;
-			scores[def] = defTricks * (contract.type === 'suit' ? CONTRACT_BASE_VALUE[contract.suit] : 10);
+			scores[def] = defTricks * trickValue;
 		}
 	}
 
@@ -350,7 +352,7 @@ export function applyWidowSelection(
 		(c) => !keep.some((k) => k.suit === c.suit && k.rank === c.rank)
 	);
 	if (discardedHand.length !== hand.length - 2) {
-		throw new Error('Must keep exactly 2 cards from widow');
+		throw new Error('Invalid widow selection: selected cards not found in hand');
 	}
 	return {
 		...state,

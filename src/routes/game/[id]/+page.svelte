@@ -167,11 +167,13 @@
 
 				<!-- Bidding panel -->
 				{#if $gamePhase === 'bidding' && isMyTurn}
+					{@const nonPassBids = $game.state.bids.filter((b) => b.bid !== 'pass')}
+					{@const currentHighBid = nonPassBids.length > 0
+						? (nonPassBids[nonPassBids.length - 1].bid as Contract)
+						: null}
 					<div class="bidding-area">
 						<BiddingPanel
-							currentHighBid={$game.state.bids.length > 0
-								? ($game.state.bids.findLast((b) => b.bid !== 'pass')?.bid as Contract | null)
-								: null}
+							{currentHighBid}
 							myTurn={isMyTurn}
 							onBid={handleBid}
 						/>
