@@ -10,7 +10,7 @@ database_id = "f0459e96-4a30-451a-a093-8b373ae0adf3"
 [[durable_objects.bindings]]
 name = "GAME_ROOM"
 class_name = "GameRoom"
-script_name = "preferans-worker"
+script_name = "preferans"
 
 [vars]
 GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
@@ -19,4 +19,4 @@ GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["GameRoom"]
+new_sqlite_classes = ["GameRoom"]
