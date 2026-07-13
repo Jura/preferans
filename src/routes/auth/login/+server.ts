@@ -1,0 +1,34 @@
+import { redirect } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+/** Redirect to Google OAuth consent screen */
+export const GET: RequestHandler = async ({ platform, url, cookies }) => {
+	if (!platform?.env) {
+		redirect(303, '/');
+	}
+
+	const clientId = platform.env.GOOGLE_CLIENT_ID;
+	const redirectUri = `${url.origin}/auth/callback`;
+
+	// CSRF state
+	const state = crypto.randomUUID();
+	cookies.set('oauth_state', state, {
+		path: '/',
+		httpOnly: true,
+		secure: url.protocol === 'https:',
+		sameSite: 'lax',
+		maxAge: 600 // 10 minutes
+	});
+
+	const params = new URLSearchParams({
+		client_id: clientId,
+		redirect_uri: redirectUri,
+		response_type: 'code',
+		scope: 'openid email profile',
+		state,
+		access_type: 'online',
+		prompt: 'select_account'
+	});
+
+	redirect(303, `https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+};

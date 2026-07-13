@@ -1,0 +1,26 @@
+name = "preferans-worker"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "preferans-db"
+database_id = "YOUR_D1_DATABASE_ID"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GameRoom"]
+
+[durable_objects]
+bindings = [
+  { name = "GAME_ROOM", class_name = "GameRoom" }
+]
+
+[[migrations]]
+tag = "v2"
+new_classes = []
+
+[vars]
+# Set secrets via: wrangler secret put GOOGLE_CLIENT_SECRET
+# Set secrets via: wrangler secret put SESSION_SECRET
+ENVIRONMENT = "development"
