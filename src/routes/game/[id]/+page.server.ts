@@ -48,13 +48,11 @@ export const load: PageServerLoad = async ({ params, locals, platform }) => {
 		}
 	}
 
-	// Issue a short-lived signed token for the WebSocket
-	// In production, use a proper signing approach; here we use a simple UUID stored in DB
+	// Issue a short-lived token for the WebSocket (UUID is unique by nature)
 	const wsToken = crypto.randomUUID();
 	await platform.env.DB.prepare(
 		`INSERT INTO ws_tokens (token, user_id, game_id, expires_at)
-		 VALUES (?, ?, ?, datetime('now', '+5 minutes'))
-		 ON CONFLICT DO NOTHING`
+		 VALUES (?, ?, ?, datetime('now', '+5 minutes'))`
 	)
 		.bind(wsToken, locals.user.id, params.id)
 		.run();

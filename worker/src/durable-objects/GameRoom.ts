@@ -281,15 +281,12 @@ export class GameRoom implements DurableObject {
 
 	private buildClientState(forPlayerId: PlayerId): ClientGameState {
 		const gs = this.gameState!;
-		const players = gs.playerIds.map((id, idx) => {
-			if (idx < 0 || idx > 2) throw new Error(`Invalid player position: ${idx}`);
-			return {
-				id,
-				name: this.playerInfo.get(id)?.name ?? id,
-				avatarUrl: this.playerInfo.get(id)?.avatarUrl ?? null,
-				position: idx as 0 | 1 | 2
-			};
-		});
+		const players = gs.playerIds.map((id, idx) => ({
+			id,
+			name: this.playerInfo.get(id)?.name ?? id,
+			avatarUrl: this.playerInfo.get(id)?.avatarUrl ?? null,
+			position: idx as 0 | 1 | 2
+		}));
 
 		return {
 			id: gs.id,

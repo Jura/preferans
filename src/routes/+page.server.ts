@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	const games = await platform.env.DB.prepare(
 		`SELECT g.id, g.phase, g.created_at,
 		        u.name AS host_name,
-		        COUNT(gp.player_id) AS player_count
+		        COALESCE(COUNT(gp.player_id), 0) AS player_count
 		 FROM games g
 		 JOIN users u ON u.id = g.host_id
 		 LEFT JOIN game_players gp ON gp.game_id = g.id

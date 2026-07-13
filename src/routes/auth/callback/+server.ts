@@ -55,7 +55,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 
 	const tokens: GoogleTokenResponse = await tokenRes.json();
 
-	// Get user info from Google. Compose the Authorization header value using string concatenation.
+	// Get user info from Google
 	const authHeader = 'Bearer ' + tokens.access_token;
 	const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
 		headers: { Authorization: authHeader }

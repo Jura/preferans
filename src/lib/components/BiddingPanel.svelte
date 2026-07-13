@@ -29,9 +29,9 @@
 	function contractValue(c: Contract): number {
 		if (c.type === 'misere') return c.open ? 110 : 100;
 		if (c.type === 'grand') return c.open ? 130 + c.level * 10 : 120 + c.level * 10;
-		// suit contract: base value per level + suit rank (spades=0, clubs=1, diamonds=2, hearts=3, no_trump=4)
+		// suit contract: value per level + suit rank (spades=0, clubs=1, diamonds=2, hearts=3, no_trump=4)
 		const suitRank = c.suit === 'no_trump' ? 4 : SUITS.indexOf(c.suit as Suit);
-		return (c.level - 6) * 60 + suitRank;
+		return (c.level - 6) * 50 + suitRank;
 	}
 
 	function isValidBid(contract: Contract): boolean {

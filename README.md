@@ -72,8 +72,11 @@ SESSION_SECRET=a_random_secret_at_least_32_chars
 ```bash
 # Создать базу данных
 npx wrangler d1 create preferans-db
-
-# Обновите database_id в wrangler.toml и worker/wrangler.toml
+# Команда выведет строку вида:
+#   database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# Замените YOUR_D1_DATABASE_ID на это значение в файлах:
+#   wrangler.toml (строка [[d1_databases]])
+#   worker/wrangler.toml (строка [[d1_databases]])
 
 # Применить миграции локально
 npm run db:migrate:local
