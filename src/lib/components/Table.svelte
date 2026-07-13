@@ -20,7 +20,7 @@
 	};
 
 	function getPlayerName(playerId: string): string {
-		return players.find((p) => p.id === playerId)?.name ?? ($t('app.table.fallbackPlayer') as string);
+		return players.find((p) => p.id === playerId)?.name ?? $t('app.table.fallbackPlayer');
 	}
 
 	function getCardForPlayer(playerId: string): Card | null {

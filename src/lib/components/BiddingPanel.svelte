@@ -18,7 +18,7 @@
 		diamonds: '♦',
 		hearts: '♥'
 	};
-	const SUIT_NAMES: Record<Suit, string> = {
+	const SUIT_TRANSLATION_KEYS: Record<Suit, string> = {
 		spades: 'spades',
 		clubs: 'clubs',
 		diamonds: 'diamonds',
@@ -66,7 +66,7 @@
 				class:active={selectedSuit === suit}
 				class:red={suit === 'diamonds' || suit === 'hearts'}
 				onclick={() => (selectedSuit = suit)}
-				title={$t(`app.bidding.suitName.${SUIT_NAMES[suit]}`)}
+				title={$t(`app.bidding.suitName.${SUIT_TRANSLATION_KEYS[suit]}`)}
 			>
 				{SUIT_SYMBOLS[suit]}
 			</button>

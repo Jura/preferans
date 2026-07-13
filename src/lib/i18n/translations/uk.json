@@ -16,12 +16,16 @@
 		"language": {
 			"label": "Мова",
 			"en": "English",
-			"ru": "Русский",
+			"ru": "Російська",
 			"uk": "Українська"
 		},
 		"auth": {
 			"login": "Увійти",
 			"logout": "Вийти"
+		},
+		"errors": {
+			"unsupportedLocale": "Непідтримувана локаль. Дозволені значення: en, ru, uk.",
+			"localeUpdateFailed": "Не вдалося зберегти мовні налаштування"
 		},
 		"lobby": {
 			"title": "Лобі — Преферанс",

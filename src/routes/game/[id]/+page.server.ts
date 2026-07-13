@@ -1,15 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { DEFAULT_LOCALE } from '$lib/i18n/locales';
-import en from '$lib/i18n/translations/en.json';
-import ru from '$lib/i18n/translations/ru.json';
-import uk from '$lib/i18n/translations/uk.json';
-
-const GAME_NOT_FOUND_MESSAGES = {
-	en: en.app.game.gameNotFound,
-	ru: ru.app.game.gameNotFound,
-	uk: uk.app.game.gameNotFound
-} as const;
 
 export const load: PageServerLoad = async ({ params, locals, platform }) => {
 	if (!locals.user) {
@@ -31,8 +21,7 @@ export const load: PageServerLoad = async ({ params, locals, platform }) => {
 		.first<{ id: string; phase: string }>();
 
 	if (!game) {
-		const locale = (locals.locale ?? DEFAULT_LOCALE) as keyof typeof GAME_NOT_FOUND_MESSAGES;
-		error(404, GAME_NOT_FOUND_MESSAGES[locale] ?? GAME_NOT_FOUND_MESSAGES.en);
+		error(404, 'Game not found');
 	}
 
 	// Auto-join if there's room and user isn't already a player

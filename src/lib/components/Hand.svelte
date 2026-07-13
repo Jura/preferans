@@ -16,10 +16,8 @@
 		playable = false,
 		selectedCard = null,
 		onPlayCard,
-		label = ''
+		label
 	}: Props = $props();
-
-	let ariaLabel = $derived(label || $t('app.game.yourCards'));
 
 	function isSelected(card: Card): boolean {
 		return selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;
@@ -32,7 +30,7 @@
 	}
 </script>
 
-<div class="hand" aria-label={ariaLabel} role="group">
+<div class="hand" aria-label={label ?? $t('app.game.yourCards')} role="group">
 	{#each cards as card (card.suit + card.rank)}
 		<CardComponent
 			{card}

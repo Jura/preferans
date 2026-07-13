@@ -23,6 +23,10 @@
 			"login": "Sign in",
 			"logout": "Sign out"
 		},
+		"errors": {
+			"unsupportedLocale": "Unsupported locale. Allowed values: en, ru, uk.",
+			"localeUpdateFailed": "Failed to update locale preference"
+		},
 		"lobby": {
 			"title": "Lobby — Preferans",
 			"heroTitle": "🃏 Preferans online",

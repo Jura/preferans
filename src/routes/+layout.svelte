@@ -1,15 +1,12 @@
 <script lang="ts">
 	import { auth } from '$lib/stores/auth';
 	import { t } from '$lib/i18n';
-	import type { SupportedLocale } from '$lib/i18n/locales';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
-	let selectedLocale: SupportedLocale = $state('en');
 
 	// Sync server-side user into the client store
 	$effect(() => {
-		selectedLocale = data.locale as SupportedLocale;
 		if (data.user) {
 			auth.login(data.user);
 		}
@@ -33,7 +30,7 @@
 				<select
 					id="locale"
 					name="locale"
-					bind:value={selectedLocale}
+					value={data.locale}
 					onchange={(event) => event.currentTarget.form?.requestSubmit()}
 				>
 					{#each data.locales as localeOption}
