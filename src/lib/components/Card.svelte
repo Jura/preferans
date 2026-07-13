@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { Card, Suit, Rank } from '$lib/types/preferans';
+	import type { Card, Suit } from '$lib/types/preferans';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		card: Card;
@@ -33,7 +34,9 @@
 	class:black={!isRed}
 	onclick={onclick}
 	disabled={!playable || faceDown}
-	aria-label={faceDown ? 'Карта рубашкой' : `${card.rank} ${SUIT_SYMBOLS[card.suit]}`}
+	aria-label={faceDown
+		? $t('app.card.faceDown')
+		: $t('app.card.cardAria', { rank: card.rank, suit: SUIT_SYMBOLS[card.suit] })}
 >
 	{#if faceDown}
 		<span class="back-pattern">🂠</span>

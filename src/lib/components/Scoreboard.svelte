@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
 	import type { Player } from '$lib/types/preferans';
 
 	interface Props {
@@ -10,13 +11,13 @@
 	let { scores, players, roundNumber }: Props = $props();
 </script>
 
-<div class="scoreboard" aria-label="Счёт">
-	<h3 class="title">Счёт — раунд {roundNumber}</h3>
+<div class="scoreboard" aria-label={$t('app.scoreboard.aria')}>
+	<h3 class="title">{$t('app.scoreboard.title', { roundNumber })}</h3>
 	<table>
 		<thead>
 			<tr>
-				<th>Игрок</th>
-				<th>Очки</th>
+				<th>{$t('app.scoreboard.player')}</th>
+				<th>{$t('app.scoreboard.points')}</th>
 			</tr>
 		</thead>
 		<tbody>

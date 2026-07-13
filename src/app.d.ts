@@ -14,10 +14,13 @@ declare global {
 				name: string;
 				email: string;
 				avatarUrl: string | null;
+				preferredLocale: string;
 			} | null;
+			locale: string;
 		}
 		interface PageData {
 			user?: App.Locals['user'];
+			locale?: string;
 		}
 		interface Platform {
 			env: {

@@ -1,0 +1,116 @@
+{
+	"app": {
+		"name": "Преферанс",
+		"homeAria": "Головна",
+		"footerTagline": "Преферанс онлайн — класична карткова гра",
+		"phase": {
+			"waiting": "Очікування",
+			"dealing": "Роздача",
+			"bidding": "Торгівля",
+			"widow": "Прикуп",
+			"discard": "Скидання",
+			"playing": "Гра",
+			"scoring": "Рахунок",
+			"finished": "Завершена"
+		},
+		"language": {
+			"label": "Мова",
+			"en": "English",
+			"ru": "Русский",
+			"uk": "Українська"
+		},
+		"auth": {
+			"login": "Увійти",
+			"logout": "Вийти"
+		},
+		"lobby": {
+			"title": "Лобі — Преферанс",
+			"heroTitle": "🃏 Преферанс онлайн",
+			"heroSubtitle": "Класична карткова гра для трьох гравців",
+			"createGame": "Створити гру",
+			"signInAndPlay": "Увійти та грати",
+			"openGames": "Відкриті ігри",
+			"emptyGames": "Поки немає відкритих ігор. Створіть першу!",
+			"gamesListAria": "Список ігор",
+			"playersCount": "{{count}}/3 гравців",
+			"joinGameAria": "Приєднатися до гри {{hostName}}",
+			"join": "Увійти",
+			"watch": "Дивитися",
+			"rules": "Правила гри",
+			"ruleGoalTitle": "🎯 Мета",
+			"ruleGoalText": "Виконати контракт і взяти потрібну кількість хабарів.",
+			"ruleDeckTitle": "🃏 Колода",
+			"ruleDeckText": "32 карти — від 7 до туза. Три гравці, по 10 карт кожному та 2 карти в прикупі.",
+			"ruleBiddingTitle": "📣 Торгівля",
+			"ruleBiddingText": "Гравці по черзі оголошують контракт. Переможець бере прикуп і обирає козир.",
+			"ruleScoringTitle": "🏆 Рахунок",
+			"ruleScoringText": "Очки нараховуються за виконання контракту. Мізер — контракт без хабарів."
+		},
+		"login": {
+			"title": "Увійти — Преферанс",
+			"heading": "🃏 Увійти в гру",
+			"subtitle": "Увійдіть через Google, щоб грати в преферанс онлайн",
+			"google": "Увійти через Google"
+		},
+		"game": {
+			"title": "Гра — Преферанс",
+			"status": {
+				"disconnected": "⚫ Відключено",
+				"connecting": "🟡 Підключення…",
+				"connected": "🟢 Підключено",
+				"error": "🔴 Помилка"
+			},
+			"trump": "Козир",
+			"contract": "Контракт",
+			"misere": "Мізер",
+			"grand": "Гранд",
+			"openMisere": "Відкритий мізер",
+			"declarer": "Грає: {{name}}",
+			"connecting": "Підключення до гри…",
+			"loadingAria": "Завантаження",
+			"waitingPlayers": "Очікування гравців… ({{count}}/3)",
+			"widow": "Прикуп",
+			"turn": "Хід: {{name}}",
+			"yourTurn": "Ваш хід!",
+			"yourCards": "Ваші карти",
+			"playHint": "Натисніть на карту ще раз, щоб зіграти",
+			"noTrumpShort": "БК",
+			"gameNotFound": "Гру не знайдено",
+			"connectionError": "Помилка з'єднання"
+		},
+		"scoreboard": {
+			"aria": "Рахунок",
+			"title": "Рахунок — раунд {{roundNumber}}",
+			"player": "Гравець",
+			"points": "Очки"
+		},
+		"hand": {
+			"empty": "Немає карт"
+		},
+		"table": {
+			"fallbackPlayer": "Гравець",
+			"aria": "Стіл",
+			"emptySlot": "Карту ще не зіграно",
+			"winner": "{{name}} бере хабар!"
+		},
+		"card": {
+			"faceDown": "Карта сорочкою вниз",
+			"cardAria": "{{rank}} {{suit}}"
+		},
+		"bidding": {
+			"aria": "Торгівля",
+			"title": "Ваш хід — зробіть ставку",
+			"noTrump": "Без козиря",
+			"noTrumpShort": "БК",
+			"announce": "Оголосити {{level}} {{suit}}",
+			"misere": "Мізер",
+			"pass": "Пас",
+			"suitName": {
+				"spades": "Піки",
+				"clubs": "Трефи",
+				"diamonds": "Бубни",
+				"hearts": "Черви"
+			}
+		}
+	}
+}

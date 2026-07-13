@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
 	import type { Contract, Suit, ContractLevel } from '$lib/types/preferans';
 
 	interface Props {
@@ -18,10 +19,10 @@
 		hearts: '♥'
 	};
 	const SUIT_NAMES: Record<Suit, string> = {
-		spades: 'Пики',
-		clubs: 'Трефы',
-		diamonds: 'Бубны',
-		hearts: 'Червы'
+		spades: 'spades',
+		clubs: 'clubs',
+		diamonds: 'diamonds',
+		hearts: 'hearts'
 	};
 	const LEVELS: ContractLevel[] = [6, 7, 8, 9, 10];
 
@@ -43,8 +44,8 @@
 	let selectedSuit: Suit | 'no_trump' = $state('spades');
 </script>
 
-<div class="bidding-panel" aria-label="Торговля">
-	<h3 class="title">Ваш ход — сделайте ставку</h3>
+<div class="bidding-panel" aria-label={$t('app.bidding.aria')}>
+	<h3 class="title">{$t('app.bidding.title')}</h3>
 
 	<div class="level-row">
 		{#each LEVELS as level}
@@ -65,7 +66,7 @@
 				class:active={selectedSuit === suit}
 				class:red={suit === 'diamonds' || suit === 'hearts'}
 				onclick={() => (selectedSuit = suit)}
-				title={SUIT_NAMES[suit]}
+				title={$t(`app.bidding.suitName.${SUIT_NAMES[suit]}`)}
 			>
 				{SUIT_SYMBOLS[suit]}
 			</button>
@@ -74,9 +75,9 @@
 			class="suit-btn nt"
 			class:active={selectedSuit === 'no_trump'}
 			onclick={() => (selectedSuit = 'no_trump')}
-			title="Без козыря"
+			title={$t('app.bidding.noTrump')}
 		>
-			БК
+			{$t('app.bidding.noTrumpShort')}
 		</button>
 	</div>
 
@@ -87,7 +88,10 @@
 			onclick={() =>
 				onBid({ type: 'suit', level: selectedLevel, suit: selectedSuit })}
 		>
-			Объявить {selectedLevel} {selectedSuit !== 'no_trump' ? SUIT_SYMBOLS[selectedSuit as Suit] : 'БК'}
+			{$t('app.bidding.announce', {
+				level: selectedLevel,
+				suit: selectedSuit !== 'no_trump' ? SUIT_SYMBOLS[selectedSuit as Suit] : $t('app.bidding.noTrumpShort')
+			})}
 		</button>
 
 		<button
@@ -95,7 +99,7 @@
 			disabled={!myTurn || !isValidBid({ type: 'misere', open: false })}
 			onclick={() => onBid({ type: 'misere', open: false })}
 		>
-			Мизер
+			{$t('app.bidding.misere')}
 		</button>
 
 		<button
@@ -103,7 +107,7 @@
 			disabled={!myTurn}
 			onclick={() => onBid('pass')}
 		>
-			Пас
+			{$t('app.bidding.pass')}
 		</button>
 	</div>
 </div>

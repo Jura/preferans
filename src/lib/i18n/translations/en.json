@@ -1,0 +1,116 @@
+{
+	"app": {
+		"name": "Preferans",
+		"homeAria": "Home",
+		"footerTagline": "Preferans online — classic card game",
+		"phase": {
+			"waiting": "Waiting",
+			"dealing": "Dealing",
+			"bidding": "Bidding",
+			"widow": "Widow",
+			"discard": "Discard",
+			"playing": "Playing",
+			"scoring": "Scoring",
+			"finished": "Finished"
+		},
+		"language": {
+			"label": "Language",
+			"en": "English",
+			"ru": "Russian",
+			"uk": "Ukrainian"
+		},
+		"auth": {
+			"login": "Sign in",
+			"logout": "Sign out"
+		},
+		"lobby": {
+			"title": "Lobby — Preferans",
+			"heroTitle": "🃏 Preferans online",
+			"heroSubtitle": "Classic card game for three players",
+			"createGame": "Create game",
+			"signInAndPlay": "Sign in to play",
+			"openGames": "Open games",
+			"emptyGames": "No open games yet. Create the first one!",
+			"gamesListAria": "Games list",
+			"playersCount": "{{count}}/3 players",
+			"joinGameAria": "Join game hosted by {{hostName}}",
+			"join": "Join",
+			"watch": "Watch",
+			"rules": "Game rules",
+			"ruleGoalTitle": "🎯 Goal",
+			"ruleGoalText": "Fulfill your contract and take enough tricks.",
+			"ruleDeckTitle": "🃏 Deck",
+			"ruleDeckText": "32 cards (7 to ace), 3 players, 10 cards each, plus 2 widow cards.",
+			"ruleBiddingTitle": "📣 Bidding",
+			"ruleBiddingText": "Players announce contracts in turn. Winner takes widow and selects trump.",
+			"ruleScoringTitle": "🏆 Scoring",
+			"ruleScoringText": "Points are based on contract completion. Misere is a no-trick contract."
+		},
+		"login": {
+			"title": "Sign in — Preferans",
+			"heading": "🃏 Sign in",
+			"subtitle": "Sign in with Google to play Preferans online",
+			"google": "Sign in with Google"
+		},
+		"game": {
+			"title": "Game — Preferans",
+			"status": {
+				"disconnected": "⚫ Disconnected",
+				"connecting": "🟡 Connecting…",
+				"connected": "🟢 Connected",
+				"error": "🔴 Error"
+			},
+			"trump": "Trump",
+			"contract": "Contract",
+			"misere": "Misere",
+			"grand": "Grand",
+			"openMisere": "Open misere",
+			"declarer": "Declarer: {{name}}",
+			"connecting": "Connecting to game…",
+			"loadingAria": "Loading",
+			"waitingPlayers": "Waiting for players… ({{count}}/3)",
+			"widow": "Widow",
+			"turn": "Turn: {{name}}",
+			"yourTurn": "Your turn!",
+			"yourCards": "Your cards",
+			"playHint": "Click the card once more to play it",
+			"noTrumpShort": "NT",
+			"gameNotFound": "Game not found",
+			"connectionError": "Connection error"
+		},
+		"scoreboard": {
+			"aria": "Score",
+			"title": "Score — round {{roundNumber}}",
+			"player": "Player",
+			"points": "Points"
+		},
+		"hand": {
+			"empty": "No cards"
+		},
+		"table": {
+			"fallbackPlayer": "Player",
+			"aria": "Table",
+			"emptySlot": "Card not played yet",
+			"winner": "{{name}} takes the trick!"
+		},
+		"card": {
+			"faceDown": "Face-down card",
+			"cardAria": "{{rank}} {{suit}}"
+		},
+		"bidding": {
+			"aria": "Bidding",
+			"title": "Your turn — place a bid",
+			"noTrump": "No trump",
+			"noTrumpShort": "NT",
+			"announce": "Bid {{level}} {{suit}}",
+			"misere": "Misere",
+			"pass": "Pass",
+			"suitName": {
+				"spades": "Spades",
+				"clubs": "Clubs",
+				"diamonds": "Diamonds",
+				"hearts": "Hearts"
+			}
+		}
+	}
+}

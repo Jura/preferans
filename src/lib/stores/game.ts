@@ -1,5 +1,6 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import type { GameState, ClientMessage, ServerMessage } from '$lib/types/preferans';
+import { t } from '$lib/i18n';
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -71,7 +72,7 @@ function createGameStore() {
 		});
 
 		ws.addEventListener('error', () => {
-			update((s) => ({ ...s, status: 'error', error: 'Ошибка соединения' }));
+			update((s) => ({ ...s, status: 'error', error: get(t)('app.game.connectionError') as string }));
 		});
 	}
 

@@ -1,17 +1,21 @@
 import { type Handle } from '@sveltejs/kit';
+import { DEFAULT_LOCALE, isSupportedLocale } from '$lib/i18n/locales';
 
 const SESSION_COOKIE = 'pref_session';
+const LOCALE_COOKIE = 'pref_locale';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Read session token from cookie
 	const sessionToken = event.cookies.get(SESSION_COOKIE);
+	const cookieLocale = event.cookies.get(LOCALE_COOKIE);
+	event.locals.locale = isSupportedLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
 
 	if (sessionToken && event.platform?.env?.DB) {
 		try {
 			// Look up session in D1
 			const result = await event.platform.env.DB.prepare(
 				`SELECT s.token, s.expires_at,
-				        u.id, u.name, u.email, u.avatar_url
+				        u.id, u.name, u.email, u.avatar_url, u.preferred_locale
 				 FROM sessions s
 				 JOIN users u ON u.id = s.user_id
 				 WHERE s.token = ? AND s.expires_at > datetime('now')`
@@ -24,15 +28,32 @@ export const handle: Handle = async ({ event, resolve }) => {
 					name: string;
 					email: string;
 					avatar_url: string | null;
+					preferred_locale: string | null;
 				}>();
 
 			if (result) {
+				const preferredLocale = isSupportedLocale(result.preferred_locale)
+					? result.preferred_locale
+					: event.locals.locale;
+
 				event.locals.user = {
 					id: result.id,
 					name: result.name,
 					email: result.email,
-					avatarUrl: result.avatar_url
+					avatarUrl: result.avatar_url,
+					preferredLocale
 				};
+				event.locals.locale = preferredLocale;
+
+				if (cookieLocale !== preferredLocale) {
+					event.cookies.set(LOCALE_COOKIE, preferredLocale, {
+						path: '/',
+						httpOnly: false,
+						secure: event.url.protocol === 'https:',
+						sameSite: 'lax',
+						maxAge: 365 * 24 * 60 * 60
+					});
+				}
 			} else {
 				// Expired or invalid session - clear cookie
 				event.cookies.delete(SESSION_COOKIE, { path: '/' });
@@ -45,6 +66,5 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.user = null;
 	}
 
-	const response = await resolve(event);
-	return response;
+	return resolve(event);
 };
