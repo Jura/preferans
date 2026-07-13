@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params, locals, platform }) => {
 		.first<{ id: string; phase: string }>();
 
 	if (!game) {
-		error(404, 'Игра не найдена');
+		error(404, 'Game not found');
 	}
 
 	// Auto-join if there's room and user isn't already a player

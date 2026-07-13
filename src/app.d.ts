@@ -1,6 +1,7 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 import type { D1Database } from '@cloudflare/workers-types';
+import type { SupportedLocale } from '$lib/i18n/locales';
 
 declare global {
 	namespace App {
@@ -14,10 +15,13 @@ declare global {
 				name: string;
 				email: string;
 				avatarUrl: string | null;
+				preferredLocale: SupportedLocale;
 			} | null;
+			locale: SupportedLocale;
 		}
 		interface PageData {
 			user?: App.Locals['user'];
+			locale?: SupportedLocale;
 		}
 		interface Platform {
 			env: {

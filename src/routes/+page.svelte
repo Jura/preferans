@@ -1,62 +1,53 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { t } from '$lib/i18n';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	const PHASE_LABELS: Record<string, string> = {
-		waiting: 'Ожидание',
-		dealing: 'Раздача',
-		bidding: 'Торговля',
-		widow: 'Прикуп',
-		discard: 'Сброс',
-		playing: 'Игра',
-		scoring: 'Счёт',
-		finished: 'Завершена'
-	};
 </script>
 
 <svelte:head>
-	<title>Лобби — Преферанс</title>
+	<title>{$t('app.lobby.title')}</title>
 </svelte:head>
 
 <div class="lobby">
 	<div class="hero">
-		<h1 class="hero-title">🃏 Преферанс онлайн</h1>
-		<p class="hero-subtitle">Классическая русская карточная игра для трёх игроков</p>
+		<h1 class="hero-title">{$t('app.lobby.heroTitle')}</h1>
+		<p class="hero-subtitle">{$t('app.lobby.heroSubtitle')}</p>
 
 		{#if data.user}
 			<form method="POST" action="?/createGame" use:enhance>
-				<button type="submit" class="btn-create">Создать игру</button>
+				<button type="submit" class="btn-create">{$t('app.lobby.createGame')}</button>
 			</form>
 		{:else}
-			<a href="/auth/login" class="btn-create">Войти и играть</a>
+			<a href="/auth/login" class="btn-create">{$t('app.lobby.signInAndPlay')}</a>
 		{/if}
 	</div>
 
 	<section class="games-section">
-		<h2>Открытые игры</h2>
+		<h2>{$t('app.lobby.openGames')}</h2>
 
 		{#if data.games.length === 0}
 			<div class="empty-games">
 				<span class="empty-icon">🎴</span>
-				<p>Пока нет открытых игр. Создайте первую!</p>
+				<p>{$t('app.lobby.emptyGames')}</p>
 			</div>
 		{:else}
-			<ul class="games-list" aria-label="Список игр">
+			<ul class="games-list" aria-label={$t('app.lobby.gamesListAria')}>
 				{#each data.games as game}
 					<li class="game-card">
 						<div class="game-info">
 							<span class="game-host">{game.host_name}</span>
-							<span class="game-players">{game.player_count}/3 игроков</span>
-							<span class="game-phase badge">{PHASE_LABELS[game.phase] ?? game.phase}</span>
+							<span class="game-players">{$t('app.lobby.playersCount', { count: game.player_count })}</span>
+							<span class="game-phase badge">{$t(`app.phase.${game.phase}`)}</span>
 						</div>
 						<a
 							href="/game/{game.id}"
 							class="btn-join"
-							aria-label="Присоединиться к игре {game.host_name}"
+							aria-label={$t('app.lobby.joinGameAria', { hostName: game.host_name })}
 						>
-							{game.player_count < 3 ? 'Войти' : 'Смотреть'}
+							{game.player_count < 3 ? $t('app.lobby.join') : $t('app.lobby.watch')}
 						</a>
 					</li>
 				{/each}
@@ -65,23 +56,23 @@
 	</section>
 
 	<section class="rules-section">
-		<h2>Правила игры</h2>
+		<h2>{$t('app.lobby.rules')}</h2>
 		<div class="rules-grid">
 			<div class="rule-card">
-				<h3>🎯 Цель</h3>
-				<p>Выполнить взятый контракт, собрав нужное количество взяток.</p>
+				<h3>{$t('app.lobby.ruleGoalTitle')}</h3>
+				<p>{$t('app.lobby.ruleGoalText')}</p>
 			</div>
 			<div class="rule-card">
-				<h3>🃏 Колода</h3>
-				<p>32 карты — от 7 до туза. Три игрока, каждому раздаётся по 10 карт и 2 карты в прикуп.</p>
+				<h3>{$t('app.lobby.ruleDeckTitle')}</h3>
+				<p>{$t('app.lobby.ruleDeckText')}</p>
 			</div>
 			<div class="rule-card">
-				<h3>📣 Торговля</h3>
-				<p>Игроки по очереди объявляют контракт. Победитель берёт прикуп и выбирает козырь.</p>
+				<h3>{$t('app.lobby.ruleBiddingTitle')}</h3>
+				<p>{$t('app.lobby.ruleBiddingText')}</p>
 			</div>
 			<div class="rule-card">
-				<h3>🏆 Счёт</h3>
-				<p>Очки начисляются на основе выполнения контракта. Мизер — особый контракт без взяток.</p>
+				<h3>{$t('app.lobby.ruleScoringTitle')}</h3>
+				<p>{$t('app.lobby.ruleScoringText')}</p>
 			</div>
 		</div>
 	</section>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { auth } from '$lib/stores/auth';
+	import { t } from '$lib/i18n';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
@@ -18,12 +19,25 @@
 
 <div class="app">
 	<header>
-		<a href="/" class="logo" aria-label="Главная">
+		<a href="/" class="logo" aria-label={$t('app.homeAria')}>
 			<span class="logo-icon">🃏</span>
-			<span class="logo-text">Преферанс</span>
+			<span class="logo-text">{$t('app.name')}</span>
 		</a>
 
 		<nav>
+			<form method="POST" action="/preferences/locale" class="locale-form">
+				<label for="locale" class="locale-label">{$t('app.language.label')}</label>
+				<select
+					id="locale"
+					name="locale"
+					value={data.locale}
+					onchange={(event) => event.currentTarget.form?.requestSubmit()}
+				>
+					{#each data.locales as localeOption}
+						<option value={localeOption}>{$t(`app.language.${localeOption}`)}</option>
+					{/each}
+				</select>
+			</form>
 			{#if data.user}
 				<span class="user-info">
 					{#if data.user.avatarUrl}
@@ -37,9 +51,9 @@
 					{/if}
 					<span class="user-name">{data.user.name}</span>
 				</span>
-				<button class="btn-outline" onclick={() => auth.logout()}>Выйти</button>
+				<button class="btn-outline" onclick={() => auth.logout()}>{$t('app.auth.logout')}</button>
 			{:else}
-				<a href="/auth/login" class="btn-primary">Войти</a>
+				<a href="/auth/login" class="btn-primary">{$t('app.auth.login')}</a>
 			{/if}
 		</nav>
 	</header>
@@ -49,7 +63,7 @@
 	</main>
 
 	<footer>
-		<p>Преферанс онлайн — классическая русская карточная игра</p>
+		<p>{$t('app.footerTagline')}</p>
 	</footer>
 </div>
 
@@ -117,6 +131,25 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
+	}
+
+	.locale-form {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.locale-label {
+		font-size: 13px;
+		color: #c0b090;
+	}
+
+	select {
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(200, 169, 110, 0.35);
+		border-radius: 6px;
+		color: #f0e6d3;
+		padding: 6px 8px;
 	}
 
 	.user-info {
