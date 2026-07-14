@@ -53,6 +53,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 					? result.preferred_locale
 					: event.locals.locale;
 
+				await event.platform.env.DB.prepare(
+					`UPDATE users
+					 SET last_active_at = datetime('now')
+					 WHERE id = ?
+					   AND (
+					   	last_active_at IS NULL
+					   	OR last_active_at < datetime('now', '-1 minute')
+					   )`
+				)
+					.bind(result.id)
+					.run();
+
 				event.locals.user = {
 					id: result.id,
 					name: result.name,
