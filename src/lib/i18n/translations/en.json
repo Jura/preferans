@@ -23,6 +23,26 @@
 			"login": "Sign in",
 			"logout": "Sign out"
 		},
+		"admin": {
+			"nav": "Users",
+			"title": "User access — Preferans",
+			"heading": "User access",
+			"subtitle": "Approve players by email and revoke access immediately when needed.",
+			"adminEmailLabel": "Admin email:",
+			"emailLabel": "Player email",
+			"emailPlaceholder": "player@example.com",
+			"addUser": "Allow access",
+			"allowedUsers": "Allowed users",
+			"removeUser": "Remove access",
+			"empty": "No player emails have been approved yet.",
+			"messages": {
+				"invalidEmail": "Please enter a valid email address.",
+				"adminManaged": "The admin email is managed via environment configuration.",
+				"adminProtected": "The admin account cannot be removed.",
+				"updated": "User access updated.",
+				"removed": "User access removed and active sessions revoked."
+			}
+		},
 		"errors": {
 			"unsupportedLocale": "Unsupported locale. Allowed values: en, ru, uk.",
 			"localeUpdateFailed": "Failed to update locale preference"

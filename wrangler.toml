@@ -2,6 +2,9 @@ name = "preferans"
 compatibility_date = "2024-11-01"
 pages_build_output_dir = ".svelte-kit/cloudflare"
 
+# Set ADMIN_EMAIL in Cloudflare Pages environment variables to identify the user
+# who can manage the allowlist.
+
 [[d1_databases]]
 binding = "DB"
 database_name = "preferans-db"

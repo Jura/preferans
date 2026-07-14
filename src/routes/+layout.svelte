@@ -9,6 +9,8 @@
 	$effect(() => {
 		if (data.user) {
 			auth.login(data.user);
+		} else {
+			auth.set(null);
 		}
 	});
 </script>
@@ -39,6 +41,9 @@
 				</select>
 			</form>
 			{#if data.user}
+				{#if data.user.role === 'admin'}
+					<a href="/admin/users" class="btn-outline">{$t('app.admin.nav')}</a>
+				{/if}
 				<span class="user-info">
 					{#if data.user.avatarUrl}
 						<img

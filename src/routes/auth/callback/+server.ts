@@ -1,6 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { DEFAULT_LOCALE, isSupportedLocale } from '$lib/i18n/locales';
+import { getUserRole, normalizeEmail } from '$lib/server/user-access';
 
 const SESSION_COOKIE = 'pref_session';
 const LOCALE_COOKIE = 'pref_locale';
@@ -51,7 +52,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	}
 	const localeCookie = cookies.get(LOCALE_COOKIE);
 	const preferredLocale = isSupportedLocale(localeCookie) ? localeCookie : DEFAULT_LOCALE;
-	
+
 	// Use fixed OAuth domain to support Cloudflare Pages preview URLs
 	const oauthDomain = platform.env.OAUTH_REDIRECT_DOMAIN || url.origin;
 	const redirectUri = `${oauthDomain}/auth/callback`;
@@ -86,6 +87,31 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	}
 
 	const googleUser: GoogleUserInfo = await userRes.json();
+	const normalizedEmail = normalizeEmail(googleUser.email);
+	const role = getUserRole(normalizedEmail, platform.env.ADMIN_EMAIL);
+
+	if (role === 'admin') {
+		await DB.prepare(
+			`INSERT INTO user_allowlist (email, created_at)
+			 VALUES (?, datetime('now'))
+			 ON CONFLICT(email) DO NOTHING`
+		)
+			.bind(normalizedEmail)
+			.run();
+	} else {
+		const allowlisted = await DB.prepare(`SELECT email FROM user_allowlist WHERE email = ?`)
+			.bind(normalizedEmail)
+			.first<{ email: string }>();
+
+		if (!allowlisted) {
+			const existingSessionToken = cookies.get(SESSION_COOKIE);
+			if (existingSessionToken) {
+				await DB.prepare(`DELETE FROM sessions WHERE token = ?`).bind(existingSessionToken).run();
+			}
+			cookies.delete(SESSION_COOKIE, { path: '/' });
+			redirect(303, '/auth/denied');
+		}
+	}
 
 	// Upsert user in D1
 	const userId = `google_${googleUser.sub}`;

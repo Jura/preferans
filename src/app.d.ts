@@ -16,6 +16,7 @@ declare global {
 				email: string;
 				avatarUrl: string | null;
 				preferredLocale: SupportedLocale;
+				role: 'admin' | 'player';
 			} | null;
 			locale: SupportedLocale;
 		}
@@ -30,6 +31,7 @@ declare global {
 				GOOGLE_CLIENT_SECRET: string;
 				SESSION_SECRET: string;
 				OAUTH_REDIRECT_DOMAIN?: string;
+				ADMIN_EMAIL?: string;
 				GAME_ROOM: DurableObjectNamespace;
 			};
 			context: {

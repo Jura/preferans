@@ -1,9 +1,4 @@
-import type {
-	GameState,
-	PlayerId,
-	Card,
-	Bid
-} from '../gameEngine';
+import type { GameState, PlayerId, Card, Bid } from '../gameEngine';
 import {
 	createInitialState,
 	startRound,
@@ -95,9 +90,7 @@ export class GameRoom implements DurableObject {
 		}
 
 		// Mark token as used
-		await this.env.DB.prepare(`UPDATE ws_tokens SET used = 1 WHERE token = ?`)
-			.bind(token)
-			.run();
+		await this.env.DB.prepare(`UPDATE ws_tokens SET used = 1 WHERE token = ?`).bind(token).run();
 
 		const playerId = tokenRow.user_id;
 		this.playerInfo.set(playerId, { name: tokenRow.name, avatarUrl: tokenRow.avatar_url });
@@ -130,6 +123,12 @@ export class GameRoom implements DurableObject {
 	async webSocketMessage(ws: WebSocket, data: string | ArrayBuffer): Promise<void> {
 		const session = this.getSession(ws);
 		if (!session) return;
+		if (!(await this.hasActiveAccess(session.playerId))) {
+			this.sendToSocket(ws, { type: 'error', message: 'Access revoked' });
+			this.removeSession(ws);
+			ws.close(4401, 'Access revoked');
+			return;
+		}
 
 		let msg: ClientMessage;
 		try {
@@ -170,6 +169,19 @@ export class GameRoom implements DurableObject {
 		if (sessionId) this.sessions.delete(sessionId);
 	}
 
+	private async hasActiveAccess(userId: PlayerId) {
+		const access = await this.env.DB.prepare(
+			`SELECT 1
+			 FROM users u
+			 JOIN user_allowlist a ON a.email = LOWER(u.email)
+			 WHERE u.id = ?`
+		)
+			.bind(userId)
+			.first();
+
+		return !!access;
+	}
+
 	private async loadGameState() {
 		const stored = await this.state.storage.get<GameState>('gameState');
 		if (stored) {
@@ -197,7 +209,9 @@ export class GameRoom implements DurableObject {
 		if (!this.gameState) return;
 		await this.state.storage.put('gameState', this.gameState);
 		// Mirror phase to D1
-		await this.env.DB.prepare(`UPDATE games SET phase = ?, updated_at = datetime('now') WHERE id = ?`)
+		await this.env.DB.prepare(
+			`UPDATE games SET phase = ?, updated_at = datetime('now') WHERE id = ?`
+		)
 			.bind(this.gameState.phase, this.gameId)
 			.run();
 	}
@@ -213,10 +227,7 @@ export class GameRoom implements DurableObject {
 			case 'start_round': {
 				if (!this.gameState) return;
 				// Only allowed when waiting or scoring and enough players
-				if (
-					this.gameState.phase !== 'waiting' &&
-					this.gameState.phase !== 'scoring'
-				) {
+				if (this.gameState.phase !== 'waiting' && this.gameState.phase !== 'scoring') {
 					throw new Error('Cannot start round in current phase');
 				}
 				if (this.gameState.playerIds.length !== 3) {
