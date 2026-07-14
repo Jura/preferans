@@ -1,10 +1,10 @@
 {
-  "name": "preferans",
+  "name": "Preferans",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "svelte-kit sync && vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -33,5 +33,11 @@
   "type": "module",
   "dependencies": {
     "sveltekit-i18n": "^2.4.2"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.1": true,
+    "sharp@0.34.5": true,
+    "workerd@1.20260708.1": true
   }
 }

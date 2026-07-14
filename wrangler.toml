@@ -3,14 +3,14 @@ compatibility_date = "2024-11-01"
 pages_build_output_dir = ".svelte-kit/cloudflare"
 
 [[d1_databases]]
-binding = "DB"
+binding = "preferans_db"
 database_name = "preferans-db"
-database_id = "YOUR_D1_DATABASE_ID"
+database_id = "f0459e96-4a30-451a-a093-8b373ae0adf3"
 
 [[durable_objects.bindings]]
 name = "GAME_ROOM"
 class_name = "GameRoom"
-script_name = "preferans-worker"
+script_name = "preferans"
 
 [vars]
 GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
@@ -19,4 +19,4 @@ GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["GameRoom"]
+new_sqlite_classes = ["GameRoom"]
