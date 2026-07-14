@@ -12,7 +12,7 @@
 		<p>{$t('app.login.subtitle')}</p>
 		<p class="invite-note">{$t('app.login.inviteNote')}</p>
 
-		<a href="/auth/login" class="btn-google">
+		<a href="/auth/login" class="btn-google" data-sveltekit-reload>
 			<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
 				<path
 					fill="#4285F4"
