@@ -53,8 +53,15 @@
 		"login": {
 			"title": "Sign in — Preferans",
 			"heading": "🃏 Sign in",
-			"subtitle": "Sign in with Google to play Preferans online",
+			"subtitle": "This is a private game — access is by invitation only.",
+			"inviteNote": "Only approved accounts can sign in.",
 			"google": "Sign in with Google"
+		},
+		"denied": {
+			"title": "Access Denied — Preferans",
+			"heading": "🚫 Access Denied",
+			"message": "Your Google account is not on the approved list. This game is available by invitation only.",
+			"backToLogin": "Back to sign-in"
 		},
 		"game": {
 			"title": "Game — Preferans",
