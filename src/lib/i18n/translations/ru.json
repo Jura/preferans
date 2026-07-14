@@ -83,7 +83,11 @@
 			"ruleBiddingTitle": "📣 Торговля",
 			"ruleBiddingText": "Игроки по очереди объявляют контракт. Победитель берёт прикуп и выбирает козырь.",
 			"ruleScoringTitle": "🏆 Счёт",
-			"ruleScoringText": "Очки начисляются на основе выполнения контракта. Мизер — особый контракт без взяток."
+			"ruleScoringText": "Очки начисляются на основе выполнения контракта. Мизер — особый контракт без взяток.",
+			"notifications": {
+				"playerJoined": "Новый игрок присоединился к столу {{hostName}}.",
+				"playerLeft": "Игрок покинул стол {{hostName}}."
+			}
 		},
 		"login": {
 			"title": "Войти — Преферанс",
@@ -125,7 +129,11 @@
 			"playHint": "Нажмите на карту ещё раз, чтобы сыграть",
 			"noTrumpShort": "БК",
 			"gameNotFound": "Игра не найдена",
-			"connectionError": "Ошибка соединения"
+			"connectionError": "Ошибка соединения",
+			"notifications": {
+				"playerJoined": "{{name}} присоединился к столу!",
+				"playerLeft": "{{name}} покинул стол."
+			}
 		},
 		"scoreboard": {
 			"aria": "Счёт",

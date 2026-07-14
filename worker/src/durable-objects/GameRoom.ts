@@ -9,6 +9,8 @@ import {
 
 export interface Env {
 	DB: D1Database;
+	/** Optional: if bound, GameRoom will notify LobbyRoom on game state changes */
+	LOBBY_ROOM?: DurableObjectNamespace;
 }
 
 interface WebSocketSession {
@@ -283,6 +285,20 @@ export class GameRoom implements DurableObject {
 		)
 			.bind(this.gameState.phase, this.gameId)
 			.run();
+		// Notify lobby so it can push an up-to-date game list to lobby clients
+		this.notifyLobby();
+	}
+
+	/** Fire-and-forget POST to LobbyRoom to trigger an immediate lobby refresh. */
+	private notifyLobby() {
+		if (!this.env.LOBBY_ROOM) return;
+		try {
+			const doId = this.env.LOBBY_ROOM.idFromName('global');
+			const stub = this.env.LOBBY_ROOM.get(doId);
+			void stub.fetch(new Request('http://lobby/notify', { method: 'POST' })).catch(() => {});
+		} catch {
+			// LOBBY_ROOM not configured – ignore
+		}
 	}
 
 	private async handleMessage(session: WebSocketSession, msg: ClientMessage) {

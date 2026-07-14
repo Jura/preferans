@@ -33,6 +33,7 @@ declare global {
 				OAUTH_REDIRECT_DOMAIN?: string;
 				ADMIN_EMAIL?: string;
 				GAME_ROOM: DurableObjectNamespace;
+				LOBBY_ROOM: DurableObjectNamespace;
 			};
 			context: {
 				waitUntil(promise: Promise<unknown>): void;

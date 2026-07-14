@@ -83,7 +83,11 @@
 			"ruleBiddingTitle": "📣 Bidding",
 			"ruleBiddingText": "Players announce contracts in turn. Winner takes widow and selects trump.",
 			"ruleScoringTitle": "🏆 Scoring",
-			"ruleScoringText": "Points are based on contract completion. Misere is a no-trick contract."
+			"ruleScoringText": "Points are based on contract completion. Misere is a no-trick contract.",
+			"notifications": {
+				"playerJoined": "A new player joined {{hostName}}'s table.",
+				"playerLeft": "A player left {{hostName}}'s table."
+			}
 		},
 		"login": {
 			"title": "Sign in — Preferans",
@@ -125,7 +129,11 @@
 			"playHint": "Click the card once more to play it",
 			"noTrumpShort": "NT",
 			"gameNotFound": "Game not found",
-			"connectionError": "Connection error"
+			"connectionError": "Connection error",
+			"notifications": {
+				"playerJoined": "{{name}} joined the table!",
+				"playerLeft": "{{name}} left the table."
+			}
 		},
 		"scoreboard": {
 			"aria": "Score",

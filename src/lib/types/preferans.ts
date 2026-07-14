@@ -80,13 +80,13 @@ export interface Player {
 }
 
 export type GamePhase =
-	| 'waiting'   // waiting for players
-	| 'dealing'   // cards being dealt
-	| 'bidding'   // auction round
-	| 'widow'     // declarer looks at talon (прикуп)
-	| 'discard'   // declarer discards 2 cards
-	| 'playing'   // tricks being played
-	| 'scoring'   // round over, scores shown
+	| 'waiting' // waiting for players
+	| 'dealing' // cards being dealt
+	| 'bidding' // auction round
+	| 'widow' // declarer looks at talon (прикуп)
+	| 'discard' // declarer discards 2 cards
+	| 'playing' // tricks being played
+	| 'scoring' // round over, scores shown
 	| 'finished'; // game over
 
 export interface Trick {
@@ -161,3 +161,39 @@ export interface GameListing {
 	phase: GamePhase;
 	createdAt: string;
 }
+
+export type PresenceStatus = 'online' | 'away' | 'offline';
+
+export interface UserPresence {
+	id: string;
+	name: string;
+	status: PresenceStatus;
+}
+
+// ─── Lobby WebSocket message types ───────────────────────────────────────────
+
+export type LobbyGame = {
+	id: string;
+	phase: string;
+	created_at: string;
+	host_name: string;
+	player_count: number;
+	bullet_target: number;
+};
+
+export type LobbyClientMessage = { type: 'ping' };
+
+export type LobbyServerMessage =
+	| {
+			type: 'lobby_state';
+			games: LobbyGame[];
+			users: UserPresence[];
+	  }
+	| {
+			type: 'game_event';
+			event: 'player_joined' | 'player_left';
+			gameId: string;
+			playerName: string;
+	  }
+	| { type: 'pong' }
+	| { type: 'error'; message: string };

@@ -14,3 +14,8 @@ database_id = "f0459e96-4a30-451a-a093-8b373ae0adf3"
 name = "GAME_ROOM"
 class_name = "GameRoom"
 script_name = "preferans"
+
+[[durable_objects.bindings]]
+name = "LOBBY_ROOM"
+class_name = "LobbyRoom"
+script_name = "preferans"

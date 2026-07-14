@@ -1,5 +1,9 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
 	import { auth } from '$lib/stores/auth';
+	import { presence } from '$lib/stores/presence';
+	import { lobby } from '$lib/stores/lobby';
+	import Toast from '$lib/components/Toast.svelte';
 	import { t } from '$lib/i18n';
 	import type { LayoutData } from './$types';
 
@@ -12,6 +16,23 @@
 		} else {
 			auth.set(null);
 		}
+	});
+
+	onMount(() => {
+		if (data.user) {
+			// Start tracking user activity for presence
+			presence.start();
+
+			// Connect to the lobby WebSocket for real-time lobby updates
+			if (data.lobbyToken) {
+				lobby.connect(data.lobbyToken);
+			}
+		}
+	});
+
+	onDestroy(() => {
+		presence.stop();
+		lobby.disconnect();
 	});
 </script>
 
@@ -71,6 +92,9 @@
 		<p>{$t('app.footerTagline')}</p>
 	</footer>
 </div>
+
+<!-- Global toast notification area -->
+<Toast />
 
 <style>
 	:global(*) {
