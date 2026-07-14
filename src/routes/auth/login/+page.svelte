@@ -86,6 +86,7 @@
 		cursor: pointer;
 		padding: 12px 24px;
 		border-radius: 8px;
+		font-family: inherit;
 		font-size: 15px;
 		font-weight: 500;
 		transition:
