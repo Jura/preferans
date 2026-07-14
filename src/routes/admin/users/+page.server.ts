@@ -11,6 +11,13 @@ const ADMIN_MESSAGES = {
 	uk: uk.app.admin.messages
 } as const;
 
+type AllowlistedUser = {
+	email: string;
+	created_at: string;
+	name: string | null;
+	avatar_url: string | null;
+};
+
 function requireAdmin(locals: App.Locals, platform: App.Platform | undefined) {
 	if (!locals.user || locals.user.role !== 'admin') {
 		error(403, 'Forbidden');
@@ -33,16 +40,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		 FROM user_allowlist a
 		 LEFT JOIN users u ON LOWER(u.email) = a.email
 		 ORDER BY a.email ASC`
-	).all<{
-		email: string;
-		created_at: string;
-		name: string | null;
-		avatar_url: string | null;
-	}>();
-	const allowedUsers = results.filter(
-		(user: { email: string; created_at: string; name: string | null; avatar_url: string | null }) =>
-			user.email !== adminEmail
-	);
+	).all<AllowlistedUser>();
+	const allowedUsers = (results as AllowlistedUser[]).filter((user) => user.email !== adminEmail);
 
 	return {
 		adminEmail,

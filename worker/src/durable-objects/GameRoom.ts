@@ -169,6 +169,7 @@ export class GameRoom implements DurableObject {
 		if (sessionId) this.sessions.delete(sessionId);
 	}
 
+	/** Re-check allowlist access so banned users are disconnected from active games promptly. */
 	private async hasActiveAccess(userId: PlayerId) {
 		const access = await this.env.DB.prepare(
 			`SELECT 1
