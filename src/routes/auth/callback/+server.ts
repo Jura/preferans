@@ -34,7 +34,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	}
 
 	if (oauthError) {
-		error(400, `OAuth error: ${oauthError}`);
+		error(400, 'Authentication failed');
 	}
 
 	if (!code || !state || state !== storedState) {

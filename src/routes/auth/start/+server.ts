@@ -4,7 +4,7 @@ import type { RequestHandler } from './$types';
 /** Initiate Google OAuth flow */
 export const GET: RequestHandler = async ({ platform, url, cookies }) => {
 	if (!platform?.env) {
-		redirect(303, '/');
+		error(500, 'Server configuration error');
 	}
 
 	const clientId = platform.env.GOOGLE_CLIENT_ID;
