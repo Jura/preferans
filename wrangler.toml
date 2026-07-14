@@ -2,16 +2,18 @@ name = "preferans"
 compatibility_date = "2024-11-01"
 pages_build_output_dir = ".svelte-kit/cloudflare"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "preferans-db"
-database_id = "f0459e96-4a30-451a-a093-8b373ae0adf3"
-
-# Durable Objects binding must be configured via Cloudflare dashboard for Pages Functions
-# Set via: Dashboard > Pages > preferans > Settings > Bindings > Durable Objects
-# Bind GAME_ROOM to the preferans Worker service
-
-# Set OAuth/session secrets via Pages secrets:
-# wrangler pages secret put GOOGLE_CLIENT_ID --project-name <your-pages-project-name>
-# wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name <your-pages-project-name>
-# wrangler pages secret put SESSION_SECRET --project-name <your-pages-project-name>
+# All bindings for this Pages project must be configured via the Cloudflare dashboard:
+# https://dash.cloudflare.com/ → Pages → preferans → Settings → Bindings
+#
+# Required bindings (add via dashboard):
+# 1. D1 Database:
+#    Name: DB
+#    Database: preferans-db
+#
+# 2. Durable Objects:
+#    Name: GAME_ROOM
+#    Service: preferans (the Worker)
+#    Class: GameRoom
+#
+# Once configured, both bindings will be available to SvelteKit server routes
+# and Pages Functions via platform.env.DB and platform.env.GAME_ROOM
