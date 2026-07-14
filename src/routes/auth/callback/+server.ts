@@ -51,7 +51,10 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	}
 	const localeCookie = cookies.get(LOCALE_COOKIE);
 	const preferredLocale = isSupportedLocale(localeCookie) ? localeCookie : DEFAULT_LOCALE;
-	const redirectUri = `${url.origin}/auth/callback`;
+	
+	// Use fixed OAuth domain to support Cloudflare Pages preview URLs
+	const oauthDomain = platform.env.OAUTH_REDIRECT_DOMAIN || url.origin;
+	const redirectUri = `${oauthDomain}/auth/callback`;
 
 	// Exchange code for tokens
 	const tokenRes = await fetch('https://oauth2.googleapis.com/token', {

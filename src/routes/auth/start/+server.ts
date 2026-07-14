@@ -11,7 +11,10 @@ export const GET: RequestHandler = async ({ platform, url, cookies }) => {
 	if (!clientId) {
 		error(500, 'Missing GOOGLE_CLIENT_ID secret');
 	}
-	const redirectUri = `${url.origin}/auth/callback`;
+	
+	// Use fixed OAuth domain to support Cloudflare Pages preview URLs
+	const oauthDomain = platform.env.OAUTH_REDIRECT_DOMAIN || url.origin;
+	const redirectUri = `${oauthDomain}/auth/callback`;
 
 	// CSRF state
 	const state = crypto.randomUUID();
