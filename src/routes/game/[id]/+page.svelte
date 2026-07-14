@@ -12,22 +12,40 @@
 	let { data }: { data: PageData } = $props();
 
 	let selectedCard: Card | null = $state(null);
+	let tableAgeSeconds = $state(0);
+	let tableTimer: ReturnType<typeof setInterval> | null = null;
+
+	function updateTableAge() {
+		const createdAt = Date.parse(data.createdAt);
+		tableAgeSeconds = Number.isNaN(createdAt)
+			? 0
+			: Math.max(0, Math.floor((Date.now() - createdAt) / 1000));
+	}
+
+	function formatElapsed(seconds: number) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+		const secs = seconds % 60;
+
+		return [hours, minutes, secs].map((value) => value.toString().padStart(2, '0')).join(':');
+	}
 
 	onMount(() => {
 		game.connect(data.gameId, data.sessionToken);
+		updateTableAge();
+		tableTimer = setInterval(updateTableAge, 1000);
 	});
 
 	onDestroy(() => {
+		if (tableTimer) {
+			clearInterval(tableTimer);
+		}
 		game.disconnect();
 	});
 
-	let isMyTurn = $derived(
-		$game.state?.currentPlayerId === data.user?.id
-	);
+	let isMyTurn = $derived($game.state?.currentPlayerId === data.user?.id);
 
-	let canPlayCard = $derived(
-		$gamePhase === 'playing' && isMyTurn
-	);
+	let canPlayCard = $derived($gamePhase === 'playing' && isMyTurn);
 
 	function handlePlayCard(card: Card) {
 		if (!canPlayCard) return;
@@ -43,7 +61,6 @@
 	function handleBid(bid: Bid) {
 		game.send({ type: 'bid', bid });
 	}
-
 </script>
 
 <svelte:head>
@@ -54,6 +71,8 @@
 	<!-- Status bar -->
 	<div class="status-bar">
 		<span class="connection-status">{$t(`app.game.status.${$game.status}`)}</span>
+		<span class="table-stat">{$t('app.game.tableAge')}: {formatElapsed(tableAgeSeconds)}</span>
+		<span class="table-stat">{$t('app.game.bulletTarget')}: {data.bulletTarget}</span>
 		{#if $game.state}
 			<span class="phase-label">{$t(`app.phase.${$gamePhase}`)}</span>
 			{#if $game.state.trump}
@@ -126,9 +145,16 @@
 					<p>{$t('app.game.connecting')}</p>
 				</div>
 			{:else if !$game.state || $gamePhase === 'waiting'}
-				<div class="waiting-msg">
-					<span class="waiting-icon">⏳</span>
-					<p>{$t('app.game.waitingPlayers', { count: $game.state?.players.length ?? 0 })}</p>
+				<div class="waiting-shell">
+					{#if data.isPlayer}
+						<form method="POST" action="?/leaveTable" class="leave-table-form">
+							<button type="submit" class="leave-table-btn">{$t('app.game.leaveTable')}</button>
+						</form>
+					{/if}
+					<div class="waiting-msg">
+						<span class="waiting-icon">⏳</span>
+						<p>{$t('app.game.waitingPlayers', { count: $game.state?.players.length ?? 0 })}</p>
+					</div>
 				</div>
 			{:else}
 				<!-- Playing table -->
@@ -154,15 +180,10 @@
 				<!-- Bidding panel -->
 				{#if $gamePhase === 'bidding' && isMyTurn}
 					{@const nonPassBids = $game.state.bids.filter((b) => b.bid !== 'pass')}
-					{@const currentHighBid = nonPassBids.length > 0
-						? (nonPassBids[nonPassBids.length - 1].bid as Contract)
-						: null}
+					{@const currentHighBid =
+						nonPassBids.length > 0 ? (nonPassBids[nonPassBids.length - 1].bid as Contract) : null}
 					<div class="bidding-area">
-						<BiddingPanel
-							{currentHighBid}
-							myTurn={isMyTurn}
-							onBid={handleBid}
-						/>
+						<BiddingPanel {currentHighBid} myTurn={isMyTurn} onBid={handleBid} />
 					</div>
 				{/if}
 
@@ -278,11 +299,37 @@
 		gap: 20px;
 	}
 
+	.table-stat {
+		color: #c0b090;
+	}
+
 	.connecting-msg,
 	.waiting-msg {
 		text-align: center;
 		padding: 48px;
 		color: #c0b090;
+	}
+
+	.waiting-shell {
+		display: grid;
+		gap: 16px;
+		width: min(100%, 520px);
+	}
+
+	.leave-table-form {
+		display: flex;
+		justify-content: center;
+	}
+
+	.leave-table-btn {
+		border: 1px solid rgba(255, 107, 107, 0.35);
+		background: rgba(255, 107, 107, 0.12);
+		color: #ffd2d2;
+		border-radius: 999px;
+		padding: 10px 18px;
+		font-size: 14px;
+		font-weight: 600;
+		cursor: pointer;
 	}
 
 	.waiting-icon,
@@ -376,6 +423,11 @@
 			width: 100%;
 			flex-direction: row;
 			flex-wrap: wrap;
+		}
+
+		.waiting-shell,
+		.leave-table-btn {
+			width: 100%;
 		}
 	}
 </style>

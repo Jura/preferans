@@ -108,6 +108,7 @@ export class GameRoom implements DurableObject {
 		if (!this.gameState) {
 			await this.loadGameState();
 		}
+		const rosterChanged = await this.syncWaitingPlayersFromDatabase();
 
 		const pair = new WebSocketPair();
 		const [client, server] = Object.values(pair);
@@ -125,6 +126,9 @@ export class GameRoom implements DurableObject {
 			type: 'game_state',
 			state: this.buildClientState(playerId)
 		});
+		if (rosterChanged) {
+			this.broadcastState();
+		}
 
 		return new Response(null, { status: 101, webSocket: client });
 	}
@@ -226,6 +230,49 @@ export class GameRoom implements DurableObject {
 		await this.persistState();
 	}
 
+	private async syncWaitingPlayersFromDatabase() {
+		if (!this.gameState || this.gameState.phase !== 'waiting') {
+			return false;
+		}
+
+		const players = await this.env.DB.prepare(
+			`SELECT gp.player_id, gp.position, u.name, u.avatar_url
+			 FROM game_players gp
+			 JOIN users u ON u.id = gp.player_id
+			 WHERE gp.game_id = ?
+			 ORDER BY gp.position`
+		)
+			.bind(this.gameId)
+			.all<{ player_id: string; position: number; name: string; avatar_url: string | null }>();
+
+		for (const player of players.results) {
+			this.playerInfo.set(player.player_id, {
+				name: player.name,
+				avatarUrl: player.avatar_url
+			});
+		}
+
+		const playerIds = players.results.map((player) => player.player_id);
+		const rosterChanged =
+			playerIds.length !== this.gameState.playerIds.length ||
+			playerIds.some((playerId, index) => this.gameState?.playerIds[index] !== playerId);
+
+		if (!rosterChanged) {
+			return false;
+		}
+
+		this.gameState = {
+			...this.gameState,
+			playerIds,
+			scores: Object.fromEntries(
+				playerIds.map((playerId) => [playerId, this.gameState?.scores[playerId] ?? 0])
+			)
+		};
+		await this.persistState();
+
+		return true;
+	}
+
 	private async persistState() {
 		if (!this.gameState) return;
 		await this.state.storage.put('gameState', this.gameState);
@@ -242,6 +289,9 @@ export class GameRoom implements DurableObject {
 
 		switch (msg.type) {
 			case 'ping':
+				if (await this.syncWaitingPlayersFromDatabase()) {
+					this.broadcastState();
+				}
 				this.sendToSocket(session.ws, { type: 'pong' });
 				return;
 

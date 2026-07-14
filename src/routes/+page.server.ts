@@ -1,5 +1,10 @@
 import type { PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
+import {
+	findActiveGameForUser,
+	getActiveTablePhasesSql,
+	parseBulletTarget
+} from '$lib/server/games';
 import { normalizeEmail } from '$lib/server/user-access';
 
 type PresenceStatus = 'online' | 'away' | 'offline';
@@ -18,7 +23,13 @@ const AUTHORIZED_USERS_FILTER = `(
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!platform?.env?.DB) {
 		// Dev fallback: return empty lobby
-		return { games: [], usersPresence: [], onlineUsersCount: 0, user: locals.user };
+		return {
+			activeGameId: null,
+			games: [],
+			usersPresence: [],
+			onlineUsersCount: 0,
+			user: locals.user
+		};
 	}
 
 	const adminEmail = normalizeEmail(platform.env.ADMIN_EMAIL ?? '');
@@ -28,27 +39,36 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		created_at: string;
 		host_name: string;
 		player_count: number;
+		bullet_target: number;
 	}> = [];
+	const activeGame = locals.user
+		? await findActiveGameForUser(platform.env.DB, locals.user.id)
+		: null;
 
 	if (locals.user) {
+		const activeTablesFilter = getActiveTablePhasesSql();
 		const gamesQuery = await platform.env.DB.prepare(
 			`SELECT g.id, g.phase, g.created_at,
 			        u.name AS host_name,
+			        g.bullet_target,
 			        COALESCE(COUNT(gp.player_id), 0) AS player_count
 			 FROM games g
 			 JOIN users u ON u.id = g.host_id
 			 LEFT JOIN game_players gp ON gp.game_id = g.id
-			 WHERE g.phase IN ('waiting', 'dealing', 'bidding', 'playing')
+			 WHERE g.phase IN (${activeTablesFilter})
+			   ${activeGame ? 'AND g.id = ?' : ''}
 			 GROUP BY g.id
 			 ORDER BY g.created_at DESC
 			 LIMIT 20`
 		)
+			.bind(...(activeGame ? [activeGame.id] : []))
 			.all<{
 				id: string;
 				phase: string;
 				created_at: string;
 				host_name: string;
 				player_count: number;
+				bullet_target: number;
 			}>();
 		games = gamesQuery.results;
 	}
@@ -95,6 +115,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	}
 
 	return {
+		activeGameId: activeGame?.id ?? null,
 		games,
 		onlineUsersCount: onlineUsersCountResult?.total ?? 0,
 		usersPresence,
@@ -103,7 +124,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 };
 
 export const actions = {
-	createGame: async ({ locals, platform }) => {
+	createGame: async ({ request, locals, platform }) => {
 		if (!locals.user) {
 			redirect(303, '/auth/login');
 		}
@@ -112,18 +133,26 @@ export const actions = {
 			return { error: 'Database not available' };
 		}
 
-		const gameId = crypto.randomUUID();
-		await platform.env.DB.prepare(
-			`INSERT INTO games (id, host_id, phase, created_at) VALUES (?, ?, 'waiting', datetime('now'))`
-		)
-			.bind(gameId, locals.user.id)
-			.run();
+		const activeGame = await findActiveGameForUser(platform.env.DB, locals.user.id);
+		if (activeGame) {
+			redirect(303, `/game/${activeGame.id}`);
+		}
 
-		await platform.env.DB.prepare(
-			`INSERT INTO game_players (game_id, player_id, position) VALUES (?, ?, 0)`
-		)
-			.bind(gameId, locals.user.id)
-			.run();
+		const formData = await request.formData();
+		const bulletTarget = parseBulletTarget(formData.get('bulletTarget'));
+		if (bulletTarget === null) {
+			return fail(400, { invalidBulletTarget: true });
+		}
+		const gameId = crypto.randomUUID();
+		await platform.env.DB.batch([
+			platform.env.DB.prepare(
+				`INSERT INTO games (id, host_id, bullet_target, phase, created_at)
+				 VALUES (?, ?, ?, 'waiting', datetime('now'))`
+			).bind(gameId, locals.user.id, bulletTarget),
+			platform.env.DB.prepare(
+				`INSERT INTO game_players (game_id, player_id, position) VALUES (?, ?, 0)`
+			).bind(gameId, locals.user.id)
+		]);
 
 		redirect(303, `/game/${gameId}`);
 	}

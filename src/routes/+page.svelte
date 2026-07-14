@@ -1,9 +1,16 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import {
+		BULLET_TARGET_STEP,
+		DEFAULT_BULLET_TARGET,
+		MAX_BULLET_TARGET,
+		MIN_BULLET_TARGET
+	} from '$lib/constants/game';
 	import { t } from '$lib/i18n';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	let bulletTarget = $state(DEFAULT_BULLET_TARGET);
 
 	const presenceStatusDot: Record<'online' | 'away' | 'offline', string> = {
 		online: '🟢',
@@ -22,9 +29,46 @@
 		<p class="hero-subtitle">{$t('app.lobby.heroSubtitle')}</p>
 
 		{#if data.user}
-			<form method="POST" action="?/createGame" use:enhance>
-				<button type="submit" class="btn-create">{$t('app.lobby.createGame')}</button>
-			</form>
+			{#if data.activeGameId}
+				<div class="table-lock-card">
+					<p class="table-lock-message">{$t('app.lobby.activeGameNotice')}</p>
+					<a href="/game/{data.activeGameId}" class="btn-create">{$t('app.lobby.returnToGame')}</a>
+				</div>
+			{:else}
+				<form method="POST" action="?/createGame" use:enhance class="create-game-form">
+					<div class="create-game-card">
+						<div class="target-header">
+							<label for="bulletTarget" class="target-label"
+								>{$t('app.lobby.bulletTargetLabel')}</label
+							>
+							<span class="target-value">{bulletTarget}</span>
+						</div>
+						<div class="target-controls">
+							<input
+								id="bulletTarget"
+								name="bulletTarget"
+								type="number"
+								min={MIN_BULLET_TARGET}
+								max={MAX_BULLET_TARGET}
+								step={BULLET_TARGET_STEP}
+								bind:value={bulletTarget}
+								class="target-number"
+							/>
+							<input
+								type="range"
+								min={MIN_BULLET_TARGET}
+								max={MAX_BULLET_TARGET}
+								step={BULLET_TARGET_STEP}
+								bind:value={bulletTarget}
+								class="target-slider"
+								aria-label={$t('app.lobby.bulletTargetLabel')}
+							/>
+						</div>
+						<p class="target-hint">{$t('app.lobby.bulletTargetHint')}</p>
+						<button type="submit" class="btn-create">{$t('app.lobby.createGame')}</button>
+					</div>
+				</form>
+			{/if}
 		{:else}
 			<a href="/auth/login" class="btn-create">{$t('app.lobby.signInAndPlay')}</a>
 		{/if}
@@ -61,7 +105,12 @@
 						<li class="game-card">
 							<div class="game-info">
 								<span class="game-host">{game.host_name}</span>
-								<span class="game-players">{$t('app.lobby.playersCount', { count: game.player_count })}</span>
+								<span class="game-players"
+									>{$t('app.lobby.playersCount', { count: game.player_count })}</span
+								>
+								<span class="badge"
+									>{$t('app.lobby.bulletTargetBadge', { count: game.bullet_target })}</span
+								>
 								<span class="game-phase badge">{$t(`app.phase.${game.phase}`)}</span>
 							</div>
 							<a
@@ -69,7 +118,11 @@
 								class="btn-join"
 								aria-label={$t('app.lobby.joinGameAria', { hostName: game.host_name })}
 							>
-								{game.player_count < 3 ? $t('app.lobby.join') : $t('app.lobby.watch')}
+								{#if data.activeGameId === game.id}
+									{$t('app.lobby.returnToGame')}
+								{:else}
+									{game.player_count < 3 ? $t('app.lobby.join') : $t('app.lobby.watch')}
+								{/if}
 							</a>
 						</li>
 					{/each}
@@ -121,6 +174,75 @@
 		padding: 48px 24px;
 	}
 
+	.create-game-form {
+		display: flex;
+		justify-content: center;
+	}
+
+	.create-game-card,
+	.table-lock-card {
+		display: grid;
+		gap: 16px;
+		width: min(100%, 520px);
+		padding: 20px;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(200, 169, 110, 0.25);
+		border-radius: 16px;
+		box-shadow: 0 10px 32px rgba(0, 0, 0, 0.22);
+	}
+
+	.target-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.target-label {
+		font-size: 16px;
+		font-weight: 600;
+		color: #f0e6d3;
+	}
+
+	.target-value {
+		font-size: 28px;
+		font-weight: 700;
+		color: #ffd700;
+	}
+
+	.target-controls {
+		display: grid;
+		grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
+		gap: 16px;
+		align-items: center;
+	}
+
+	.target-number,
+	.target-slider {
+		width: 100%;
+	}
+
+	.target-number {
+		background: rgba(0, 0, 0, 0.28);
+		border: 1px solid rgba(200, 169, 110, 0.35);
+		border-radius: 10px;
+		color: #f0e6d3;
+		padding: 12px 14px;
+		font-size: 18px;
+	}
+
+	.target-slider {
+		accent-color: #c8a96e;
+	}
+
+	.target-hint,
+	.table-lock-message {
+		margin: 0;
+		color: #c0b090;
+		font-size: 14px;
+		line-height: 1.5;
+	}
+
 	.hero-title {
 		font-size: clamp(32px, 5vw, 56px);
 		margin: 0 0 12px;
@@ -145,7 +267,9 @@
 		border: none;
 		cursor: pointer;
 		text-decoration: none;
-		transition: transform 0.15s, box-shadow 0.15s;
+		transition:
+			transform 0.15s,
+			box-shadow 0.15s;
 		box-shadow: 0 4px 16px rgba(200, 169, 110, 0.3);
 	}
 
@@ -328,5 +452,36 @@
 		font-size: 14px;
 		color: #c0b090;
 		line-height: 1.5;
+	}
+
+	@media (max-width: 700px) {
+		.hero {
+			padding-inline: 12px;
+		}
+
+		.target-controls,
+		.game-card,
+		.section-header {
+			grid-template-columns: 1fr;
+			display: grid;
+		}
+
+		.game-card {
+			justify-items: stretch;
+		}
+
+		.game-info {
+			justify-content: center;
+		}
+
+		.btn-join,
+		.btn-create {
+			width: 100%;
+			text-align: center;
+		}
+
+		.users-dropdown {
+			width: 100%;
+		}
 	}
 </style>
