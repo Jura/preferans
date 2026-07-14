@@ -3,7 +3,8 @@
 ## Project Overview
 - This repository contains an online Preferans game.
 - Frontend: SvelteKit 2 with Svelte 5 (runes mode) in `src/`.
-- Backend/game engine: Cloudflare Worker and Durable Objects in `worker/src/`.
+- Primary deployment target: Cloudflare Pages (configured in root `wrangler.toml`).
+- Realtime/game engine modules: Cloudflare Worker and Durable Objects in `worker/src/`.
 - Database: Cloudflare D1 (SQLite) with migrations in `worker/migrations/`.
 
 ## Tech and Style Expectations
@@ -33,11 +34,12 @@
 When making code changes, run relevant checks:
 - `npm run check`
 - `npm run lint`
-- For worker changes, run `npm run worker:dev` when relevant.
+- For worker runtime changes, run `npm run worker:dev` when relevant.
 
 ## Deployment Context
-- Frontend deploy target: Cloudflare Pages.
-- Worker deploy command: `npm run worker:deploy`.
+- Primary deploy target: Cloudflare Pages.
+- Pages deploy command: `npm run pages:deploy`.
+- Pages secrets command pattern: `wrangler pages secret put <KEY> --project-name preferans`.
 - D1 migration commands:
   - Local: `npm run db:migrate:local`
   - Production: `npm run db:migrate`

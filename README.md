@@ -1,65 +1,65 @@
-# Преферанс онлайн
+# Preferans Online
 
-Онлайн-реализация классической русской карточной игры **преферанс** — построена на [SvelteKit](https://kit.svelte.dev), развёртывается на [Cloudflare Pages](https://pages.cloudflare.com) с игровым движком на [Cloudflare Workers](https://workers.cloudflare.com) и базой данных [Cloudflare D1](https://developers.cloudflare.com/d1/).
+An online implementation of the classic Preferans card game.
 
-## Стек технологий
+This project uses SvelteKit for the web app UI and Cloudflare platform services for deployment and runtime.
 
-| Слой | Технология |
+## Technology Stack
+
+| Layer | Technology |
 |---|---|
-| Frontend | SvelteKit 2 + Svelte 5 (runes mode) |
-| Хостинг | Cloudflare Pages |
-| WebSocket (игровые комнаты) | Cloudflare Durable Objects |
-| Игровой движок | Cloudflare Workers |
-| База данных | Cloudflare D1 (SQLite) |
-| Аутентификация | Google OAuth 2.0 |
+| Web application | SvelteKit 2 + Svelte 5 (runes mode) |
+| Primary deployment target | Cloudflare Pages |
+| Realtime game rooms | Cloudflare Durable Objects |
+| Game API runtime (local dev and legacy split deploy) | Cloudflare Workers |
+| Database | Cloudflare D1 (SQLite) |
+| Authentication | Google OAuth 2.0 |
 
-## Структура проекта
+## Repository Structure
 
-```
+```text
 preferans/
-├── src/                          # SvelteKit приложение
-│   ├── routes/
-│   │   ├── +layout.svelte        # Общий layout с навигацией
-│   │   ├── +layout.server.ts     # Загрузка сессии пользователя
-│   │   ├── +page.svelte          # Лобби (список игр)
-│   │   ├── +page.server.ts       # Загрузка игр из D1
-│   │   ├── auth/
-│   │   │   ├── login/            # Страница входа + OAuth redirect
-│   │   │   ├── callback/         # Google OAuth callback
-│   │   │   └── logout/           # Выход из системы
-│   │   └── game/[id]/            # Игровая комната
-│   ├── lib/
-│   │   ├── components/           # UI компоненты (Card, Hand, Table, …)
-│   │   ├── stores/               # Svelte stores (auth, game WebSocket)
-│   │   └── types/                # TypeScript типы (карты, контракты, …)
-│   ├── app.html                  # HTML шаблон
-│   ├── app.d.ts                  # Типы для App namespace
-│   └── hooks.server.ts           # Middleware: валидация сессий
-├── worker/                       # Cloudflare Worker (игровой движок)
-│   ├── src/
-│   │   ├── index.ts              # Точка входа, REST API
-│   │   ├── gameEngine.ts         # Правила преферанса
-│   │   └── durable-objects/
-│   │       └── GameRoom.ts       # WebSocket + состояние игры
-│   └── wrangler.toml
-├── migrations/
-│   └── 0001_initial.sql          # Схема D1 базы данных
-├── svelte.config.js
-├── vite.config.ts
-└── wrangler.toml                 # Конфигурация Cloudflare Pages
+|- src/                          # SvelteKit application
+|  |- routes/                    # Pages, auth routes, game routes
+|  |- lib/components/            # UI components
+|  |- lib/stores/                # Client stores (auth, game websocket)
+|  |- lib/types/                 # Shared TypeScript domain types
+|  |- hooks.server.ts            # Session and locale middleware
+|- worker/                       # Realtime/game worker code
+|  |- src/
+|  |  |- index.ts                # REST + websocket entry for worker runtime
+|  |  |- gameEngine.ts           # Preferans rules engine
+|  |  |- durable-objects/
+|  |     |- GameRoom.ts          # Durable Object room state + websocket handling
+|  |- migrations/                # D1 SQL migrations
+|  |- wrangler.toml              # Worker runtime config (dev/split mode)
+|- wrangler.toml                 # Cloudflare Pages project config (source of truth)
+|- svelte.config.js
+|- vite.config.ts
+|- package.json
 ```
 
-## Быстрый старт (локальная разработка)
+## Cloudflare Project Model
 
-### 1. Установка зависимостей
+The project is now documented and configured with Cloudflare Pages as the primary project type:
+
+- Root `wrangler.toml` is the source of truth for Cloudflare Pages settings.
+- D1 migration scripts use `worker/wrangler.toml` because Pages config does not support migration settings.
+- OAuth/session values are configured as Pages secrets via `wrangler pages secret put ... --project-name <your-pages-project-name>`.
+
+The `worker/` directory is still used for local realtime API development and for legacy split deployments.
+
+## Quick Start (Local Development)
+
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Настройка переменных окружения
+### 2. Configure local environment variables
 
-Создайте файл `.dev.vars` в корне проекта:
+Create `.dev.vars` in the project root:
 
 ```env
 GOOGLE_CLIENT_ID=your_google_client_id
@@ -67,78 +67,94 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 SESSION_SECRET=a_random_secret_at_least_32_chars
 ```
 
-### 3. Создание D1 базы данных
+### 3. Create D1 database
 
 ```bash
-# Создать базу данных
+# Create database
 npx wrangler d1 create preferans-db
-# Команда выведет строку вида:
-#   database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-# Замените YOUR_D1_DATABASE_ID на это значение в файлах:
-#   wrangler.toml (строка [[d1_databases]])
-#   worker/wrangler.toml (строка [[d1_databases]])
 
-# Применить миграции локально
+# Copy the returned database_id into:
+# - wrangler.toml (root)
+# - worker/wrangler.toml (only needed for worker:dev / worker:deploy flows)
+```
+
+### 4. Apply migrations
+
+```bash
 npm run db:migrate:local
 ```
 
-### 4. Запуск Worker локально
+### 5. Start development servers
+
+Run these in separate terminals:
 
 ```bash
 npm run worker:dev
-```
-
-### 5. Запуск SvelteKit frontend
-
-```bash
 npm run dev
 ```
 
-Откройте http://localhost:5173
+Open http://localhost:5173
 
-## Деплой на Cloudflare
+## Deploy to Cloudflare Pages
 
-### Frontend (Pages)
-
-```bash
-npm run build
-# Подключите репозиторий в Cloudflare Pages
-# Build command: npm run build
-# Build output: .svelte-kit/cloudflare
-```
-
-### Worker
+Before deployment, make sure the Pages project exists in your account and matches the `name` value in `wrangler.toml`.
 
 ```bash
-# Установить секреты
-npx wrangler secret put GOOGLE_CLIENT_SECRET
-npx wrangler secret put SESSION_SECRET
+# List existing Pages projects
+npx wrangler pages project list
 
-# Деплой
-npm run worker:deploy
+# If missing, create one (choose your own project name)
+npx wrangler pages project create <your-pages-project-name>
 ```
 
-### D1 миграции (production)
+If your real Pages project name is not `preferans`, update `name` in `wrangler.toml`.
+
+### 1. Build and deploy
+
+```bash
+npm run pages:deploy
+```
+
+Alternative: connect the Git repository in Cloudflare Pages with:
+
+- Build command: `npm run build`
+- Build output directory: `.svelte-kit/cloudflare`
+
+### 2. Set Pages secrets (important)
+
+Use Pages-specific secret commands:
+
+```bash
+npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name <your-pages-project-name>
+npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name <your-pages-project-name>
+npx wrangler pages secret put SESSION_SECRET --project-name <your-pages-project-name>
+```
+
+### 3. Run production migrations
 
 ```bash
 npm run db:migrate
 ```
 
-## Правила преферанса
+Note: migration commands are intentionally bound to `worker/wrangler.toml`.
 
-- **Колода**: 32 карты (от 7 до туза)
-- **Игроки**: ровно 3
-- **Раздача**: по 10 карт каждому + 2 карты в прикуп
-- **Торговля**: игроки объявляют контракты по возрастанию
-- **Контракты**: 6-10 взяток в масти, без козыря, мизер, гранд
-- **Прикуп**: победитель торговли берёт прикуп и делает сброс
-- **Игра**: берутся взятки, объявляется козырь
-- **Счёт**: по результатам контракта
+## Preferans Rules (Game Summary)
 
-## Разработка
+- Deck: 32 cards (7 through Ace)
+- Players: exactly 3
+- Deal: 10 cards per player + 2 cards in the kitty
+- Bidding: ascending contracts
+- Contracts: 6-10 tricks in suit, no-trump, misere, grand
+- Kitty: bidding winner takes kitty and discards
+- Play: trick-taking with declared trump mode
+- Scoring: based on contract result
+
+## Development Commands
 
 ```bash
-npm run check       # TypeScript проверка
-npm run lint        # ESLint + Prettier
-npm run format      # Форматирование кода
+npm run check        # TypeScript + Svelte checks
+npm run lint         # ESLint + Prettier checks
+npm run format       # Format code
+npm run db:migrate   # Apply D1 migrations to remote DB
+npm run db:migrate:local  # Apply D1 migrations to local DB
 ```

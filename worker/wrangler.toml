@@ -17,6 +17,8 @@ tag = "v1"
 new_sqlite_classes = ["GameRoom"]
 
 [vars]
-# Set secrets via: wrangler secret put GOOGLE_CLIENT_SECRET
-# Set secrets via: wrangler secret put SESSION_SECRET
+# Legacy split deployment only:
+# wrangler secret put GOOGLE_CLIENT_ID --config worker/wrangler.toml
+# wrangler secret put GOOGLE_CLIENT_SECRET --config worker/wrangler.toml
+# wrangler secret put SESSION_SECRET --config worker/wrangler.toml
 ENVIRONMENT = "development"

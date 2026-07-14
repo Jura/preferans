@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 /** Redirect to Google OAuth consent screen */
@@ -8,6 +8,9 @@ export const GET: RequestHandler = async ({ platform, url, cookies }) => {
 	}
 
 	const clientId = platform.env.GOOGLE_CLIENT_ID;
+	if (!clientId) {
+		error(500, 'Missing GOOGLE_CLIENT_ID secret');
+	}
 	const redirectUri = `${url.origin}/auth/callback`;
 
 	// CSRF state

@@ -12,11 +12,7 @@ name = "GAME_ROOM"
 class_name = "GameRoom"
 script_name = "preferans"
 
-[vars]
-GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
-# GOOGLE_CLIENT_SECRET is set via wrangler secret put GOOGLE_CLIENT_SECRET
-# SESSION_SECRET is set via wrangler secret put SESSION_SECRET
-
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["GameRoom"]
+# Set OAuth/session secrets via Pages secrets:
+# wrangler pages secret put GOOGLE_CLIENT_ID --project-name <your-pages-project-name>
+# wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name <your-pages-project-name>
+# wrangler pages secret put SESSION_SECRET --project-name <your-pages-project-name>

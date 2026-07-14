@@ -36,6 +36,9 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	}
 
 	const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, DB } = platform.env;
+	if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+		error(500, 'Missing Google OAuth secrets');
+	}
 	const localeCookie = cookies.get(LOCALE_COOKIE);
 	const preferredLocale = isSupportedLocale(localeCookie) ? localeCookie : DEFAULT_LOCALE;
 	const redirectUri = `${url.origin}/auth/callback`;
