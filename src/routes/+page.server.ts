@@ -5,6 +5,14 @@ import { normalizeEmail } from '$lib/server/user-access';
 type PresenceStatus = 'online' | 'away' | 'offline';
 const ONLINE_WINDOW = '-10 minutes';
 const AWAY_WINDOW = '-30 minutes';
+const AUTHORIZED_USERS_FILTER = `(
+	LOWER(u.email) = ?
+	OR EXISTS(
+		SELECT 1
+		FROM user_allowlist a
+		WHERE a.email = LOWER(u.email)
+	)
+)`;
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!platform?.env?.DB) {
@@ -48,14 +56,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		`SELECT COUNT(*) AS total
 		 FROM users u
 		 WHERE u.last_active_at >= datetime('now', ?)
-		   AND (
-		   	 LOWER(u.email) = ?
-		   	 OR EXISTS(
-		   	 	SELECT 1
-		   	 	FROM user_allowlist a
-		   	 	WHERE a.email = LOWER(u.email)
-		   	 )
-		   )`
+		   AND ${AUTHORIZED_USERS_FILTER}`
 	)
 		.bind(ONLINE_WINDOW, adminEmail)
 		.first<{ total: number }>();
@@ -63,23 +64,29 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	let usersPresence: Array<{ id: string; name: string; status: PresenceStatus }> = [];
 	if (locals.user) {
 		const usersPresenceQuery = await platform.env.DB.prepare(
-			`SELECT u.id, u.name,
-			        CASE
-			        	WHEN u.last_active_at >= datetime('now', ?) THEN 'online'
-			        	WHEN u.last_active_at >= datetime('now', ?) THEN 'away'
-			        	ELSE 'offline'
-			        END AS status
-			 FROM users u
-			 ORDER BY
-			 	CASE
-			 		WHEN u.last_active_at >= datetime('now', ?) THEN 0
-			 		WHEN u.last_active_at >= datetime('now', ?) THEN 1
-			 		ELSE 2
-			 	END,
-			 	u.last_active_at DESC,
-			 	u.name COLLATE NOCASE ASC`
+			`WITH presence AS (
+				SELECT
+					u.id,
+					u.name,
+					u.last_active_at,
+					CASE
+						WHEN u.last_active_at >= datetime('now', ?) THEN 'online'
+						WHEN u.last_active_at >= datetime('now', ?) THEN 'away'
+						ELSE 'offline'
+					END AS status,
+					CASE
+						WHEN u.last_active_at >= datetime('now', ?) THEN 0
+						WHEN u.last_active_at >= datetime('now', ?) THEN 1
+						ELSE 2
+					END AS status_rank
+				FROM users u
+				WHERE ${AUTHORIZED_USERS_FILTER}
+			)
+			SELECT id, name, status
+			FROM presence
+			ORDER BY status_rank, last_active_at DESC, name COLLATE NOCASE ASC`
 		)
-			.bind(ONLINE_WINDOW, AWAY_WINDOW, ONLINE_WINDOW, AWAY_WINDOW)
+			.bind(ONLINE_WINDOW, AWAY_WINDOW, ONLINE_WINDOW, AWAY_WINDOW, adminEmail)
 			.all<{ id: string; name: string; status: PresenceStatus }>();
 		usersPresence = usersPresenceQuery.results;
 	}

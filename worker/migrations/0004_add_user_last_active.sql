@@ -1,1 +1,1 @@
-ALTER TABLE users ADD COLUMN last_active_at TEXT NOT NULL DEFAULT (datetime('now'));
+ALTER TABLE users ADD COLUMN last_active_at TEXT;
