@@ -77,7 +77,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 				FROM users u
 				WHERE ${AUTHORIZED_USERS_FILTER}
 			)
-			SELECT id, name, status
+			SELECT id, name, status, last_active_at
 			FROM presence
 			ORDER BY
 				CASE status
