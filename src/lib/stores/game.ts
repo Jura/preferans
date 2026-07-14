@@ -55,6 +55,8 @@ function createGameStore() {
 
 		ws.addEventListener('open', () => {
 			clearHeartbeat();
+			// Check access frequently enough to revoke removed users quickly without sending
+			// unnecessary traffic on every animation or UI update.
 			heartbeatTimer = setInterval(() => {
 				send({ type: 'ping' });
 			}, 15000);

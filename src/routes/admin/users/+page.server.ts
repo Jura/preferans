@@ -39,9 +39,12 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		`SELECT a.email, a.created_at, u.name, u.avatar_url
 		 FROM user_allowlist a
 		 LEFT JOIN users u ON LOWER(u.email) = a.email
+		 WHERE (? IS NULL OR a.email != ?)
 		 ORDER BY a.email ASC`
-	).all<AllowlistedUser>();
-	const allowedUsers = (results as AllowlistedUser[]).filter((user) => user.email !== adminEmail);
+	)
+		.bind(adminEmail, adminEmail)
+		.all<AllowlistedUser>();
+	const allowedUsers = results as AllowlistedUser[];
 
 	return {
 		adminEmail,

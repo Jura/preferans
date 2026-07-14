@@ -17,6 +17,11 @@ interface WebSocketSession {
 	playerName: string;
 }
 
+interface AccessStatusCacheEntry {
+	allowed: boolean;
+	expiresAt: number;
+}
+
 type ClientMessage =
 	| { type: 'join'; token: string }
 	| { type: 'bid'; bid: Bid }
@@ -49,9 +54,11 @@ interface ClientGameState {
 }
 
 export class GameRoom implements DurableObject {
+	private static readonly ACCESS_CACHE_TTL_MS = 5000;
 	private state: DurableObjectState;
 	private env: Env;
 	private sessions: Map<string, WebSocketSession> = new Map();
+	private accessStatusCache: Map<PlayerId, AccessStatusCacheEntry> = new Map();
 	private gameState: GameState | null = null;
 	private gameId = '';
 	private playerInfo: Map<PlayerId, { name: string; avatarUrl: string | null }> = new Map();
@@ -171,6 +178,11 @@ export class GameRoom implements DurableObject {
 
 	/** Re-check allowlist access so banned users are disconnected from active games promptly. */
 	private async hasActiveAccess(userId: PlayerId) {
+		const cached = this.accessStatusCache.get(userId);
+		if (cached && cached.expiresAt > Date.now()) {
+			return cached.allowed;
+		}
+
 		const access = await this.env.DB.prepare(
 			`SELECT 1
 			 FROM users u
@@ -180,7 +192,13 @@ export class GameRoom implements DurableObject {
 			.bind(userId)
 			.first();
 
-		return !!access;
+		const allowed = !!access;
+		this.accessStatusCache.set(userId, {
+			allowed,
+			expiresAt: Date.now() + GameRoom.ACCESS_CACHE_TTL_MS
+		});
+
+		return allowed;
 	}
 
 	private async loadGameState() {
