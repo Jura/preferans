@@ -5,6 +5,11 @@
 
 	let { data }: { data: PageData } = $props();
 
+	const presenceStatusDot: Record<'online' | 'away' | 'offline', string> = {
+		online: '🟢',
+		away: '🟡',
+		offline: '⚫'
+	};
 </script>
 
 <svelte:head>
@@ -25,35 +30,62 @@
 		{/if}
 	</div>
 
-	<section class="games-section">
-		<h2>{$t('app.lobby.openGames')}</h2>
-
-		{#if data.games.length === 0}
-			<div class="empty-games">
-				<span class="empty-icon">🎴</span>
-				<p>{$t('app.lobby.emptyGames')}</p>
+	{#if data.user}
+		<section class="games-section">
+			<div class="section-header">
+				<h2>{$t('app.lobby.openGames')}</h2>
+				<details class="users-dropdown">
+					<summary>{$t('app.lobby.usersPresence')}</summary>
+					<ul aria-label={$t('app.lobby.usersPresenceAria')}>
+						{#each data.usersPresence as player}
+							<li>
+								<span class="presence-text">
+									{presenceStatusDot[player.status]}
+									{player.name}
+									({$t(`app.lobby.presence.${player.status}`)})
+								</span>
+							</li>
+						{/each}
+					</ul>
+				</details>
 			</div>
-		{:else}
-			<ul class="games-list" aria-label={$t('app.lobby.gamesListAria')}>
-				{#each data.games as game}
-					<li class="game-card">
-						<div class="game-info">
-							<span class="game-host">{game.host_name}</span>
-							<span class="game-players">{$t('app.lobby.playersCount', { count: game.player_count })}</span>
-							<span class="game-phase badge">{$t(`app.phase.${game.phase}`)}</span>
-						</div>
-						<a
-							href="/game/{game.id}"
-							class="btn-join"
-							aria-label={$t('app.lobby.joinGameAria', { hostName: game.host_name })}
-						>
-							{game.player_count < 3 ? $t('app.lobby.join') : $t('app.lobby.watch')}
-						</a>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
+
+			{#if data.games.length === 0}
+				<div class="empty-games">
+					<span class="empty-icon">🎴</span>
+					<p>{$t('app.lobby.emptyGames')}</p>
+				</div>
+			{:else}
+				<ul class="games-list" aria-label={$t('app.lobby.gamesListAria')}>
+					{#each data.games as game}
+						<li class="game-card">
+							<div class="game-info">
+								<span class="game-host">{game.host_name}</span>
+								<span class="game-players">{$t('app.lobby.playersCount', { count: game.player_count })}</span>
+								<span class="game-phase badge">{$t(`app.phase.${game.phase}`)}</span>
+							</div>
+							<a
+								href="/game/{game.id}"
+								class="btn-join"
+								aria-label={$t('app.lobby.joinGameAria', { hostName: game.host_name })}
+							>
+								{game.player_count < 3 ? $t('app.lobby.join') : $t('app.lobby.watch')}
+							</a>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	{:else}
+		<section class="games-section">
+			<h2>{$t('app.lobby.onlineUsersTitle')}</h2>
+			<div class="online-users-indicator" aria-live="polite">
+				<span class="dot-online" aria-hidden="true"></span>
+				<p>{$t('app.lobby.onlineUsersCount', { count: data.onlineUsersCount })}</p>
+			</div>
+			<p class="login-prompt">{$t('app.lobby.loginPrompt')}</p>
+		</section>
+	{/if}
 
 	<section class="rules-section">
 		<h2>{$t('app.lobby.rules')}</h2>
@@ -128,6 +160,46 @@
 		margin-bottom: 48px;
 	}
 
+	.section-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+	}
+
+	.users-dropdown {
+		position: relative;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(200, 169, 110, 0.25);
+		border-radius: 8px;
+		padding: 8px 12px;
+	}
+
+	.users-dropdown summary {
+		cursor: pointer;
+		color: #c8a96e;
+		font-size: 14px;
+	}
+
+	.users-dropdown ul {
+		list-style: none;
+		padding: 8px 0 0;
+		margin: 8px 0 0;
+		border-top: 1px solid rgba(200, 169, 110, 0.2);
+		max-height: 220px;
+		overflow-y: auto;
+		min-width: 220px;
+	}
+
+	.users-dropdown li + li {
+		margin-top: 6px;
+	}
+
+	.presence-text {
+		font-size: 13px;
+		color: #d8ccb2;
+	}
+
 	h2 {
 		font-size: 22px;
 		color: #c8a96e;
@@ -140,6 +212,27 @@
 		text-align: center;
 		padding: 48px;
 		color: #666;
+	}
+
+	.online-users-indicator {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		font-size: 18px;
+		margin-top: 16px;
+	}
+
+	.dot-online {
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		background: #2ecc71;
+		box-shadow: 0 0 8px rgba(46, 204, 113, 0.6);
+	}
+
+	.login-prompt {
+		margin-top: 12px;
+		color: #c0b090;
 	}
 
 	.empty-icon {
