@@ -13,7 +13,7 @@
     "pages:deploy": "npm run build && wrangler pages deploy .svelte-kit/cloudflare",
     "worker:dev": "wrangler dev worker/src/index.ts --config worker/wrangler.toml",
     "worker:deploy": "wrangler deploy worker/src/index.ts --config worker/wrangler.toml",
-    "db:migrate": "wrangler d1 migrations apply preferans-db --config worker/wrangler.toml",
+    "db:migrate": "wrangler d1 migrations apply preferans-db --remote --config worker/wrangler.toml",
     "db:migrate:local": "wrangler d1 migrations apply preferans-db --local --config worker/wrangler.toml"
   },
   "devDependencies": {
