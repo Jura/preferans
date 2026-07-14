@@ -1,5 +1,6 @@
 import { type Handle } from '@sveltejs/kit';
 import { DEFAULT_LOCALE, isSupportedLocale } from '$lib/i18n/locales';
+import { getUserRole } from '$lib/server/user-access';
 
 const SESSION_COOKIE = 'pref_session';
 const LOCALE_COOKIE = 'pref_locale';
@@ -15,7 +16,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 			// Look up session in D1
 			const result = await event.platform.env.DB.prepare(
 				`SELECT s.token, s.expires_at,
-				        u.id, u.name, u.email, u.avatar_url, u.preferred_locale
+				        u.id, u.name, u.email, u.avatar_url, u.preferred_locale,
+				        EXISTS(
+				        	SELECT 1
+				        	FROM user_allowlist a
+				        	WHERE a.email = LOWER(u.email)
+				        ) AS is_allowed
 				 FROM sessions s
 				 JOIN users u ON u.id = s.user_id
 				 WHERE s.token = ? AND s.expires_at > datetime('now')`
@@ -29,9 +35,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 					email: string;
 					avatar_url: string | null;
 					preferred_locale: string | null;
+					is_allowed: number;
 				}>();
 
 			if (result) {
+				const role = getUserRole(result.email, event.platform.env.ADMIN_EMAIL);
+				if (role !== 'admin' && !result.is_allowed) {
+					await event.platform.env.DB.prepare(`DELETE FROM sessions WHERE token = ?`)
+						.bind(sessionToken)
+						.run();
+					event.cookies.delete(SESSION_COOKIE, { path: '/' });
+					event.locals.user = null;
+					return resolve(event);
+				}
+
 				const preferredLocale = isSupportedLocale(result.preferred_locale)
 					? result.preferred_locale
 					: event.locals.locale;
@@ -41,7 +58,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 					name: result.name,
 					email: result.email,
 					avatarUrl: result.avatar_url,
-					preferredLocale
+					preferredLocale,
+					role
 				};
 				event.locals.locale = preferredLocale;
 

@@ -2,6 +2,8 @@ import { writable, derived } from 'svelte/store';
 import type { GameState, ClientMessage, ServerMessage } from '$lib/types/preferans';
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+const HEARTBEAT_INTERVAL_MS = 15000;
+const ACCESS_REVOKED_CLOSE_CODE = 4401;
 
 interface GameStore {
 	state: GameState | null;
@@ -18,6 +20,7 @@ function createGameStore() {
 
 	let ws: WebSocket | null = null;
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	let currentGameId: string | null = null;
 	let currentToken: string | null = null;
 
@@ -25,6 +28,13 @@ function createGameStore() {
 		if (reconnectTimer) {
 			clearTimeout(reconnectTimer);
 			reconnectTimer = null;
+		}
+	}
+
+	function clearHeartbeat() {
+		if (heartbeatTimer) {
+			clearInterval(heartbeatTimer);
+			heartbeatTimer = null;
 		}
 	}
 
@@ -46,6 +56,12 @@ function createGameStore() {
 		ws = new WebSocket(url);
 
 		ws.addEventListener('open', () => {
+			clearHeartbeat();
+			// Check access frequently enough to revoke removed users quickly without sending
+			// unnecessary traffic on every animation or UI update.
+			heartbeatTimer = setInterval(() => {
+				send({ type: 'ping' });
+			}, HEARTBEAT_INTERVAL_MS);
 			update((s) => ({ ...s, status: 'connected', error: null }));
 		});
 
@@ -59,7 +75,17 @@ function createGameStore() {
 		});
 
 		ws.addEventListener('close', (event) => {
+			clearHeartbeat();
 			update((s) => ({ ...s, status: 'disconnected' }));
+			// 4401 is a custom close code used by the server when a connected user's
+			// allowlist access has been revoked.
+			if (event.code === ACCESS_REVOKED_CLOSE_CODE) {
+				clearReconnect();
+				currentGameId = null;
+				currentToken = null;
+				window.location.href = '/auth/denied';
+				return;
+			}
 			if (!event.wasClean && currentGameId) {
 				// Reconnect after 3 seconds
 				reconnectTimer = setTimeout(() => {
@@ -99,6 +125,7 @@ function createGameStore() {
 
 	function disconnect() {
 		clearReconnect();
+		clearHeartbeat();
 		currentGameId = null;
 		currentToken = null;
 		ws?.close();

@@ -1,9 +1,4 @@
-import type {
-	GameState,
-	PlayerId,
-	Card,
-	Bid
-} from '../gameEngine';
+import type { GameState, PlayerId, Card, Bid } from '../gameEngine';
 import {
 	createInitialState,
 	startRound,
@@ -20,6 +15,11 @@ interface WebSocketSession {
 	ws: WebSocket;
 	playerId: PlayerId;
 	playerName: string;
+}
+
+interface AccessStatusCacheEntry {
+	allowed: boolean;
+	expiresAt: number;
 }
 
 type ClientMessage =
@@ -54,9 +54,13 @@ interface ClientGameState {
 }
 
 export class GameRoom implements DurableObject {
+	// Keep the cache short so revoked users are disconnected quickly while still
+	// avoiding a D1 lookup on every ping and in-game action.
+	private static readonly ACCESS_CACHE_TTL_MS = 5000;
 	private state: DurableObjectState;
 	private env: Env;
 	private sessions: Map<string, WebSocketSession> = new Map();
+	private accessStatusCache: Map<PlayerId, AccessStatusCacheEntry> = new Map();
 	private gameState: GameState | null = null;
 	private gameId = '';
 	private playerInfo: Map<PlayerId, { name: string; avatarUrl: string | null }> = new Map();
@@ -95,9 +99,7 @@ export class GameRoom implements DurableObject {
 		}
 
 		// Mark token as used
-		await this.env.DB.prepare(`UPDATE ws_tokens SET used = 1 WHERE token = ?`)
-			.bind(token)
-			.run();
+		await this.env.DB.prepare(`UPDATE ws_tokens SET used = 1 WHERE token = ?`).bind(token).run();
 
 		const playerId = tokenRow.user_id;
 		this.playerInfo.set(playerId, { name: tokenRow.name, avatarUrl: tokenRow.avatar_url });
@@ -130,6 +132,12 @@ export class GameRoom implements DurableObject {
 	async webSocketMessage(ws: WebSocket, data: string | ArrayBuffer): Promise<void> {
 		const session = this.getSession(ws);
 		if (!session) return;
+		if (!(await this.hasActiveAccess(session.playerId))) {
+			this.sendToSocket(ws, { type: 'error', message: 'Access revoked' });
+			this.removeSession(ws);
+			ws.close(4401, 'Access revoked');
+			return;
+		}
 
 		let msg: ClientMessage;
 		try {
@@ -170,6 +178,31 @@ export class GameRoom implements DurableObject {
 		if (sessionId) this.sessions.delete(sessionId);
 	}
 
+	/** Re-check allowlist access so banned users are disconnected from active games promptly. */
+	private async hasActiveAccess(userId: PlayerId) {
+		const cached = this.accessStatusCache.get(userId);
+		if (cached && cached.expiresAt > Date.now()) {
+			return cached.allowed;
+		}
+
+		const access = await this.env.DB.prepare(
+			`SELECT 1
+			 FROM users u
+			 JOIN user_allowlist a ON a.email = LOWER(u.email)
+			 WHERE u.id = ?`
+		)
+			.bind(userId)
+			.first();
+
+		const allowed = !!access;
+		this.accessStatusCache.set(userId, {
+			allowed,
+			expiresAt: Date.now() + GameRoom.ACCESS_CACHE_TTL_MS
+		});
+
+		return allowed;
+	}
+
 	private async loadGameState() {
 		const stored = await this.state.storage.get<GameState>('gameState');
 		if (stored) {
@@ -197,7 +230,9 @@ export class GameRoom implements DurableObject {
 		if (!this.gameState) return;
 		await this.state.storage.put('gameState', this.gameState);
 		// Mirror phase to D1
-		await this.env.DB.prepare(`UPDATE games SET phase = ?, updated_at = datetime('now') WHERE id = ?`)
+		await this.env.DB.prepare(
+			`UPDATE games SET phase = ?, updated_at = datetime('now') WHERE id = ?`
+		)
 			.bind(this.gameState.phase, this.gameId)
 			.run();
 	}
@@ -213,10 +248,7 @@ export class GameRoom implements DurableObject {
 			case 'start_round': {
 				if (!this.gameState) return;
 				// Only allowed when waiting or scoring and enough players
-				if (
-					this.gameState.phase !== 'waiting' &&
-					this.gameState.phase !== 'scoring'
-				) {
+				if (this.gameState.phase !== 'waiting' && this.gameState.phase !== 'scoring') {
 					throw new Error('Cannot start round in current phase');
 				}
 				if (this.gameState.playerIds.length !== 3) {
