@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		return { games: [], user: locals.user };
 	}
 
-	const games = await platform.env.DB.prepare(
+	const { results: games } = await platform.env.DB.prepare(
 		`SELECT g.id, g.phase, g.created_at,
 		        u.name AS host_name,
 		        COALESCE(COUNT(gp.player_id), 0) AS player_count
@@ -25,8 +25,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 			created_at: string;
 			host_name: string;
 			player_count: number;
-		}>()
-		.then((r) => r.results);
+		}>();
 
 	return { games, user: locals.user };
 };

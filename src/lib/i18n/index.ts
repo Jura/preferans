@@ -4,15 +4,18 @@ const config: Config<Record<string, unknown>> = {
 	loaders: [
 		{
 			locale: 'en',
-			loader: async () => (await import('./translations/en.json')).default
+			key: 'app',
+			loader: async () => (await import('./translations/en.json')).default.app
 		},
 		{
 			locale: 'ru',
-			loader: async () => (await import('./translations/ru.json')).default
+			key: 'app',
+			loader: async () => (await import('./translations/ru.json')).default.app
 		},
 		{
 			locale: 'uk',
-			loader: async () => (await import('./translations/uk.json')).default
+			key: 'app',
+			loader: async () => (await import('./translations/uk.json')).default.app
 		}
 	]
 };
