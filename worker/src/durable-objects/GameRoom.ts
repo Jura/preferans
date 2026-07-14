@@ -54,6 +54,8 @@ interface ClientGameState {
 }
 
 export class GameRoom implements DurableObject {
+	// Keep the cache short so revoked users are disconnected quickly while still
+	// avoiding a D1 lookup on every ping and in-game action.
 	private static readonly ACCESS_CACHE_TTL_MS = 5000;
 	private state: DurableObjectState;
 	private env: Env;

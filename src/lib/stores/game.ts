@@ -2,6 +2,8 @@ import { writable, derived } from 'svelte/store';
 import type { GameState, ClientMessage, ServerMessage } from '$lib/types/preferans';
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+const HEARTBEAT_INTERVAL_MS = 15000;
+const ACCESS_REVOKED_CLOSE_CODE = 4401;
 
 interface GameStore {
 	state: GameState | null;
@@ -59,7 +61,7 @@ function createGameStore() {
 			// unnecessary traffic on every animation or UI update.
 			heartbeatTimer = setInterval(() => {
 				send({ type: 'ping' });
-			}, 15000);
+			}, HEARTBEAT_INTERVAL_MS);
 			update((s) => ({ ...s, status: 'connected', error: null }));
 		});
 
@@ -75,7 +77,9 @@ function createGameStore() {
 		ws.addEventListener('close', (event) => {
 			clearHeartbeat();
 			update((s) => ({ ...s, status: 'disconnected' }));
-			if (event.code === 4401) {
+			// 4401 is a custom close code used by the server when a connected user's
+			// allowlist access has been revoked.
+			if (event.code === ACCESS_REVOKED_CLOSE_CODE) {
 				clearReconnect();
 				currentGameId = null;
 				currentToken = null;
