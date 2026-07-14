@@ -2,16 +2,21 @@ import {
 	ACTIVE_TABLE_PHASES,
 	BULLET_TARGET_STEP,
 	DEFAULT_BULLET_TARGET,
+	MAX_PLAYERS,
 	MAX_BULLET_TARGET,
 	MIN_BULLET_TARGET
 } from '$lib/constants/game';
 
 type Database = App.Platform['env']['DB'];
 
-const ACTIVE_TABLE_PHASES_SQL = ACTIVE_TABLE_PHASES.map((phase) => `'${phase}'`).join(', ');
+const ACTIVE_TABLE_PHASES_SQL = ACTIVE_TABLE_PHASES.map(() => '?').join(', ');
 
 export function getActiveTablePhasesSql() {
 	return ACTIVE_TABLE_PHASES_SQL;
+}
+
+export function getActiveTablePhaseBindings() {
+	return [...ACTIVE_TABLE_PHASES];
 }
 
 export async function findActiveGameForUser(
@@ -32,7 +37,11 @@ export async function findActiveGameForUser(
 			 ORDER BY g.created_at DESC
 			 LIMIT 1`
 		)
-		.bind(...(excludeGameId ? [userId, excludeGameId] : [userId]))
+		.bind(
+			...(excludeGameId
+				? [userId, ...getActiveTablePhaseBindings(), excludeGameId]
+				: [userId, ...getActiveTablePhaseBindings()])
+		)
 		.first<{ id: string }>();
 }
 
@@ -52,4 +61,11 @@ export function parseBulletTarget(value: FormDataEntryValue | null) {
 	}
 
 	return bulletTarget;
+}
+
+export function findNextOpenSeat(occupiedPositions: number[]) {
+	const occupied = new Set(occupiedPositions);
+	return Array.from({ length: MAX_PLAYERS }, (_, position) => position).find(
+		(position) => !occupied.has(position)
+	);
 }

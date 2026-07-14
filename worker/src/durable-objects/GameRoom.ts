@@ -255,17 +255,18 @@ export class GameRoom implements DurableObject {
 		const playerIds = players.results.map((player) => player.player_id);
 		const rosterChanged =
 			playerIds.length !== this.gameState.playerIds.length ||
-			playerIds.some((playerId, index) => this.gameState?.playerIds[index] !== playerId);
+			playerIds.some((playerId, index) => this.gameState.playerIds[index] !== playerId);
 
 		if (!rosterChanged) {
 			return false;
 		}
 
+		const currentScores = this.gameState.scores ?? {};
 		this.gameState = {
 			...this.gameState,
 			playerIds,
 			scores: Object.fromEntries(
-				playerIds.map((playerId) => [playerId, this.gameState?.scores[playerId] ?? 0])
+				playerIds.map((playerId) => [playerId, currentScores[playerId] ?? 0])
 			)
 		};
 		await this.persistState();

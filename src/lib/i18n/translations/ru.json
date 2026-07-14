@@ -115,7 +115,7 @@
 			"connecting": "Подключение к игре…",
 			"loadingAria": "Загрузка",
 			"waitingPlayers": "Ожидание игроков… ({{count}}/3)",
-			"tableAge": "Возраст стола",
+			"tableAge": "Время существования стола",
 			"bulletTarget": "Размер пули",
 			"leaveTable": "Покинуть стол",
 			"widow": "Прикуп",

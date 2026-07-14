@@ -108,7 +108,12 @@
 								<span class="game-players"
 									>{$t('app.lobby.playersCount', { count: game.player_count })}</span
 								>
-								<span class="badge"
+								<span
+									class="badge"
+									aria-label={$t('app.lobby.bulletTargetLabel') +
+										': ' +
+										$t('app.lobby.bulletTargetBadge', { count: game.bullet_target })}
+								>
 									>{$t('app.lobby.bulletTargetBadge', { count: game.bullet_target })}</span
 								>
 								<span class="game-phase badge">{$t(`app.phase.${game.phase}`)}</span>

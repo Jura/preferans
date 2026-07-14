@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import {
 	findActiveGameForUser,
+	getActiveTablePhaseBindings,
 	getActiveTablePhasesSql,
 	parseBulletTarget
 } from '$lib/server/games';
@@ -47,8 +48,10 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 	if (locals.user) {
 		const activeTablesFilter = getActiveTablePhasesSql();
+		const activeTablePhaseBindings = getActiveTablePhaseBindings();
 		const gamesQuery = await platform.env.DB.prepare(
-			`SELECT g.id, g.phase, g.created_at,
+			`SELECT g.id, g.phase,
+			        strftime('%Y-%m-%dT%H:%M:%SZ', g.created_at) AS created_at,
 			        u.name AS host_name,
 			        g.bullet_target,
 			        COALESCE(COUNT(gp.player_id), 0) AS player_count
@@ -61,7 +64,9 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 			 ORDER BY g.created_at DESC
 			 LIMIT 20`
 		)
-			.bind(...(activeGame ? [activeGame.id] : []))
+			.bind(
+				...(activeGame ? [...activeTablePhaseBindings, activeGame.id] : activeTablePhaseBindings)
+			)
 			.all<{
 				id: string;
 				phase: string;

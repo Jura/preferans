@@ -54,7 +54,7 @@
 			"createGame": "Створити гру",
 			"bulletTargetLabel": "Розмір пули",
 			"bulletTargetHint": "Перед створенням столу виберіть значення від 30 до 200 з кроком 10.",
-			"bulletTargetBadge": "{{count}} куль",
+			"bulletTargetBadge": "{{count}} пуль",
 			"activeGameNotice": "Ви вже сидите за столом. Поверніться до нього або залиште його до початку гри.",
 			"returnToGame": "Повернутися до столу",
 			"signInAndPlay": "Увійти та грати",

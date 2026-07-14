@@ -17,9 +17,10 @@
 
 	function updateTableAge() {
 		const createdAt = Date.parse(data.createdAt);
-		tableAgeSeconds = Number.isNaN(createdAt)
-			? 0
-			: Math.max(0, Math.floor((Date.now() - createdAt) / 1000));
+		const hasValidCreatedAt = !Number.isNaN(createdAt) && createdAt > 0 && createdAt <= Date.now();
+		tableAgeSeconds = hasValidCreatedAt
+			? Math.max(0, Math.floor((Date.now() - createdAt) / 1000))
+			: 0;
 	}
 
 	function formatElapsed(seconds: number) {
