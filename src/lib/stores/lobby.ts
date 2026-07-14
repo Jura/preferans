@@ -69,7 +69,8 @@ function createLobbyStore() {
 			clearTimers();
 			ws = null;
 			update((s) => ({ ...s, connected: false }));
-			// Reconnect once after a short delay (token may have been reused already)
+			// Note: no automatic reconnection here because lobby tokens are single-use.
+			// The next page navigation will trigger a fresh token + connection from the layout.
 		});
 
 		ws.addEventListener('error', () => {

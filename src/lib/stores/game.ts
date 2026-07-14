@@ -115,6 +115,9 @@ function createGameStore() {
 		switch (msg.type) {
 			case 'game_state': {
 				// Detect player roster changes during the waiting phase and show toasts.
+				// Notifications are intentionally limited to the 'waiting' phase: once the
+				// game has started, player disconnects are handled by the server reconnect
+				// logic and mid-game presence changes would be disruptive to the playing UX.
 				// prevPlayers is null on the first message so we don't fire on initial load.
 				if (msg.state.phase === 'waiting' && prevPlayers !== null) {
 					const translate = get(t);
