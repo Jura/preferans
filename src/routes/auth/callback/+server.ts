@@ -20,12 +20,22 @@ interface GoogleUserInfo {
 }
 
 export const GET: RequestHandler = async ({ url, cookies, platform }) => {
+	const oauthError = url.searchParams.get('error');
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
 	const storedState = cookies.get('oauth_state');
 
 	// Clear the state cookie immediately
 	cookies.delete('oauth_state', { path: '/' });
+
+	// Google denied access (e.g. user not in the allowed list)
+	if (oauthError === 'access_denied') {
+		redirect(303, '/auth/denied');
+	}
+
+	if (oauthError) {
+		error(400, `OAuth error: ${oauthError}`);
+	}
 
 	if (!code || !state || state !== storedState) {
 		error(400, 'Invalid OAuth state or missing code');
@@ -91,9 +101,7 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
 	const sessionToken = crypto.randomUUID();
 	const expiresAt = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
 
-	await DB.prepare(
-		`INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`
-	)
+	await DB.prepare(`INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`)
 		.bind(sessionToken, userId, expiresAt.toISOString().replace('T', ' ').slice(0, 19))
 		.run();
 

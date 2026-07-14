@@ -10,6 +10,7 @@
 	<div class="login-card">
 		<h1>{$t('app.login.heading')}</h1>
 		<p>{$t('app.login.subtitle')}</p>
+		<p class="invite-note">{$t('app.login.inviteNote')}</p>
 
 		<a href="/auth/login" class="btn-google">
 			<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
@@ -61,8 +62,15 @@
 
 	p {
 		color: #c0b090;
-		margin: 0 0 32px;
+		margin: 0 0 16px;
 		font-size: 15px;
+		line-height: 1.5;
+	}
+
+	.invite-note {
+		color: #a09060;
+		margin: 0 0 32px;
+		font-size: 13px;
 		line-height: 1.5;
 	}
 
@@ -77,7 +85,9 @@
 		font-size: 15px;
 		font-weight: 500;
 		text-decoration: none;
-		transition: box-shadow 0.15s, transform 0.15s;
+		transition:
+			box-shadow 0.15s,
+			transform 0.15s;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 	}
 
