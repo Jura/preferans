@@ -3,6 +3,8 @@ import { redirect } from '@sveltejs/kit';
 import { normalizeEmail } from '$lib/server/user-access';
 
 type PresenceStatus = 'online' | 'away' | 'offline';
+const ONLINE_WINDOW = '-10 minutes';
+const AWAY_WINDOW = '-30 minutes';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!platform?.env?.DB) {
@@ -45,7 +47,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	const onlineUsersCountResult = await platform.env.DB.prepare(
 		`SELECT COUNT(*) AS total
 		 FROM users u
-		 WHERE u.last_active_at >= datetime('now', '-10 minutes')
+		 WHERE u.last_active_at >= datetime('now', ?)
 		   AND (
 		   	 LOWER(u.email) = ?
 		   	 OR EXISTS(
@@ -55,7 +57,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		   	 )
 		   )`
 	)
-		.bind(adminEmail)
+		.bind(ONLINE_WINDOW, adminEmail)
 		.first<{ total: number }>();
 
 	let usersPresence: Array<{ id: string; name: string; status: PresenceStatus }> = [];
@@ -63,20 +65,21 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		const usersPresenceQuery = await platform.env.DB.prepare(
 			`SELECT u.id, u.name,
 			        CASE
-			        	WHEN u.last_active_at >= datetime('now', '-10 minutes') THEN 'online'
-			        	WHEN u.last_active_at >= datetime('now', '-30 minutes') THEN 'away'
+			        	WHEN u.last_active_at >= datetime('now', ?) THEN 'online'
+			        	WHEN u.last_active_at >= datetime('now', ?) THEN 'away'
 			        	ELSE 'offline'
 			        END AS status
 			 FROM users u
 			 ORDER BY
 			 	CASE
-			 		WHEN u.last_active_at >= datetime('now', '-10 minutes') THEN 0
-			 		WHEN u.last_active_at >= datetime('now', '-30 minutes') THEN 1
+			 		WHEN u.last_active_at >= datetime('now', ?) THEN 0
+			 		WHEN u.last_active_at >= datetime('now', ?) THEN 1
 			 		ELSE 2
 			 	END,
 			 	u.last_active_at DESC,
 			 	u.name COLLATE NOCASE ASC`
 		)
+			.bind(ONLINE_WINDOW, AWAY_WINDOW, ONLINE_WINDOW, AWAY_WINDOW)
 			.all<{ id: string; name: string; status: PresenceStatus }>();
 		usersPresence = usersPresenceQuery.results;
 	}
