@@ -56,7 +56,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 				await event.platform.env.DB.prepare(
 					`UPDATE users
 					 SET last_active_at = datetime('now')
-					 WHERE id = ?`
+					 WHERE id = ?
+					   AND (
+					   	last_active_at IS NULL
+					   	OR last_active_at < datetime('now', '-1 minute')
+					   )`
 				)
 					.bind(result.id)
 					.run();

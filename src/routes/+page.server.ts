@@ -73,20 +73,22 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 						WHEN u.last_active_at >= datetime('now', ?) THEN 'online'
 						WHEN u.last_active_at >= datetime('now', ?) THEN 'away'
 						ELSE 'offline'
-					END AS status,
-					CASE
-						WHEN u.last_active_at >= datetime('now', ?) THEN 0
-						WHEN u.last_active_at >= datetime('now', ?) THEN 1
-						ELSE 2
-					END AS status_rank
+					END AS status
 				FROM users u
 				WHERE ${AUTHORIZED_USERS_FILTER}
 			)
 			SELECT id, name, status
 			FROM presence
-			ORDER BY status_rank, last_active_at DESC, name COLLATE NOCASE ASC`
+			ORDER BY
+				CASE status
+					WHEN 'online' THEN 0
+					WHEN 'away' THEN 1
+					ELSE 2
+				END,
+				last_active_at DESC,
+				name COLLATE NOCASE ASC`
 		)
-			.bind(ONLINE_WINDOW, AWAY_WINDOW, ONLINE_WINDOW, AWAY_WINDOW, adminEmail)
+			.bind(ONLINE_WINDOW, AWAY_WINDOW, adminEmail)
 			.all<{ id: string; name: string; status: PresenceStatus }>();
 		usersPresence = usersPresenceQuery.results;
 	}
