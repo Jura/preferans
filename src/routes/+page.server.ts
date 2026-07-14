@@ -3,6 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import { normalizeEmail } from '$lib/server/user-access';
 
 type PresenceStatus = 'online' | 'away' | 'offline';
+// Presence windows from issue #9: online <=10 minutes, away <=30 minutes, otherwise offline.
 const ONLINE_WINDOW = '-10 minutes';
 const AWAY_WINDOW = '-30 minutes';
 const AUTHORIZED_USERS_FILTER = `(
