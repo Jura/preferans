@@ -295,9 +295,12 @@ export class GameRoom implements DurableObject {
 		try {
 			const doId = this.env.LOBBY_ROOM.idFromName('global');
 			const stub = this.env.LOBBY_ROOM.get(doId);
+			// Fire-and-forget: we don't await this so game operations aren't blocked.
+			// Errors are intentionally ignored – lobby updates are best-effort and
+			// the LobbyRoom's own alarm-based polling will self-heal within 5 seconds.
 			void stub.fetch(new Request('http://lobby/notify', { method: 'POST' })).catch(() => {});
 		} catch {
-			// LOBBY_ROOM not configured – ignore
+			// LOBBY_ROOM not configured or idFromName failed – ignore
 		}
 	}
 
