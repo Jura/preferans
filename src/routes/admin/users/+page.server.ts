@@ -94,16 +94,14 @@ export const actions: Actions = {
 		}
 
 		await DB.prepare(`DELETE FROM user_allowlist WHERE email = ?`).bind(normalizedEmail).run();
-		await DB.prepare(
-			`DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE LOWER(email) = ?)`
-		)
+		const user = await DB.prepare(`SELECT id FROM users WHERE LOWER(email) = ?`)
 			.bind(normalizedEmail)
-			.run();
-		await DB.prepare(
-			`DELETE FROM ws_tokens WHERE user_id IN (SELECT id FROM users WHERE LOWER(email) = ?)`
-		)
-			.bind(normalizedEmail)
-			.run();
+			.first<{ id: string }>();
+
+		if (user) {
+			await DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(user.id).run();
+			await DB.prepare(`DELETE FROM ws_tokens WHERE user_id = ?`).bind(user.id).run();
+		}
 
 		return { message: messages.removed };
 	}
