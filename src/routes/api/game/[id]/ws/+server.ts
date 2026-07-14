@@ -17,6 +17,15 @@ export const GET: RequestHandler = async ({ request, params, platform }) => {
 		return new Response('Game not found', { status: 404 });
 	}
 
+	// GAME_ROOM binding must be configured at https://dash.cloudflare.com/
+	// under Pages > preferans > Settings > Bindings > Durable Objects
+	// pointing to the preferans Worker service class GameRoom.
+	// Once configured, platform.env.GAME_ROOM will be populated.
+
+	if (!GAME_ROOM) {
+		return new Response('Durable Object binding not configured', { status: 503 });
+	}
+
 	// Route to the Durable Object — one instance per game, keyed by gameId
 	const doId = GAME_ROOM.idFromName(gameId);
 	const stub = GAME_ROOM.get(doId);

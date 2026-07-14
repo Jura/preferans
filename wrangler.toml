@@ -7,10 +7,9 @@ binding = "DB"
 database_name = "preferans-db"
 database_id = "f0459e96-4a30-451a-a093-8b373ae0adf3"
 
-[[durable_objects.bindings]]
-name = "GAME_ROOM"
-class_name = "GameRoom"
-script_name = "preferans"
+# Durable Objects binding must be configured via Cloudflare dashboard for Pages Functions
+# Set via: Dashboard > Pages > preferans > Settings > Bindings > Durable Objects
+# Bind GAME_ROOM to the preferans Worker service
 
 # Set OAuth/session secrets via Pages secrets:
 # wrangler pages secret put GOOGLE_CLIENT_ID --project-name <your-pages-project-name>
