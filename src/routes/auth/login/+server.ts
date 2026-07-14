@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 /** Redirect to Google OAuth consent screen */
-export const GET: RequestHandler = async ({ platform, url, cookies }) => {
+export const POST: RequestHandler = async ({ platform, url, cookies }) => {
 	if (!platform?.env) {
 		redirect(303, '/');
 	}
