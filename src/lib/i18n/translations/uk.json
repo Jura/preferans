@@ -179,7 +179,12 @@
 			"contractFailed": "{{name}} підсів на {{contract}} ({{tricks}} взяток)",
 			"tricksTaken": "взяток: {{count}}",
 			"nextRound": "Наступна роздача",
-			"openHandOf": "Відкриті карти: {{name}}"
+			"openHandOf": "Відкриті карти: {{name}}",
+			"finishEarlyModalTitle": "Завершити гру достроково?",
+			"finishEarlyModalBody": "{{name}} пропонує завершити гру достроково. Всі гравці мають погодитися.",
+			"pauseModalTitle": "Поставити гру на паузу?",
+			"pauseModalBody": "{{name}} пропонує поставити гру на паузу.",
+			"redirectingToLobby": "Гру завершено. Повернення до лобі…"
 		},
 		"scoreboard": {
 			"aria": "Рахунок",
@@ -218,6 +223,13 @@
 				"diamonds": "Бубни",
 				"hearts": "Черви"
 			}
+		},
+		"player": {
+			"leaderboardRank": "Місце в таблиці",
+			"gamesPlayed": "Ігор зіграно",
+			"cumulativeScore": "Сума очок",
+			"lastSeen": "Востаннє",
+			"neverSeen": "Ніколи"
 		}
 	}
 }

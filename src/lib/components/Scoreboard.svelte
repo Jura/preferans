@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t } from '$lib/i18n';
+	import PlayerBadge from './PlayerBadge.svelte';
 	import type { Player, PlayerId } from '$lib/types/preferans';
 
 	interface Props {
@@ -43,7 +44,7 @@
 						{#if player.avatarUrl}
 							<img src={player.avatarUrl} alt={player.name} class="avatar" width="24" height="24" />
 						{/if}
-						{player.name}
+						<PlayerBadge playerId={player.id} name={player.name} />
 					</td>
 					<td class="num pool">{pool[player.id] ?? 0}/{bulletTarget}</td>
 					<td class="num mountain">{mountain[player.id] ?? 0}</td>

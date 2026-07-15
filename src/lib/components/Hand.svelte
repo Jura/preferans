@@ -11,13 +11,7 @@
 		label?: string;
 	}
 
-	let {
-		cards,
-		playable = false,
-		selectedCard = null,
-		onPlayCard,
-		label
-	}: Props = $props();
+	let { cards, playable = false, selectedCard = null, onPlayCard, label }: Props = $props();
 
 	function isSelected(card: Card): boolean {
 		return selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;
@@ -51,6 +45,8 @@
 		gap: -8px;
 		justify-content: center;
 		padding: 8px 0;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.hand :global(.card) {
@@ -70,5 +66,16 @@
 		color: #aaa;
 		font-style: italic;
 		padding: 16px;
+	}
+
+	@media (max-width: 480px) {
+		.hand :global(.card) {
+			margin-right: -6px;
+		}
+
+		.hand :global(.card:hover.playable),
+		.hand :global(.card.selected) {
+			margin-right: 2px;
+		}
 	}
 </style>

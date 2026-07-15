@@ -179,7 +179,12 @@
 			"contractFailed": "{{name}} подсел на {{contract}} ({{tricks}} взяток)",
 			"tricksTaken": "взяток: {{count}}",
 			"nextRound": "Следующая раздача",
-			"openHandOf": "Открытые карты: {{name}}"
+			"openHandOf": "Открытые карты: {{name}}",
+			"finishEarlyModalTitle": "Закончить игру досрочно?",
+			"finishEarlyModalBody": "{{name}} предлагает закончить игру досрочно. Все игроки должны согласиться.",
+			"pauseModalTitle": "Поставить игру на паузу?",
+			"pauseModalBody": "{{name}} предлагает поставить игру на паузу.",
+			"redirectingToLobby": "Игра завершена. Возврат в лобби…"
 		},
 		"scoreboard": {
 			"aria": "Счёт",
@@ -218,6 +223,13 @@
 				"diamonds": "Бубны",
 				"hearts": "Червы"
 			}
+		},
+		"player": {
+			"leaderboardRank": "Место в таблице",
+			"gamesPlayed": "Игр сыграно",
+			"cumulativeScore": "Сумма очков",
+			"lastSeen": "Последний раз",
+			"neverSeen": "Никогда"
 		}
 	}
 }
