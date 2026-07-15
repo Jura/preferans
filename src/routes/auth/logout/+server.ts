@@ -26,9 +26,9 @@ export const POST: RequestHandler = async ({ cookies, platform }) => {
 				try {
 					const doId = lobbyRoom.idFromName('global');
 					const stub = lobbyRoom.get(doId);
-					void stub.fetch(new Request('http://lobby/notify', { method: 'POST' })).catch(() => {});
+					await stub.fetch(new Request('http://lobby/notify', { method: 'POST' }));
 				} catch {
-					// LOBBY_ROOM not configured – ignore
+					// Notification failed – lobby clients will see the update on the next poll interval
 				}
 			}
 		}
