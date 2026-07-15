@@ -38,9 +38,12 @@
 	}
 
 	function contractSuitClass(contract: Contract | null): string {
-		if (!contract || contract.type !== 'suit') return '';
+		if (!contract) return '';
+		if (contract.type === 'misere') return '';
 		if (contract.suit === 'no_trump') return 'suit-nt';
-		return contract.suit === 'diamonds' || contract.suit === 'hearts' ? 'suit-red' : 'suit-black';
+		if (contract.suit === 'diamonds' || contract.suit === 'hearts') return 'suit-red';
+		if (contract.suit === 'spades' || contract.suit === 'clubs') return 'suit-black';
+		return '';
 	}
 </script>
 
@@ -100,9 +103,13 @@
 
 <style>
 	.table {
+		--table-width: 420px;
+		--table-height: 280px;
+		--table-max-height: 60dvh;
+
 		position: relative;
-		width: min(420px, 100%);
-		height: min(280px, 60dvh);
+		width: min(var(--table-width), 100%);
+		height: min(var(--table-height), var(--table-max-height));
 		background: radial-gradient(ellipse at center, #2d6a4f 0%, #1b4332 100%);
 		border-radius: 50%;
 		border: 4px solid #c8a96e;

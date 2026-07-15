@@ -82,7 +82,7 @@
 
 	let isMyTurn = $derived($game.state?.currentPlayerId === data.user?.id);
 	let myPlayerId = $derived(data.user?.id ?? '');
-	let tableCurrentContract = $derived($game.state?.contract ?? $game.state?.wonBid ?? null);
+	let currentContract = $derived($game.state?.contract ?? $game.state?.wonBid ?? null);
 	let finishProposal = $derived($game.state?.finishProposal ?? null);
 	let pauseProposal = $derived($game.state?.pauseProposal ?? null);
 	// Backend enforces mutual exclusion (only one proposal can be active at a time).
@@ -483,7 +483,7 @@
 							myPlayerId={data.user?.id ?? ''}
 							trump={$game.state.trump}
 							currentPlayerId={$game.state.currentPlayerId}
-							currentContract={tableCurrentContract}
+							{currentContract}
 						/>
 
 						{#if $game.state.raspass && $game.state.raspassUpcard}
@@ -730,12 +730,18 @@
 
 <style>
 	.game-page {
+		--layout-chrome-height: 170px;
+		--open-hand-side-width: 140px;
+		--open-hand-side-width-viewport: 22vw;
+		--open-hand-overlap: 46px;
+		--open-hand-overlap-mobile: 38px;
+
 		max-width: 1200px;
 		margin: 0 auto;
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
-		min-height: min(100%, calc(100dvh - 170px));
+		min-height: min(100%, calc(100dvh - var(--layout-chrome-height)));
 	}
 
 	.status-bar {
@@ -1119,7 +1125,7 @@
 	}
 
 	.open-hand-side {
-		width: min(140px, 22vw);
+		width: min(var(--open-hand-side-width), var(--open-hand-side-width-viewport));
 	}
 
 	.open-hand-side :global(.hand) {
@@ -1131,7 +1137,7 @@
 
 	.open-hand-side :global(.card) {
 		margin-right: 0;
-		margin-bottom: -46px;
+		margin-bottom: calc(-1 * var(--open-hand-overlap));
 	}
 
 	.open-hand-side :global(.card:last-child) {
@@ -1400,7 +1406,7 @@
 		}
 
 		.open-hand-side :global(.card) {
-			margin-bottom: -38px;
+			margin-bottom: calc(-1 * var(--open-hand-overlap-mobile));
 		}
 	}
 </style>

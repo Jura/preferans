@@ -55,6 +55,9 @@
 
 <style>
 	.card {
+		--card-mobile-width: 56px;
+		--card-mobile-height: 84px;
+
 		position: relative;
 		width: 64px;
 		height: 96px;
@@ -149,8 +152,8 @@
 	/* ── Compact card for small screens ── */
 	@media (max-width: 480px) {
 		.card {
-			width: 48px;
-			height: 72px;
+			width: var(--card-mobile-width);
+			height: var(--card-mobile-height);
 			border-radius: 5px;
 			border-width: 1px;
 			padding: 2px;

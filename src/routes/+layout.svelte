@@ -57,6 +57,13 @@
 		presence.stop();
 		lobby.disconnect();
 	});
+
+	function avatarInitial(name: string): string {
+		const trimmed = name.trim();
+		if (!trimmed) return '?';
+		const first = Array.from(trimmed)[0];
+		return /\p{L}/u.test(first) ? first.toUpperCase() : '?';
+	}
 </script>
 
 <svelte:head>
@@ -83,16 +90,16 @@
 							/>
 						{:else}
 							<span class="avatar-placeholder" aria-hidden="true"
-								>{data.user.name[0]?.toUpperCase() ?? '?'}</span
+								>{avatarInitial(data.user.name)}</span
 							>
 						{/if}
 					</summary>
 					<div class="menu-panel">
 						<div class="menu-section">
 							<form method="POST" action="/preferences/locale" class="locale-form">
-								<label for="locale-menu" class="visually-hidden">{$t('app.language.label')}</label>
+								<label for="locale" class="visually-hidden">{$t('app.language.label')}</label>
 								<select
-									id="locale-menu"
+									id="locale"
 									name="locale"
 									value={data.locale}
 									onchange={(event) => event.currentTarget.form?.requestSubmit()}
