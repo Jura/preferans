@@ -90,6 +90,8 @@ export interface Player {
 	avatarUrl: string | null;
 	/** Position at table: 0 = south (self), 1 = west, 2 = east */
 	position: 0 | 1 | 2;
+	/** Whether the player currently has an active game WebSocket session. */
+	isOnline: boolean;
 }
 
 export type GamePhase =

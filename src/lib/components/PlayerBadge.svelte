@@ -17,11 +17,13 @@
 		name: string;
 		/** Optional pre-loaded stats (skips the API fetch when provided). */
 		stats?: PlayerStats | null;
+		/** Marks the player as currently disconnected from the table. */
+		offline?: boolean;
 		/** Extra CSS class(es) forwarded to the wrapper element. */
 		class?: string;
 	}
 
-	let { playerId, name, stats = null, class: className = '' }: Props = $props();
+	let { playerId, name, stats = null, offline = false, class: className = '' }: Props = $props();
 
 	let loaded = $state(false);
 	let loading = $state(false);
@@ -108,6 +110,9 @@
 	aria-describedby={showTooltip ? tooltipId : undefined}
 >
 	{name}
+	{#if offline}
+		<span class="status-chip offline">{$t('app.lobby.presence.offline')}</span>
+	{/if}
 	{#if showTooltip}
 		<div class="tooltip" role="tooltip" id={tooltipId}>
 			{#if loading}
@@ -144,6 +149,23 @@
 		display: inline-block;
 		cursor: default;
 		outline: none;
+	}
+
+	.status-chip {
+		display: inline-block;
+		margin-left: 6px;
+		padding: 0 6px;
+		font-size: 10px;
+		line-height: 1.4;
+		border-radius: 999px;
+		text-transform: uppercase;
+		letter-spacing: 0.4px;
+	}
+
+	.status-chip.offline {
+		color: #d9d9d9;
+		background: rgba(130, 130, 130, 0.3);
+		border: 1px solid rgba(170, 170, 170, 0.45);
 	}
 
 	.tooltip {
