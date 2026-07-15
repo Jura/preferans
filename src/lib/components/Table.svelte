@@ -2,16 +2,25 @@
 	import CardComponent from './Card.svelte';
 	import PlayerBadge from './PlayerBadge.svelte';
 	import { t } from '$lib/i18n';
-	import type { Trick, Player, Card } from '$lib/types/preferans';
+	import type { Trick, Player, Card, Contract } from '$lib/types/preferans';
 
 	interface Props {
 		trick: Trick | null;
 		players: Player[];
 		myPlayerId: string;
 		trump?: import('$lib/types/preferans').Suit | null;
+		currentPlayerId?: string | null;
+		currentContract?: Contract | null;
 	}
 
-	let { trick, players, myPlayerId, trump = null }: Props = $props();
+	let {
+		trick,
+		players,
+		myPlayerId,
+		trump = null,
+		currentPlayerId = null,
+		currentContract = null
+	}: Props = $props();
 
 	const SUIT_SYMBOLS: Record<string, string> = {
 		spades: '♠',
@@ -27,12 +36,22 @@
 	function getCardForPlayer(playerId: string): Card | null {
 		return trick?.cards.find((c) => c.playerId === playerId)?.card ?? null;
 	}
+
+	function contractSuitClass(contract: Contract | null): string {
+		if (!contract || contract.type !== 'suit') return '';
+		if (contract.suit === 'no_trump') return 'suit-nt';
+		return contract.suit === 'diamonds' || contract.suit === 'hearts' ? 'suit-red' : 'suit-black';
+	}
 </script>
 
 <div class="table" aria-label={$t('app.table.aria')}>
 	{#if trump}
 		<div class="trump-indicator" title={$t('app.game.trump')}>
-			<span class="trump-suit">{SUIT_SYMBOLS[trump]}</span>
+			<span
+				class={`trump-suit ${trump === 'diamonds' || trump === 'hearts' ? 'suit-red' : 'suit-black'}`}
+			>
+				{SUIT_SYMBOLS[trump]}
+			</span>
 			<span class="trump-label">{$t('app.game.trump')}</span>
 		</div>
 	{/if}
@@ -43,10 +62,23 @@
 			<div
 				class="player-slot"
 				class:self={player.id === myPlayerId}
+				class:current-turn={player.id === currentPlayerId}
 				style="--pos: {player.position}"
 			>
 				<div class="player-name">
 					<PlayerBadge playerId={player.id} name={player.name} />
+					{#if player.id === currentPlayerId && currentContract}
+						<span class={`current-contract ${contractSuitClass(currentContract)}`}>
+							{#if currentContract.type === 'misere'}
+								{$t('app.game.misere')}
+							{:else}
+								{currentContract.level}
+								{currentContract.suit === 'no_trump'
+									? $t('app.game.noTrumpShort')
+									: SUIT_SYMBOLS[currentContract.suit]}
+							{/if}
+						</span>
+					{/if}
 				</div>
 				<div class="played-card">
 					{#if card}
@@ -69,8 +101,8 @@
 <style>
 	.table {
 		position: relative;
-		width: 420px;
-		height: 280px;
+		width: min(420px, 100%);
+		height: min(280px, 60dvh);
 		background: radial-gradient(ellipse at center, #2d6a4f 0%, #1b4332 100%);
 		border-radius: 50%;
 		border: 4px solid #c8a96e;
@@ -90,7 +122,6 @@
 		background: rgba(0, 0, 0, 0.4);
 		border-radius: 8px;
 		padding: 4px 8px;
-		color: #ffd700;
 	}
 
 	.trump-suit {
@@ -102,6 +133,7 @@
 		font-size: 10px;
 		text-transform: uppercase;
 		letter-spacing: 1px;
+		color: #ffd700;
 	}
 
 	.table-center {
@@ -142,6 +174,9 @@
 		background: rgba(0, 0, 0, 0.3);
 		border-radius: 4px;
 		padding: 2px 6px;
+		display: flex;
+		align-items: center;
+		gap: 6px;
 	}
 
 	.player-name :global(.player-badge) {
@@ -152,6 +187,41 @@
 	.player-slot.self .player-name {
 		color: #ffd700;
 		font-weight: bold;
+	}
+
+	.player-slot.current-turn .player-name {
+		border: 1px solid rgba(255, 215, 0, 0.8);
+		background: rgba(255, 215, 0, 0.14);
+		color: #ffd700;
+	}
+
+	.player-slot.current-turn .played-card {
+		filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.6));
+	}
+
+	.current-contract {
+		font-size: 11px;
+		font-weight: 700;
+		line-height: 1;
+		padding: 2px 5px;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.5);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.suit-black {
+		color: #111;
+		background: rgba(255, 255, 255, 0.9);
+	}
+
+	.suit-red {
+		color: #c0392b;
+		background: rgba(255, 255, 255, 0.92);
+	}
+
+	.suit-nt {
+		color: #ffd700;
+		border-color: rgba(255, 215, 0, 0.5);
 	}
 
 	.played-card {

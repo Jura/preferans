@@ -82,6 +82,7 @@
 
 	let isMyTurn = $derived($game.state?.currentPlayerId === data.user?.id);
 	let myPlayerId = $derived(data.user?.id ?? '');
+	let tableCurrentContract = $derived($game.state?.contract ?? $game.state?.wonBid ?? null);
 	let finishProposal = $derived($game.state?.finishProposal ?? null);
 	let pauseProposal = $derived($game.state?.pauseProposal ?? null);
 	// Backend enforces mutual exclusion (only one proposal can be active at a time).
@@ -257,7 +258,7 @@
 		{#if $game.state}
 			<span class="phase-label">{$t(`app.phase.${$gamePhase}`)}</span>
 			{#if $game.state.trump}
-				<span class="trump-label">
+				<span class="trump-label suit-symbol {`suit-${$game.state.trump}`}">
 					{$t('app.game.trump')}: {$game.state.trump === 'spades'
 						? '♠'
 						: $game.state.trump === 'clubs'
@@ -462,57 +463,59 @@
 					</div>
 				</div>
 			{:else}
-				<!-- Playing table -->
-				<Table
-					trick={$currentTrick}
-					players={$game.state.players}
-					myPlayerId={data.user?.id ?? ''}
-					trump={$game.state.trump}
-				/>
+				<!-- Playing table and side open hands -->
+				<div class="table-layout">
+					{#if openHandLeftPlayer && sortedOpenHands[openHandLeftPlayer.id]}
+						<div class="open-hand open-hand-side open-hand-left">
+							<h4>{$t('app.game.openHandOf', { name: openHandLeftPlayer.name })}</h4>
+							<Hand
+								cards={sortedOpenHands[openHandLeftPlayer.id]}
+								playable={false}
+								label={openHandLeftPlayer.name}
+							/>
+						</div>
+					{/if}
 
-				<!-- Распасовка: widow card dictating the lead suit -->
-				{#if $game.state.raspass && $game.state.raspassUpcard}
-					<div class="raspass-banner" role="status">
-						<span>
-							{$t('app.game.raspassLead', {
-								suit: SUIT_SYMBOLS[$game.state.raspassUpcard.suit]
-							})}
-						</span>
-						<Hand
-							cards={[$game.state.raspassUpcard]}
-							playable={false}
-							label={$t('app.game.widow')}
+					<div class="table-center-column">
+						<Table
+							trick={$currentTrick}
+							players={$game.state.players}
+							myPlayerId={data.user?.id ?? ''}
+							trump={$game.state.trump}
+							currentPlayerId={$game.state.currentPlayerId}
+							currentContract={tableCurrentContract}
 						/>
-					</div>
-				{/if}
 
-				<!-- Open hands (светлая игра / мизер):
-				     Current player's hand is at the bottom (shown in .my-hand below).
-				     Other players' open hands are laid out left / right according to
-				     their table position. -->
-				{#if openHandEntries.length > 0}
-					<div class="open-hands-row">
-						{#if openHandLeftPlayer && sortedOpenHands[openHandLeftPlayer.id]}
-							<div class="open-hand open-hand-left">
-								<h4>{$t('app.game.openHandOf', { name: openHandLeftPlayer.name })}</h4>
+						{#if $game.state.raspass && $game.state.raspassUpcard}
+							<div class="raspass-banner" role="status">
+								<span>
+									{$t('app.game.raspassLead', {
+										suit: SUIT_SYMBOLS[$game.state.raspassUpcard.suit]
+									})}
+								</span>
 								<Hand
-									cards={sortedOpenHands[openHandLeftPlayer.id]}
+									cards={[$game.state.raspassUpcard]}
 									playable={false}
-									label={openHandLeftPlayer.name}
+									label={$t('app.game.widow')}
 								/>
 							</div>
 						{/if}
-						{#if openHandRightPlayer && sortedOpenHands[openHandRightPlayer.id]}
-							<div class="open-hand open-hand-right">
-								<h4>{$t('app.game.openHandOf', { name: openHandRightPlayer.name })}</h4>
-								<Hand
-									cards={sortedOpenHands[openHandRightPlayer.id]}
-									playable={false}
-									label={openHandRightPlayer.name}
-								/>
-							</div>
-						{/if}
-						<!-- Remaining open hands that don't match a known position (e.g. spectator view) -->
+					</div>
+
+					{#if openHandRightPlayer && sortedOpenHands[openHandRightPlayer.id]}
+						<div class="open-hand open-hand-side open-hand-right">
+							<h4>{$t('app.game.openHandOf', { name: openHandRightPlayer.name })}</h4>
+							<Hand
+								cards={sortedOpenHands[openHandRightPlayer.id]}
+								playable={false}
+								label={openHandRightPlayer.name}
+							/>
+						</div>
+					{/if}
+				</div>
+
+				{#if openHandOthers.length > 0}
+					<div class="open-hands-others">
 						{#each openHandOthers as [playerId, cards] (playerId)}
 							<div class="open-hand">
 								<h4>{$t('app.game.openHandOf', { name: playerName(playerId) })}</h4>
@@ -542,7 +545,9 @@
 								{#each ['spades', 'clubs', 'diamonds', 'hearts', 'no_trump'] as suit}
 									<button
 										class="mini-btn"
+										class:black={suit === 'spades' || suit === 'clubs'}
 										class:red={suit === 'diamonds' || suit === 'hearts'}
+										class:nt={suit === 'no_trump'}
 										class:active={declaredSuit === suit}
 										onclick={() => (declaredSuit = suit as ContractSuit)}
 									>
@@ -730,6 +735,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
+		min-height: min(100%, calc(100dvh - 170px));
 	}
 
 	.status-bar {
@@ -812,6 +818,22 @@
 		color: #c8a96e;
 	}
 
+	.suit-symbol.suit-spades,
+	.suit-symbol.suit-clubs {
+		color: #111;
+		background: rgba(255, 255, 255, 0.9);
+		border-radius: 999px;
+		padding: 2px 8px;
+	}
+
+	.suit-symbol.suit-diamonds,
+	.suit-symbol.suit-hearts {
+		color: #c0392b;
+		background: rgba(255, 255, 255, 0.9);
+		border-radius: 999px;
+		padding: 2px 8px;
+	}
+
 	.error-msg {
 		color: #ff6b6b;
 		margin-left: auto;
@@ -821,6 +843,7 @@
 		display: flex;
 		gap: 24px;
 		align-items: flex-start;
+		justify-content: center;
 	}
 
 	.sidebar {
@@ -862,6 +885,9 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 20px;
+		width: 100%;
+		max-height: calc(100dvh - 220px);
+		overflow-y: auto;
 	}
 
 	.table-stat {
@@ -1052,6 +1078,21 @@
 		font-size: 14px;
 	}
 
+	.table-layout {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		width: 100%;
+	}
+
+	.table-center-column {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
+	}
+
 	.open-hand {
 		text-align: center;
 		background: rgba(0, 0, 0, 0.35);
@@ -1069,8 +1110,7 @@
 		letter-spacing: 1px;
 	}
 
-	/* Container for the side-by-side layout of open hands */
-	.open-hands-row {
+	.open-hands-others {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 12px;
@@ -1078,10 +1118,24 @@
 		width: 100%;
 	}
 
-	.open-hand-left,
-	.open-hand-right {
-		flex: 1 1 auto;
-		min-width: 0;
+	.open-hand-side {
+		width: min(140px, 22vw);
+	}
+
+	.open-hand-side :global(.hand) {
+		flex-direction: column;
+		align-items: center;
+		overflow: visible;
+		padding: 6px 0;
+	}
+
+	.open-hand-side :global(.card) {
+		margin-right: 0;
+		margin-bottom: -46px;
+	}
+
+	.open-hand-side :global(.card:last-child) {
+		margin-bottom: 0;
 	}
 
 	.round-summary {
@@ -1238,6 +1292,15 @@
 		color: #e74c3c;
 	}
 
+	.mini-btn.black {
+		color: #111;
+		background: rgba(255, 255, 255, 0.92);
+	}
+
+	.mini-btn.nt {
+		color: #ffd700;
+	}
+
 	.modal-actions {
 		display: flex;
 		gap: 10px;
@@ -1279,6 +1342,7 @@
 	@media (max-width: 768px) {
 		.game-area {
 			flex-direction: column;
+			align-items: center;
 		}
 
 		.sidebar {
@@ -1292,8 +1356,8 @@
 			width: 100%;
 		}
 
-		.open-hands-row {
-			flex-direction: column;
+		.table-layout {
+			gap: 8px;
 		}
 	}
 
@@ -1319,6 +1383,24 @@
 
 		.modal-card {
 			padding: 16px 18px;
+		}
+
+		.table-layout {
+			gap: 6px;
+		}
+
+		.open-hand-side {
+			width: 78px;
+			padding: 4px 6px;
+		}
+
+		.open-hand-side h4 {
+			font-size: 10px;
+			letter-spacing: 0.4px;
+		}
+
+		.open-hand-side :global(.card) {
+			margin-bottom: -38px;
 		}
 	}
 </style>
