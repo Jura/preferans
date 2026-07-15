@@ -189,6 +189,8 @@ export const WHIST_OBLIGATION: Record<ContractLevel, number> = {
 const RASPASS_PRICES = [2, 4, 6];
 
 export function raspassPrice(streak: number): number {
+	// Streak comes from persisted state; clamp defensively so malformed
+	// (negative) values fall back to the base price instead of undefined.
 	return RASPASS_PRICES[Math.min(Math.max(streak, 0), RASPASS_PRICES.length - 1)];
 }
 
@@ -773,7 +775,7 @@ export function applyWidowSelection(
 	const combined = [...(state.hands[playerId] ?? []), ...state.widow];
 	for (const c of discard) {
 		if (!combined.some((h) => sameCard(h, c))) {
-			throw new Error('Discarded card is not in your hand');
+			throw new Error(`Discarded card ${c.rank} of ${c.suit} is not in your hand`);
 		}
 	}
 
