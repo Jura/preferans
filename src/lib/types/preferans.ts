@@ -159,7 +159,8 @@ export type ClientMessage =
 	| { type: 'vote_finish_early'; approve: boolean }
 	| { type: 'request_pause'; durationMinutes: number | null }
 	| { type: 'vote_pause'; approve: boolean }
-	| { type: 'ping' };
+	| { type: 'ping' }
+	| { type: 'activity' };
 
 export type ServerMessage =
 	| { type: 'game_state'; state: GameState }
@@ -207,7 +208,7 @@ export type LobbyGame = {
 	paused_until: string | null;
 };
 
-export type LobbyClientMessage = { type: 'ping' };
+export type LobbyClientMessage = { type: 'ping' } | { type: 'activity' };
 
 export type LobbyServerMessage =
 	| {

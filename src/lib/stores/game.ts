@@ -2,6 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import type { GameState, ClientMessage, ServerMessage } from '$lib/types/preferans';
 import { toasts } from '$lib/stores/toasts';
 import { t } from '$lib/i18n';
+import { presence } from '$lib/stores/presence';
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 const HEARTBEAT_INTERVAL_MS = 15000;
@@ -70,6 +71,9 @@ function createGameStore() {
 			heartbeatTimer = setInterval(() => {
 				send({ type: 'ping' });
 			}, HEARTBEAT_INTERVAL_MS);
+			// Register this socket as the presence activity sender so the presence store
+			// can route heartbeats here instead of using HTTP PATCH /api/presence.
+			presence.setActivitySender(() => send({ type: 'activity' }));
 			update((s) => ({ ...s, status: 'connected', error: null }));
 		});
 
@@ -84,6 +88,7 @@ function createGameStore() {
 
 		ws.addEventListener('close', (event) => {
 			clearHeartbeat();
+			presence.setActivitySender(null);
 			update((s) => ({ ...s, status: 'disconnected' }));
 			// 4401 is a custom close code used by the server when a connected user's
 			// allowlist access has been revoked.
@@ -114,6 +119,7 @@ function createGameStore() {
 		});
 
 		ws.addEventListener('error', () => {
+			presence.setActivitySender(null);
 			update((s) => ({ ...s, status: 'error', error: 'Connection error' }));
 		});
 	}

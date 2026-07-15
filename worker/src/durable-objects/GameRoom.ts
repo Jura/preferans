@@ -6,6 +6,7 @@ import {
 	applyWidowSelection,
 	applyPlayCard
 } from '../gameEngine';
+import { UPDATE_LAST_ACTIVE_SQL } from '../db';
 
 export interface Env {
 	DB: D1Database;
@@ -36,7 +37,8 @@ type ClientMessage =
 	| { type: 'request_pause'; durationMinutes: number | null }
 	| { type: 'vote_pause'; approve: boolean }
 	| { type: 'start_round' }
-	| { type: 'ping' };
+	| { type: 'ping' }
+	| { type: 'activity' };
 
 type ServerMessage =
 	| { type: 'game_state'; state: ClientGameState }
@@ -434,6 +436,13 @@ export class GameRoom implements DurableObject {
 					this.broadcastState();
 				}
 				this.sendToSocket(session.ws, { type: 'pong' });
+				return;
+
+			case 'activity':
+				// Update the player's presence in D1 (throttled by the WHERE condition),
+				// then immediately notify LobbyRoom so lobby clients see the updated presence.
+				await this.env.DB.prepare(UPDATE_LAST_ACTIVE_SQL).bind(playerId).run();
+				this.notifyLobby();
 				return;
 
 			case 'start_round': {

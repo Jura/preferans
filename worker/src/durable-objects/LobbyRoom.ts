@@ -4,6 +4,8 @@
  * queries D1 and manages its own WebSocket sessions. GameRoom accesses
  * LOBBY_ROOM via the worker-level Env.
  */
+import { UPDATE_LAST_ACTIVE_SQL } from '../db';
+
 export interface Env {
 	DB: D1Database;
 }
@@ -18,8 +20,10 @@ const AWAY_WINDOW = '-30 minutes';
 /**
  * How often (ms) the DO re-queries D1 and pushes updates to all connected
  * lobby clients when at least one client is connected.
+ * Most state changes are pushed immediately (game events via /notify, presence
+ * via activity messages), so a longer interval here is a safety-net fallback.
  */
-const POLL_INTERVAL_MS = 5_000;
+const POLL_INTERVAL_MS = 15_000;
 
 interface LobbySession {
 	ws: WebSocket;
@@ -78,6 +82,8 @@ export class LobbyRoom implements DurableObject {
 	private env: Env;
 	private sessions: Map<string, LobbySession> = new Map();
 	private lastState: LobbyState = { games: [], users: [] };
+	/** Serialised snapshot of the last broadcast state; used to skip pushes when nothing changed. */
+	private lastStateJson = '';
 
 	constructor(state: DurableObjectState, env: Env) {
 		this.state = state;
@@ -152,6 +158,19 @@ export class LobbyRoom implements DurableObject {
 
 		if (msg.type === 'ping') {
 			this.sendToSocket(ws, { type: 'pong' });
+			return;
+		}
+
+		if (msg.type === 'activity') {
+			// Update the user's last_active_at in D1 (throttled by the WHERE condition).
+			const sessionId = this.getSessionId(ws);
+			const session = sessionId ? this.sessions.get(sessionId) : undefined;
+			if (session) {
+				await this.env.DB.prepare(UPDATE_LAST_ACTIVE_SQL).bind(session.userId).run();
+			}
+			// Refresh and push to all clients; the diff check in refreshAndBroadcast ensures
+			// we only send when the presence status actually changed.
+			await this.refreshAndBroadcast();
 		}
 	}
 
@@ -260,6 +279,14 @@ export class LobbyRoom implements DurableObject {
 
 	private async refreshAndBroadcast() {
 		const newState = await this.fetchLobbyState();
+		const newJson = JSON.stringify(newState);
+
+		// Skip broadcasting when nothing has changed since the last push.
+		// This avoids redundant network traffic during the alarm-based polling
+		// cycle and on activity messages when the user is already online.
+		if (newJson === this.lastStateJson) return;
+
+		this.lastStateJson = newJson;
 		this.lastState = newState;
 
 		const msg: LobbyServerMessage = {
@@ -275,6 +302,10 @@ export class LobbyRoom implements DurableObject {
 
 	private async refreshAndBroadcastToSocket(ws: WebSocket) {
 		const newState = await this.fetchLobbyState();
+		// Intentionally do NOT update lastStateJson here: this method sends to ONE
+		// new socket only, and the cached hash in lastStateJson must reflect what ALL
+		// connected clients last received. Updating it here would cause the next
+		// refreshAndBroadcast() call to incorrectly skip broadcasting to existing clients.
 		this.lastState = newState;
 		this.sendToSocket(ws, {
 			type: 'lobby_state',

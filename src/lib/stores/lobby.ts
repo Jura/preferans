@@ -3,6 +3,7 @@ import type { LobbyGame, LobbyServerMessage, UserPresence } from '$lib/types/pre
 import { toasts } from '$lib/stores/toasts';
 import { get } from 'svelte/store';
 import { t } from '$lib/i18n';
+import { presence } from '$lib/stores/presence';
 
 const HEARTBEAT_INTERVAL_MS = 20_000;
 
@@ -49,6 +50,13 @@ function createLobbyStore() {
 
 		ws.addEventListener('open', () => {
 			update((s) => ({ ...s, connected: true }));
+			// Register this socket as the presence activity sender so the presence store
+			// can route heartbeats here instead of using HTTP PATCH /api/presence.
+			presence.setActivitySender(() => {
+				if (ws?.readyState === WebSocket.OPEN) {
+					ws.send(JSON.stringify({ type: 'activity' }));
+				}
+			});
 			heartbeatTimer = setInterval(() => {
 				if (ws?.readyState === WebSocket.OPEN) {
 					ws.send(JSON.stringify({ type: 'ping' }));
@@ -68,6 +76,7 @@ function createLobbyStore() {
 		ws.addEventListener('close', () => {
 			clearTimers();
 			ws = null;
+			presence.setActivitySender(null);
 			update((s) => ({ ...s, connected: false }));
 			// Note: no automatic reconnection here because lobby tokens are single-use.
 			// The next page navigation will trigger a fresh token + connection from the layout.
@@ -76,6 +85,7 @@ function createLobbyStore() {
 		ws.addEventListener('error', () => {
 			ws = null;
 			clearTimers();
+			presence.setActivitySender(null);
 			update((s) => ({ ...s, connected: false }));
 		});
 	}
