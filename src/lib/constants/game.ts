@@ -13,3 +13,5 @@ export const ACTIVE_TABLE_PHASES = [
 	'playing',
 	'scoring'
 ] as const;
+
+export const LOBBY_TABLE_PHASES = [...ACTIVE_TABLE_PHASES, 'paused'] as const;

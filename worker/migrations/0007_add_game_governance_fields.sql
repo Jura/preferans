@@ -1,0 +1,5 @@
+ALTER TABLE games
+ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0 CHECK (is_pinned IN (0, 1));
+
+ALTER TABLE games
+ADD COLUMN paused_until TEXT;

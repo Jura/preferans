@@ -43,7 +43,19 @@ export type GamePhase =
 	| 'discard'
 	| 'playing'
 	| 'scoring'
+	| 'paused'
 	| 'finished';
+
+export type ProposalVote = 'yes' | 'no' | null;
+
+export interface FinishProposal {
+	proposedBy: PlayerId;
+	votes: Record<PlayerId, ProposalVote>;
+}
+
+export interface PauseProposal extends FinishProposal {
+	durationMinutes: number | null;
+}
 
 export interface Trick {
 	cards: { playerId: PlayerId; card: Card }[];
@@ -66,6 +78,9 @@ export interface GameState {
 	trump: Suit | null;
 	scores: Record<PlayerId, number>;
 	roundNumber: number;
+	finishProposal: FinishProposal | null;
+	pauseProposal: PauseProposal | null;
+	pausedUntil: string | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -74,8 +89,14 @@ const SUITS: Suit[] = ['spades', 'clubs', 'diamonds', 'hearts'];
 const RANKS: Rank[] = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
 const RANK_ORDER: Record<Rank, number> = {
-	'7': 0, '8': 1, '9': 2, '10': 3,
-	J: 4, Q: 5, K: 6, A: 7
+	'7': 0,
+	'8': 1,
+	'9': 2,
+	'10': 3,
+	J: 4,
+	Q: 5,
+	K: 6,
+	A: 7
 };
 
 /** Contract point values for scoring (suit contract at level 6) */
@@ -108,7 +129,10 @@ export function shuffleDeck(deck: Card[]): Card[] {
 	return d;
 }
 
-export function deal(deck: Card[], playerIds: PlayerId[]): {
+export function deal(
+	deck: Card[],
+	playerIds: PlayerId[]
+): {
 	hands: Record<PlayerId, Card[]>;
 	widow: Card[];
 } {
@@ -125,7 +149,12 @@ export function deal(deck: Card[], playerIds: PlayerId[]): {
 
 // ─── Card comparison ──────────────────────────────────────────────────────────
 
-export function cardBeats(challenger: Card, leader: Card, trump: Suit | null, leadSuit: Suit): boolean {
+export function cardBeats(
+	challenger: Card,
+	leader: Card,
+	trump: Suit | null,
+	leadSuit: Suit
+): boolean {
 	const challengerIsTrump = trump !== null && challenger.suit === trump;
 	const leaderIsTrump = trump !== null && leader.suit === trump;
 
@@ -250,7 +279,12 @@ export function validCards(hand: Card[], trick: Trick | null, trump: Suit | null
 	return hand; // Any card
 }
 
-export function isValidPlay(card: Card, hand: Card[], trick: Trick | null, trump: Suit | null): boolean {
+export function isValidPlay(
+	card: Card,
+	hand: Card[],
+	trick: Trick | null,
+	trump: Suit | null
+): boolean {
 	const valid = validCards(hand, trick, trump);
 	return valid.some((c) => c.suit === card.suit && c.rank === card.rank);
 }
@@ -272,7 +306,10 @@ export function createInitialState(gameId: string, playerIds: PlayerId[]): GameS
 		declarerId: null,
 		trump: null,
 		scores: Object.fromEntries(playerIds.map((p) => [p, 0])),
-		roundNumber: 0
+		roundNumber: 0,
+		finishProposal: null,
+		pauseProposal: null,
+		pausedUntil: null
 	};
 }
 
@@ -290,6 +327,9 @@ export function startRound(state: GameState): GameState {
 		contract: null,
 		declarerId: null,
 		trump: null,
+		finishProposal: null,
+		pauseProposal: null,
+		pausedUntil: null,
 		currentPlayerId: state.playerIds[state.roundNumber % state.playerIds.length],
 		roundNumber: state.roundNumber + 1
 	};
@@ -299,10 +339,13 @@ export function applyBid(state: GameState, playerId: PlayerId, bid: Bid): GameSt
 	if (state.phase !== 'bidding' || state.currentPlayerId !== playerId) {
 		throw new Error('Not your turn to bid');
 	}
-	const currentHigh = state.bids.filter((b) => b.bid !== 'pass')
+	const currentHigh = state.bids
+		.filter((b) => b.bid !== 'pass')
 		.map((b) => b.bid as Contract)
-		.reduce<Contract | null>((best, c) =>
-			!best || contractValue(c) > contractValue(best) ? c : best, null);
+		.reduce<Contract | null>(
+			(best, c) => (!best || contractValue(c) > contractValue(best) ? c : best),
+			null
+		);
 
 	if (!isValidBid(bid, currentHigh)) {
 		throw new Error('Bid is not high enough');

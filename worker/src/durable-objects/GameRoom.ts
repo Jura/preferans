@@ -1,4 +1,4 @@
-import type { GameState, PlayerId, Card, Bid } from '../gameEngine';
+import type { GameState, PlayerId, Card, Bid, FinishProposal, PauseProposal } from '../gameEngine';
 import {
 	createInitialState,
 	startRound,
@@ -24,11 +24,17 @@ interface AccessStatusCacheEntry {
 	expiresAt: number;
 }
 
+const MS_PER_MINUTE = 60 * 1000;
+
 type ClientMessage =
 	| { type: 'join'; token: string }
 	| { type: 'bid'; bid: Bid }
 	| { type: 'select_widow'; keep: [Card, Card] }
 	| { type: 'play_card'; card: Card }
+	| { type: 'request_finish_early' }
+	| { type: 'vote_finish_early'; approve: boolean }
+	| { type: 'request_pause'; durationMinutes: number | null }
+	| { type: 'vote_pause'; approve: boolean }
 	| { type: 'start_round' }
 	| { type: 'ping' };
 
@@ -53,6 +59,9 @@ interface ClientGameState {
 	trump: string | null;
 	scores: Record<string, number>;
 	roundNumber: number;
+	finishProposal: FinishProposal | null;
+	pauseProposal: PauseProposal | null;
+	pausedUntil: string | null;
 }
 
 export class GameRoom implements DurableObject {
@@ -75,6 +84,48 @@ export class GameRoom implements DurableObject {
 	async fetch(request: Request): Promise<Response> {
 		const url = new URL(request.url);
 		this.gameId = url.searchParams.get('gameId') ?? this.gameId;
+
+		if (request.method === 'POST' && url.pathname.endsWith('/admin/deal-out')) {
+			if (!this.gameState) {
+				await this.loadGameState();
+			}
+			if (!this.gameState) {
+				return new Response('Game state unavailable', { status: 404 });
+			}
+			if (this.gameState.phase !== 'waiting') {
+				return new Response('Table is not waiting', { status: 409 });
+			}
+			if (this.gameState.playerIds.length !== 3) {
+				return new Response('Need exactly 3 players', { status: 409 });
+			}
+			this.gameState = startRound({
+				...this.gameState,
+				playerIds: this.shufflePlayerIds(this.gameState.playerIds)
+			});
+			await this.persistState();
+			this.broadcastState();
+			return new Response(null, { status: 204 });
+		}
+
+		if (request.method === 'POST' && url.pathname.endsWith('/admin/dismiss')) {
+			if (!this.gameState) {
+				await this.loadGameState();
+			}
+			if (!this.gameState) {
+				return new Response('Game state unavailable', { status: 404 });
+			}
+			this.gameState = {
+				...this.gameState,
+				phase: 'finished',
+				currentPlayerId: null,
+				finishProposal: null,
+				pauseProposal: null,
+				pausedUntil: null
+			};
+			await this.persistState();
+			this.broadcastState();
+			return new Response(null, { status: 204 });
+		}
 
 		if (request.headers.get('Upgrade') !== 'websocket') {
 			return new Response('Expected WebSocket upgrade', { status: 426 });
@@ -212,7 +263,12 @@ export class GameRoom implements DurableObject {
 	private async loadGameState() {
 		const stored = await this.state.storage.get<GameState>('gameState');
 		if (stored) {
-			this.gameState = stored;
+			this.gameState = {
+				...stored,
+				finishProposal: stored.finishProposal ?? null,
+				pauseProposal: stored.pauseProposal ?? null,
+				pausedUntil: stored.pausedUntil ?? null
+			};
 			return;
 		}
 		// Load player ids from DB
@@ -271,6 +327,14 @@ export class GameRoom implements DurableObject {
 				playerIds.map((playerId) => [playerId, currentScores[playerId] ?? 0])
 			)
 		};
+
+		// Auto-deal when the third player joins and randomize order at that point.
+		if (playerIds.length === 3) {
+			this.gameState = startRound({
+				...this.gameState,
+				playerIds: this.shufflePlayerIds(playerIds)
+			});
+		}
 		await this.persistState();
 
 		return true;
@@ -281,9 +345,9 @@ export class GameRoom implements DurableObject {
 		await this.state.storage.put('gameState', this.gameState);
 		// Mirror phase to D1
 		await this.env.DB.prepare(
-			`UPDATE games SET phase = ?, updated_at = datetime('now') WHERE id = ?`
+			`UPDATE games SET phase = ?, paused_until = ?, updated_at = datetime('now') WHERE id = ?`
 		)
-			.bind(this.gameState.phase, this.gameId)
+			.bind(this.gameState.phase, this.gameState.pausedUntil, this.gameId)
 			.run();
 		// Notify lobby so it can push an up-to-date game list to lobby clients
 		this.notifyLobby();
@@ -302,6 +366,30 @@ export class GameRoom implements DurableObject {
 		} catch {
 			// LOBBY_ROOM not configured or idFromName failed – ignore
 		}
+	}
+
+	/** Fisher-Yates shuffle used when seating is randomized as soon as the third player joins. */
+	private shufflePlayerIds(playerIds: PlayerId[]) {
+		const shuffled = [...playerIds];
+		for (let i = shuffled.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+		}
+		return shuffled;
+	}
+
+	private createProposalVotes(playerIds: PlayerId[], proposerId: PlayerId) {
+		return Object.fromEntries(
+			playerIds.map((id) => [id, id === proposerId ? 'yes' : null])
+		) as Record<PlayerId, 'yes' | 'no' | null>;
+	}
+
+	private proposalRejected(votes: Record<PlayerId, 'yes' | 'no' | null>) {
+		return Object.values(votes).includes('no');
+	}
+
+	private proposalApproved(votes: Record<PlayerId, 'yes' | 'no' | null>) {
+		return Object.values(votes).every((vote) => vote === 'yes');
 	}
 
 	private async handleMessage(session: WebSocketSession, msg: ClientMessage) {
@@ -324,7 +412,10 @@ export class GameRoom implements DurableObject {
 				if (this.gameState.playerIds.length !== 3) {
 					throw new Error('Need exactly 3 players to start');
 				}
-				this.gameState = startRound(this.gameState);
+				this.gameState = startRound({
+					...this.gameState,
+					playerIds: this.shufflePlayerIds(this.gameState.playerIds)
+				});
 				await this.persistState();
 				this.broadcastState();
 				return;
@@ -354,6 +445,129 @@ export class GameRoom implements DurableObject {
 				if (this.gameState.phase === 'scoring') {
 					await this.saveRoundResult();
 				}
+				this.broadcastState();
+				return;
+			}
+
+			case 'request_finish_early': {
+				if (!this.gameState) return;
+				if (this.gameState.phase === 'waiting' || this.gameState.phase === 'finished') {
+					throw new Error('Early finish is only available after game start');
+				}
+				if (this.gameState.finishProposal || this.gameState.pauseProposal) {
+					throw new Error('Another vote is already in progress');
+				}
+				this.gameState = {
+					...this.gameState,
+					finishProposal: {
+						proposedBy: playerId,
+						votes: this.createProposalVotes(this.gameState.playerIds, playerId)
+					}
+				};
+				await this.persistState();
+				this.broadcastState();
+				return;
+			}
+
+			case 'vote_finish_early': {
+				if (!this.gameState) return;
+				const proposal = this.gameState.finishProposal;
+				if (!proposal) {
+					throw new Error('No early finish vote in progress');
+				}
+				if (proposal.proposedBy === playerId) {
+					throw new Error("The proposer's vote is automatically counted as 'yes'");
+				}
+				const votes = {
+					...proposal.votes,
+					[playerId]: msg.approve ? 'yes' : 'no'
+				} as Record<PlayerId, 'yes' | 'no' | null>;
+
+				if (this.proposalRejected(votes)) {
+					this.gameState = { ...this.gameState, finishProposal: null };
+				} else if (this.proposalApproved(votes)) {
+					this.gameState = {
+						...this.gameState,
+						phase: 'finished',
+						currentPlayerId: null,
+						finishProposal: null,
+						pauseProposal: null,
+						pausedUntil: null
+					};
+				} else {
+					this.gameState = {
+						...this.gameState,
+						finishProposal: { ...proposal, votes }
+					};
+				}
+				await this.persistState();
+				this.broadcastState();
+				return;
+			}
+
+			case 'request_pause': {
+				if (!this.gameState) return;
+				if (this.gameState.phase === 'waiting' || this.gameState.phase === 'finished') {
+					throw new Error('Pause is only available after game start');
+				}
+				if (this.gameState.finishProposal || this.gameState.pauseProposal) {
+					throw new Error('Another vote is already in progress');
+				}
+				if (
+					msg.durationMinutes !== null &&
+					(!Number.isInteger(msg.durationMinutes) || msg.durationMinutes <= 0)
+				) {
+					throw new Error('Pause duration must be a positive number of minutes');
+				}
+				this.gameState = {
+					...this.gameState,
+					pauseProposal: {
+						proposedBy: playerId,
+						durationMinutes: msg.durationMinutes,
+						votes: this.createProposalVotes(this.gameState.playerIds, playerId)
+					}
+				};
+				await this.persistState();
+				this.broadcastState();
+				return;
+			}
+
+			case 'vote_pause': {
+				if (!this.gameState) return;
+				const proposal = this.gameState.pauseProposal;
+				if (!proposal) {
+					throw new Error('No pause vote in progress');
+				}
+				if (proposal.proposedBy === playerId) {
+					throw new Error("The proposer's vote is automatically counted as 'yes'");
+				}
+				const votes = {
+					...proposal.votes,
+					[playerId]: msg.approve ? 'yes' : 'no'
+				} as Record<PlayerId, 'yes' | 'no' | null>;
+
+				if (this.proposalRejected(votes)) {
+					this.gameState = { ...this.gameState, pauseProposal: null };
+				} else if (this.proposalApproved(votes)) {
+					const pausedUntil =
+						proposal.durationMinutes === null
+							? null
+							: new Date(Date.now() + proposal.durationMinutes * MS_PER_MINUTE).toISOString();
+					this.gameState = {
+						...this.gameState,
+						phase: 'paused',
+						currentPlayerId: null,
+						pausedUntil,
+						finishProposal: null,
+						pauseProposal: null
+					};
+				} else {
+					this.gameState = {
+						...this.gameState,
+						pauseProposal: { ...proposal, votes }
+					};
+				}
+				await this.persistState();
 				this.broadcastState();
 				return;
 			}
@@ -404,7 +618,10 @@ export class GameRoom implements DurableObject {
 			declarerId: gs.declarerId,
 			trump: gs.trump,
 			scores: gs.scores,
-			roundNumber: gs.roundNumber
+			roundNumber: gs.roundNumber,
+			finishProposal: gs.finishProposal ?? null,
+			pauseProposal: gs.pauseProposal ?? null,
+			pausedUntil: gs.pausedUntil ?? null
 		};
 	}
 
