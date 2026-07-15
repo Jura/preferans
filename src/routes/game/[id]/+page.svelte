@@ -6,14 +6,40 @@
 	import Scoreboard from '$lib/components/Scoreboard.svelte';
 	import BiddingPanel from '$lib/components/BiddingPanel.svelte';
 	import { t } from '$lib/i18n';
+	import { contractValue } from '$lib/types/preferans';
 	import type { PageData } from './$types';
-	import type { Card, Bid, Contract } from '$lib/types/preferans';
+	import type {
+		Card,
+		Bid,
+		Contract,
+		ContractLevel,
+		ContractSuit,
+		Suit,
+		WhistChoice
+	} from '$lib/types/preferans';
 
 	let { data }: { data: PageData } = $props();
 
 	let selectedCard: Card | null = $state(null);
 	let tableAgeSeconds = $state(0);
 	let tableTimer: ReturnType<typeof setInterval> | null = null;
+
+	const SUIT_SYMBOLS: Record<string, string> = {
+		spades: '♠',
+		clubs: '♣',
+		diamonds: '♦',
+		hearts: '♥'
+	};
+
+	function suitSymbol(suit: ContractSuit): string {
+		return suit === 'no_trump' ? $t('app.game.noTrumpShort') : SUIT_SYMBOLS[suit];
+	}
+
+	function formatContract(contract: Contract | null): string {
+		if (!contract) return '';
+		if (contract.type === 'misere') return $t('app.game.misere');
+		return `${contract.level} ${suitSymbol(contract.suit)}`;
+	}
 
 	function updateTableAge() {
 		const createdAt = Date.parse(data.createdAt);
@@ -53,9 +79,59 @@
 	let isProposalProposer = $derived(activeProposal?.proposedBy === myPlayerId);
 	let hasPendingVote = $derived(activeProposal ? activeProposal.votes[myPlayerId] === null : false);
 
-	let canPlayCard = $derived($gamePhase === 'playing' && isMyTurn);
+	let lightDecisionPending = $derived($game.state?.lightDecisionBy ?? null);
+	let canPlayCard = $derived($gamePhase === 'playing' && isMyTurn && !lightDecisionPending);
+	let isDeclarer = $derived($game.state?.declarerId === myPlayerId);
+
+	// ── Widow (discard + final contract) state ──
+	let discardSelection: Card[] = $state([]);
+	let declaredLevel: ContractLevel = $state(6);
+	let declaredSuit: ContractSuit = $state('spades');
+
+	let combinedWidowHand = $derived(
+		$gamePhase === 'widow' && isDeclarer ? [...$myHand, ...($game.state?.widow ?? [])] : []
+	);
+	let wonBid = $derived($game.state?.wonBid ?? null);
+	let misereBid = $derived(wonBid?.type === 'misere');
+	let declaredContract: Contract = $derived(
+		misereBid ? { type: 'misere' } : { type: 'suit', level: declaredLevel, suit: declaredSuit }
+	);
+	let declarationValid = $derived(
+		misereBid || (wonBid !== null && contractValue(declaredContract) >= contractValue(wonBid))
+	);
+
+	$effect(() => {
+		// Preselect the winning bid as the announced contract
+		if (wonBid && wonBid.type === 'suit') {
+			declaredLevel = wonBid.level;
+			declaredSuit = wonBid.suit;
+		}
+	});
+
+	function toggleDiscard(card: Card) {
+		const idx = discardSelection.findIndex((c) => c.suit === card.suit && c.rank === card.rank);
+		if (idx >= 0) {
+			discardSelection = discardSelection.filter((_, i) => i !== idx);
+		} else if (discardSelection.length < 2) {
+			discardSelection = [...discardSelection, card];
+		}
+	}
+
+	function confirmWidow() {
+		if (discardSelection.length !== 2 || !declarationValid) return;
+		game.send({
+			type: 'select_widow',
+			discard: [discardSelection[0], discardSelection[1]],
+			contract: declaredContract
+		});
+		discardSelection = [];
+	}
 
 	function handlePlayCard(card: Card) {
+		if ($gamePhase === 'widow' && isDeclarer) {
+			toggleDiscard(card);
+			return;
+		}
 		if (!canPlayCard) return;
 		if (selectedCard?.suit === card.suit && selectedCard?.rank === card.rank) {
 			// Second click confirms the card play
@@ -68,6 +144,27 @@
 
 	function handleBid(bid: Bid) {
 		game.send({ type: 'bid', bid });
+	}
+
+	function handleWhist(choice: WhistChoice) {
+		game.send({ type: 'whist', choice });
+	}
+
+	function chooseOpen(open: boolean) {
+		game.send({ type: 'choose_open', open });
+	}
+
+	function startNextRound() {
+		game.send({ type: 'start_round' });
+	}
+
+	function isDiscardSelected(card: Card): boolean {
+		return discardSelection.some((c) => c.suit === card.suit && c.rank === card.rank);
+	}
+
+	function playerName(playerId: string | null): string {
+		if (!playerId) return '';
+		return $game.state?.players.find((p) => p.id === playerId)?.name ?? '';
 	}
 
 	function proposeFinishEarly() {
@@ -191,40 +288,51 @@
 		<aside class="sidebar">
 			{#if $game.state}
 				<Scoreboard
+					pool={$game.state.pool}
+					mountain={$game.state.mountain}
+					whists={$game.state.whists}
 					scores={$game.state.scores}
 					players={$game.state.players}
 					roundNumber={$game.state.roundNumber}
+					bulletTarget={$game.state.bulletTarget}
 				/>
 
 				<!-- Contract info -->
-				{#if $game.state.contract}
+				{#if $game.state.raspass}
 					<div class="contract-info">
 						<h4>{$t('app.game.contract')}</h4>
-						{#if $game.state.contract.type === 'misere'}
-							<p>{$game.state.contract.open ? $t('app.game.openMisere') : $t('app.game.misere')}</p>
-						{:else if $game.state.contract.type === 'grand'}
-							<p>{$t('app.game.grand')} {$game.state.contract.level}</p>
-						{:else}
-							<p>
-								{$game.state.contract.level}
-								{$game.state.contract.suit === 'no_trump'
-									? $t('app.game.noTrumpShort')
-									: $game.state.contract.suit === 'spades'
-										? '♠'
-										: $game.state.contract.suit === 'clubs'
-											? '♣'
-											: $game.state.contract.suit === 'diamonds'
-												? '♦'
-												: '♥'}
-							</p>
-						{/if}
+						<p>{$t('app.game.raspass')}</p>
+						<p class="declarer">
+							{$t('app.game.raspassPrice', { price: $game.state.raspassPrice })}
+						</p>
+					</div>
+				{:else if $game.state.contract}
+					<div class="contract-info">
+						<h4>{$t('app.game.contract')}</h4>
+						<p>{formatContract($game.state.contract)}</p>
 						{#if $game.state.declarerId}
 							<p class="declarer">
-								{$t('app.game.declarer', {
-									name: $game.state.players.find((p) => p.id === $game.state!.declarerId)?.name
-								})}
+								{$t('app.game.declarer', { name: playerName($game.state.declarerId) })}
 							</p>
 						{/if}
+						{#if $game.state.whisters.length > 0}
+							<p>
+								{$t('app.game.whisters', {
+									names: $game.state.whisters.map((id) => playerName(id)).join(', ')
+								})}
+								{#if $game.state.playedOpen}
+									· {$t('app.game.openPlay')}
+								{/if}
+							</p>
+						{/if}
+					</div>
+				{:else if $game.state.wonBid && $game.state.declarerId}
+					<div class="contract-info">
+						<h4>{$t('app.game.contract')}</h4>
+						<p>{formatContract($game.state.wonBid)}</p>
+						<p class="declarer">
+							{$t('app.game.declarer', { name: playerName($game.state.declarerId) })}
+						</p>
 					</div>
 				{/if}
 			{/if}
@@ -258,42 +366,207 @@
 					trump={$game.state.trump}
 				/>
 
-				<!-- Widow cards (during widow phase for declarer) -->
-				{#if $gamePhase === 'widow' && $game.state.widow.length > 0 && $game.state.declarerId === data.user?.id}
+				<!-- Распасовка: widow card dictating the lead suit -->
+				{#if $game.state.raspass && $game.state.raspassUpcard}
+					<div class="raspass-banner" role="status">
+						<span>
+							{$t('app.game.raspassLead', {
+								suit: SUIT_SYMBOLS[$game.state.raspassUpcard.suit]
+							})}
+						</span>
+						<Hand
+							cards={[$game.state.raspassUpcard]}
+							playable={false}
+							label={$t('app.game.widow')}
+						/>
+					</div>
+				{/if}
+
+				<!-- Open hands (светлая игра / мизер) -->
+				{#each Object.entries($game.state.openHands) as [playerId, cards] (playerId)}
+					<div class="open-hand">
+						<h4>{$t('app.game.openHandOf', { name: playerName(playerId) })}</h4>
+						<Hand {cards} playable={false} label={playerName(playerId)} />
+					</div>
+				{/each}
+
+				<!-- Widow: declarer discards two cards and announces the contract -->
+				{#if $gamePhase === 'widow' && isDeclarer}
 					<div class="widow-area">
-						<h3>{$t('app.game.widow')}</h3>
-						<div class="widow-cards">
-							{#each $game.state.widow as card}
-								<Hand cards={[card]} playable={false} />
+						<h3>{$t('app.game.widowTitle')}</h3>
+						<p class="widow-hint">{$t('app.game.widowHint')}</p>
+						{#if !misereBid}
+							<div class="declare-row">
+								<span>{$t('app.game.announceContract')}</span>
+								{#each [6, 7, 8, 9, 10] as level}
+									<button
+										class="mini-btn"
+										class:active={declaredLevel === level}
+										onclick={() => (declaredLevel = level as ContractLevel)}
+									>
+										{level}
+									</button>
+								{/each}
+								{#each ['spades', 'clubs', 'diamonds', 'hearts', 'no_trump'] as suit}
+									<button
+										class="mini-btn"
+										class:red={suit === 'diamonds' || suit === 'hearts'}
+										class:active={declaredSuit === suit}
+										onclick={() => (declaredSuit = suit as ContractSuit)}
+									>
+										{suitSymbol(suit as ContractSuit)}
+									</button>
+								{/each}
+							</div>
+							{#if !declarationValid}
+								<p class="widow-warning">
+									{$t('app.game.contractTooLow', { bid: formatContract(wonBid) })}
+								</p>
+							{/if}
+						{:else}
+							<p>{$t('app.game.misereStays')}</p>
+						{/if}
+						<button
+							class="confirm-btn"
+							disabled={discardSelection.length !== 2 || !declarationValid}
+							onclick={confirmWidow}
+						>
+							{$t('app.game.confirmDiscard', { count: discardSelection.length })}
+						</button>
+					</div>
+				{/if}
+
+				<!-- Whisting panel -->
+				{#if $gamePhase === 'whisting' && $game.state.whistOptions}
+					<div class="whist-panel">
+						<h3>{$t('app.game.whistTitle', { contract: formatContract($game.state.contract) })}</h3>
+						<div class="whist-actions">
+							{#each $game.state.whistOptions as choice}
+								<button class="whist-btn {choice}" onclick={() => handleWhist(choice)}>
+									{$t(`app.game.whistChoice.${choice}`)}
+								</button>
 							{/each}
 						</div>
 					</div>
 				{/if}
 
+				<!-- Light/dark decision («первый ход втемную») -->
+				{#if lightDecisionPending}
+					{#if lightDecisionPending === myPlayerId}
+						<div class="whist-panel">
+							<h3>{$t('app.game.lightChoiceTitle')}</h3>
+							<div class="whist-actions">
+								<button class="whist-btn whist" onclick={() => chooseOpen(true)}>
+									{$t('app.game.playLight')}
+								</button>
+								<button class="whist-btn pass" onclick={() => chooseOpen(false)}>
+									{$t('app.game.playDark')}
+								</button>
+							</div>
+						</div>
+					{:else}
+						<div class="turn-indicator" role="status">
+							{$t('app.game.awaitingLightChoice', { name: playerName(lightDecisionPending) })}
+						</div>
+					{/if}
+				{/if}
+
 				<!-- Bidding panel -->
 				{#if $gamePhase === 'bidding' && isMyTurn}
 					{@const nonPassBids = $game.state.bids.filter((b) => b.bid !== 'pass')}
-					{@const currentHighBid =
-						nonPassBids.length > 0 ? (nonPassBids[nonPassBids.length - 1].bid as Contract) : null}
+					{@const highBid = nonPassBids.reduce<Contract | null>(
+						(best, b) =>
+							!best || contractValue(b.bid as Contract) > contractValue(best)
+								? (b.bid as Contract)
+								: best,
+						null
+					)}
+					{@const canMisere = !$game.state.bids.some(
+						(b) => b.playerId === myPlayerId && b.bid !== 'pass'
+					)}
 					<div class="bidding-area">
-						<BiddingPanel {currentHighBid} myTurn={isMyTurn} onBid={handleBid} />
+						<BiddingPanel
+							currentHighBid={highBid}
+							myTurn={isMyTurn}
+							{canMisere}
+							onBid={handleBid}
+						/>
+					</div>
+				{/if}
+
+				<!-- Round summary -->
+				{#if ($gamePhase === 'scoring' || $gamePhase === 'finished') && $game.state.roundSummary}
+					{@const summary = $game.state.roundSummary}
+					<div class="round-summary" role="status">
+						<h3>
+							{$gamePhase === 'finished'
+								? $t('app.game.gameOver')
+								: $t('app.game.roundOver', { roundNumber: summary.roundNumber })}
+						</h3>
+						{#if summary.raspass}
+							<p>{$t('app.game.raspassResult')}</p>
+						{:else if !summary.played}
+							<p>
+								{$t('app.game.thrownIn', {
+									name: playerName(summary.declarerId),
+									contract: formatContract(summary.contract)
+								})}
+							</p>
+						{:else}
+							<p>
+								{$t(summary.success ? 'app.game.contractMade' : 'app.game.contractFailed', {
+									name: playerName(summary.declarerId),
+									contract: formatContract(summary.contract),
+									tricks: summary.declarerId ? (summary.tricksTaken[summary.declarerId] ?? 0) : 0
+								})}
+							</p>
+						{/if}
+						<ul class="summary-tricks">
+							{#each $game.state.players as player}
+								<li>
+									{player.name}: {$t('app.game.tricksTaken', {
+										count: summary.tricksTaken[player.id] ?? 0
+									})}
+								</li>
+							{/each}
+						</ul>
+						{#if $gamePhase === 'scoring'}
+							<button class="confirm-btn" onclick={startNextRound}>
+								{$t('app.game.nextRound')}
+							</button>
+						{/if}
 					</div>
 				{/if}
 
 				<!-- Turn indicator -->
-				{#if $game.state.currentPlayerId && $game.state.currentPlayerId !== data.user?.id}
-					<div class="turn-indicator" role="status">
-						{$t('app.game.turn', {
-							name: $game.state.players.find((p) => p.id === $game.state!.currentPlayerId)?.name
-						})}
-					</div>
-				{:else if isMyTurn && $gamePhase === 'playing'}
-					<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
+				{#if !lightDecisionPending}
+					{#if $game.state.currentPlayerId && $game.state.currentPlayerId !== data.user?.id}
+						<div class="turn-indicator" role="status">
+							{$t('app.game.turn', { name: playerName($game.state.currentPlayerId) })}
+						</div>
+					{:else if isMyTurn && $gamePhase === 'playing'}
+						<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
+					{/if}
 				{/if}
 			{/if}
 
 			<!-- Player hand -->
-			{#if $myHand.length > 0}
+			{#if $gamePhase === 'widow' && isDeclarer}
+				<div class="my-hand">
+					<Hand
+						cards={combinedWidowHand}
+						playable={true}
+						selectedCard={null}
+						onPlayCard={handlePlayCard}
+						label={$t('app.game.yourCards')}
+					/>
+					<p class="play-hint">
+						{$t('app.game.discardSelected', {
+							cards: discardSelection.map((c) => `${c.rank}${SUIT_SYMBOLS[c.suit]}`).join(', ')
+						})}
+					</p>
+				</div>
+			{:else if $myHand.length > 0}
 				<div class="my-hand">
 					<Hand
 						cards={$myHand}
@@ -510,6 +783,11 @@
 
 	.widow-area {
 		text-align: center;
+		background: rgba(0, 0, 0, 0.5);
+		border: 1px solid rgba(200, 169, 110, 0.3);
+		border-radius: 10px;
+		padding: 12px 16px;
+		color: #f0e6d3;
 	}
 
 	.widow-area h3 {
@@ -517,10 +795,166 @@
 		margin: 0 0 8px;
 	}
 
-	.widow-cards {
+	.widow-hint {
+		font-size: 13px;
+		color: #c0b090;
+		margin: 0 0 8px;
+	}
+
+	.widow-warning {
+		font-size: 13px;
+		color: #ff6b6b;
+		margin: 4px 0;
+	}
+
+	.declare-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 8px;
+		font-size: 13px;
+	}
+
+	.mini-btn {
+		min-width: 32px;
+		height: 32px;
+		border: 1px solid #c8a96e;
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.05);
+		color: #f0e6d3;
+		font-size: 14px;
+		cursor: pointer;
+	}
+
+	.mini-btn.active {
+		background: rgba(200, 169, 110, 0.3);
+		border-color: #ffd700;
+		color: #ffd700;
+	}
+
+	.mini-btn.red {
+		color: #e74c3c;
+	}
+
+	.confirm-btn {
+		padding: 8px 18px;
+		border-radius: 6px;
+		border: none;
+		background: #c8a96e;
+		color: #1a1a2e;
+		font-weight: bold;
+		font-size: 14px;
+		cursor: pointer;
+	}
+
+	.confirm-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.whist-panel {
+		background: rgba(0, 0, 0, 0.7);
+		border: 1px solid #c8a96e;
+		border-radius: 10px;
+		padding: 14px 20px;
+		color: #f0e6d3;
+		text-align: center;
+	}
+
+	.whist-panel h3 {
+		margin: 0 0 12px;
+		font-size: 14px;
+		color: #ffd700;
+	}
+
+	.whist-actions {
 		display: flex;
 		gap: 8px;
 		justify-content: center;
+		flex-wrap: wrap;
+	}
+
+	.whist-btn {
+		padding: 8px 16px;
+		border-radius: 6px;
+		font-size: 14px;
+		cursor: pointer;
+		border: none;
+	}
+
+	.whist-btn.whist {
+		background: #c8a96e;
+		color: #1a1a2e;
+		font-weight: bold;
+	}
+
+	.whist-btn.pass {
+		background: rgba(255, 255, 255, 0.1);
+		color: #f0e6d3;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.whist-btn.half_whist {
+		background: #8b6914;
+		color: #fff;
+	}
+
+	.raspass-banner {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		background: rgba(139, 0, 0, 0.25);
+		border: 1px solid rgba(255, 107, 107, 0.4);
+		border-radius: 10px;
+		padding: 8px 16px;
+		color: #ffd2d2;
+		font-size: 14px;
+	}
+
+	.open-hand {
+		text-align: center;
+		background: rgba(0, 0, 0, 0.35);
+		border: 1px dashed rgba(200, 169, 110, 0.4);
+		border-radius: 10px;
+		padding: 6px 12px;
+	}
+
+	.open-hand h4 {
+		margin: 0;
+		font-size: 12px;
+		color: #c8a96e;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+	}
+
+	.round-summary {
+		background: rgba(0, 0, 0, 0.6);
+		border: 1px solid #c8a96e;
+		border-radius: 10px;
+		padding: 14px 20px;
+		color: #f0e6d3;
+		text-align: center;
+	}
+
+	.round-summary h3 {
+		margin: 0 0 8px;
+		color: #ffd700;
+		font-size: 15px;
+	}
+
+	.round-summary p {
+		margin: 4px 0;
+		font-size: 14px;
+	}
+
+	.summary-tricks {
+		list-style: none;
+		padding: 0;
+		margin: 8px 0 12px;
+		font-size: 13px;
+		color: #c0b090;
 	}
 
 	.bidding-area {

@@ -1,14 +1,27 @@
 <script lang="ts">
 	import { t } from '$lib/i18n';
-	import type { Player } from '$lib/types/preferans';
+	import type { Player, PlayerId } from '$lib/types/preferans';
 
 	interface Props {
-		scores: Record<string, number>;
+		pool: Record<PlayerId, number>;
+		mountain: Record<PlayerId, number>;
+		whists: Record<PlayerId, Record<PlayerId, number>>;
+		scores: Record<PlayerId, number>;
 		players: Player[];
 		roundNumber: number;
+		bulletTarget: number;
 	}
 
-	let { scores, players, roundNumber }: Props = $props();
+	let { pool, mountain, whists, scores, players, roundNumber, bulletTarget }: Props = $props();
+
+	function whistBalance(playerId: PlayerId): number {
+		let balance = 0;
+		for (const other of players) {
+			if (other.id === playerId) continue;
+			balance += (whists[playerId]?.[other.id] ?? 0) - (whists[other.id]?.[playerId] ?? 0);
+		}
+		return balance;
+	}
 </script>
 
 <div class="scoreboard" aria-label={$t('app.scoreboard.aria')}>
@@ -17,7 +30,10 @@
 		<thead>
 			<tr>
 				<th>{$t('app.scoreboard.player')}</th>
-				<th>{$t('app.scoreboard.points')}</th>
+				<th title={$t('app.scoreboard.poolHint', { bulletTarget })}>{$t('app.scoreboard.pool')}</th>
+				<th>{$t('app.scoreboard.mountain')}</th>
+				<th>{$t('app.scoreboard.whists')}</th>
+				<th>{$t('app.scoreboard.total')}</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -29,7 +45,12 @@
 						{/if}
 						{player.name}
 					</td>
-					<td class="score">{scores[player.id] ?? 0}</td>
+					<td class="num pool">{pool[player.id] ?? 0}/{bulletTarget}</td>
+					<td class="num mountain">{mountain[player.id] ?? 0}</td>
+					<td class="num">{whistBalance(player.id)}</td>
+					<td class="num score" class:negative={(scores[player.id] ?? 0) < 0}>
+						{scores[player.id] ?? 0}
+					</td>
 				</tr>
 			{/each}
 		</tbody>
@@ -74,11 +95,27 @@
 		vertical-align: middle;
 	}
 
+	.num {
+		text-align: right;
+	}
+
+	.pool {
+		color: #ffd700;
+	}
+
+	.mountain {
+		color: #ff9d76;
+	}
+
 	.score {
 		font-weight: bold;
 		font-size: 16px;
 		text-align: right;
 		color: #7eff8a;
+	}
+
+	.score.negative {
+		color: #ff6b6b;
 	}
 
 	.avatar {

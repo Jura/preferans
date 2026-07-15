@@ -41,7 +41,7 @@ export const RANK_ORDER: Record<Rank, number> = {
 
 // ─── Bidding types ────────────────────────────────────────────────────────────
 
-/** Trump suit bids: 6/7/8/9/10 tricks in a suit, or misere/grand */
+/** Trump suit bids: 6/7/8/9/10 tricks in a suit or no-trump, or misère */
 export type ContractSuit = Suit | 'no_trump';
 export type ContractLevel = 6 | 7 | 8 | 9 | 10;
 
@@ -53,19 +53,32 @@ export interface SuitContract {
 
 export interface MisereContract {
 	type: 'misere';
-	/** open misere (открытый мизер) */
-	open: boolean;
 }
 
-export interface GrandContract {
-	type: 'grand';
-	level: ContractLevel;
-	open: boolean;
-}
-
-export type Contract = SuitContract | MisereContract | GrandContract;
+export type Contract = SuitContract | MisereContract;
 
 export type Bid = Contract | 'pass';
+
+/** Declarations available to defenders during the whisting phase */
+export type WhistChoice = 'whist' | 'pass' | 'half_whist';
+
+/**
+ * Total ordering of bids (matches worker/src/gameEngine.ts). Suit contracts
+ * order by level then suit (6♠ < 6♣ < 6♦ < 6♥ < 6БК < 7♠ < …). Misère sits
+ * between 8БК and 9♠ («мизер перебивается девятерной»).
+ */
+export const SUIT_BID_ORDER: Record<ContractSuit, number> = {
+	spades: 1,
+	clubs: 2,
+	diamonds: 3,
+	hearts: 4,
+	no_trump: 5
+};
+
+export function contractValue(c: Contract): number {
+	if (c.type === 'misere') return 850;
+	return c.level * 100 + SUIT_BID_ORDER[c.suit];
+}
 
 // ─── Player & Game types ──────────────────────────────────────────────────────
 
@@ -83,8 +96,9 @@ export type GamePhase =
 	| 'waiting' // waiting for players
 	| 'dealing' // cards being dealt
 	| 'bidding' // auction round
-	| 'widow' // declarer looks at talon (прикуп)
-	| 'discard' // declarer discards 2 cards
+	| 'widow' // declarer takes the talon (прикуп) and discards
+	| 'discard' // legacy alias, kept for translations
+	| 'whisting' // defenders declare whist/pass/half-whist
 	| 'playing' // tricks being played
 	| 'scoring' // round over, scores shown
 	| 'paused' // paused by unanimous vote
@@ -114,6 +128,23 @@ export interface RoundScore {
 	bullets: Record<PlayerId, number>;
 }
 
+/** Result of a finished deal, kept for display during the scoring phase */
+export interface RoundSummary {
+	roundNumber: number;
+	declarerId: PlayerId | null;
+	contract: Contract | null;
+	raspass: boolean;
+	/** true when the contract was played out (not thrown in via pass/half-whist) */
+	played: boolean;
+	/** whether declarer fulfilled the contract (true for распасовка) */
+	success: boolean;
+	tricksTaken: Record<PlayerId, number>;
+	poolDelta: Record<PlayerId, number>;
+	mountainDelta: Record<PlayerId, number>;
+	/** net whist points earned this deal */
+	whistsDelta: Record<PlayerId, number>;
+}
+
 export interface GameState {
 	id: string;
 	phase: GamePhase;
@@ -130,16 +161,45 @@ export interface GameState {
 	completedTricks: Trick[];
 	/** Current auction bids */
 	bids: { playerId: PlayerId; bid: Bid }[];
-	/** Winning contract for this round */
+	/** Auction-winning bid — the minimum the declarer may announce */
+	wonBid: Contract | null;
+	/** Final contract for this round */
 	contract: Contract | null;
 	/** Declarer player id */
 	declarerId: PlayerId | null;
 	/** Trump suit for the current round */
 	trump: Suit | null;
-	/** Cumulative scores across rounds */
+	/** Whist declarations in order */
+	whistDeclarations: { playerId: PlayerId; choice: WhistChoice }[];
+	/** Whist options for THIS player, when their declaration is awaited */
+	whistOptions: WhistChoice[] | null;
+	/** Defenders actually whisting during play */
+	whisters: PlayerId[];
+	/** Whister who must choose light/dark after the first card of the deal */
+	lightDecisionBy: PlayerId | null;
+	playedOpen: boolean;
+	/** Other players' hands revealed to everyone (открытая игра) */
+	openHands: Record<PlayerId, Card[]>;
+	/** true while an all-pass deal (распасовка) is being played */
+	raspass: boolean;
+	/** Current price of one trick during распасовка */
+	raspassPrice: number;
+	/** Widow card dictating the current lead suit during распасовка */
+	raspassUpcard: Card | null;
+	/** Пуля per player */
+	pool: Record<PlayerId, number>;
+	/** Гора per player */
+	mountain: Record<PlayerId, number>;
+	/** whists[a][b] — whist points player a holds against player b */
+	whists: Record<PlayerId, Record<PlayerId, number>>;
+	/** Pool size that closes the game */
+	bulletTarget: number;
+	/** Running final settlement in whists */
 	scores: Record<PlayerId, number>;
 	/** Number of rounds played */
 	roundNumber: number;
+	/** Result of the last finished deal */
+	roundSummary: RoundSummary | null;
 	/** Pending unanimous finish proposal */
 	finishProposal: FinishProposal | null;
 	/** Pending unanimous pause proposal */
@@ -153,8 +213,11 @@ export interface GameState {
 export type ClientMessage =
 	| { type: 'join'; gameId: string; token: string }
 	| { type: 'bid'; bid: Bid }
-	| { type: 'select_widow'; keep: [Card, Card] }
+	| { type: 'select_widow'; discard: [Card, Card]; contract: Contract }
+	| { type: 'whist'; choice: WhistChoice }
+	| { type: 'choose_open'; open: boolean }
 	| { type: 'play_card'; card: Card }
+	| { type: 'start_round' }
 	| { type: 'request_finish_early' }
 	| { type: 'vote_finish_early'; approve: boolean }
 	| { type: 'request_pause'; durationMinutes: number | null }

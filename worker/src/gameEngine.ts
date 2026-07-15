@@ -825,7 +825,9 @@ function defendersInOrder(state: GameState): PlayerId[] {
  * half-whist on 6-7, whist return («пас-полвиста-вист») on 6-8,
  * downgrade to half-whist after «вист-пас».
  */
-export function whistOptions(state: GameState): { playerId: PlayerId; options: WhistChoice[] } | null {
+export function whistOptions(
+	state: GameState
+): { playerId: PlayerId; options: WhistChoice[] } | null {
 	if (state.phase !== 'whisting' || !state.contract || state.contract.type !== 'suit') return null;
 	const level = state.contract.level;
 	const [d0, d1] = defendersInOrder(state);
