@@ -83,7 +83,11 @@
 			"ruleBiddingTitle": "📣 Торгівля",
 			"ruleBiddingText": "Гравці по черзі оголошують контракт. Переможець бере прикуп і обирає козир.",
 			"ruleScoringTitle": "🏆 Рахунок",
-			"ruleScoringText": "Очки нараховуються за виконання контракту. Мізер — контракт без хабарів."
+			"ruleScoringText": "Очки нараховуються за виконання контракту. Мізер — контракт без хабарів.",
+			"notifications": {
+				"playerJoined": "Новий гравець приєднався до столу {{hostName}}.",
+				"playerLeft": "Гравець покинув стіл {{hostName}}."
+			}
 		},
 		"login": {
 			"title": "Увійти — Преферанс",
@@ -125,7 +129,11 @@
 			"playHint": "Натисніть на карту ще раз, щоб зіграти",
 			"noTrumpShort": "БК",
 			"gameNotFound": "Гру не знайдено",
-			"connectionError": "Помилка з'єднання"
+			"connectionError": "Помилка з'єднання",
+			"notifications": {
+				"playerJoined": "{{name}} приєднався до столу!",
+				"playerLeft": "{{name}} покинув стіл."
+			}
 		},
 		"scoreboard": {
 			"aria": "Рахунок",

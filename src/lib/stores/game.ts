@@ -1,5 +1,7 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import type { GameState, ClientMessage, ServerMessage } from '$lib/types/preferans';
+import { toasts } from '$lib/stores/toasts';
+import { t } from '$lib/i18n';
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 const HEARTBEAT_INTERVAL_MS = 15000;
@@ -24,6 +26,13 @@ function createGameStore() {
 	let currentGameId: string | null = null;
 	let currentToken: string | null = null;
 
+	/**
+	 * Snapshot of players from the last received game_state, keyed by player id.
+	 * Used to detect join/leave events for toast notifications.
+	 * Null until the first state is received (so we don't toast on initial connect).
+	 */
+	let prevPlayers: Map<string, string> | null = null; // id → name
+
 	function clearReconnect() {
 		if (reconnectTimer) {
 			clearTimeout(reconnectTimer);
@@ -41,6 +50,7 @@ function createGameStore() {
 	function connect(gameId: string, token: string) {
 		currentGameId = gameId;
 		currentToken = token;
+		prevPlayers = null;
 		clearReconnect();
 
 		if (ws) {
@@ -103,9 +113,43 @@ function createGameStore() {
 
 	function handleMessage(msg: ServerMessage) {
 		switch (msg.type) {
-			case 'game_state':
+			case 'game_state': {
+				// Detect player roster changes during the waiting phase and show toasts.
+				// Notifications are intentionally limited to the 'waiting' phase: once the
+				// game has started, player disconnects are handled by the server reconnect
+				// logic and mid-game presence changes would be disruptive to the playing UX.
+				// prevPlayers is null on the first message so we don't fire on initial load.
+				if (msg.state.phase === 'waiting' && prevPlayers !== null) {
+					const translate = get(t);
+					const newPlayerMap = new Map(msg.state.players.map((p) => [p.id, p.name]));
+
+					// Players who just joined
+					for (const [id, name] of newPlayerMap) {
+						if (!prevPlayers.has(id)) {
+							toasts.add({
+								type: 'info',
+								message: translate('app.game.notifications.playerJoined', { name })
+							});
+						}
+					}
+
+					// Players who just left
+					for (const [id, name] of prevPlayers) {
+						if (!newPlayerMap.has(id)) {
+							toasts.add({
+								type: 'warning',
+								message: translate('app.game.notifications.playerLeft', { name })
+							});
+						}
+					}
+				}
+
+				// Snapshot current players for the next comparison
+				prevPlayers = new Map(msg.state.players.map((p) => [p.id, p.name]));
+
 				update((s) => ({ ...s, state: msg.state }));
 				break;
+			}
 			case 'error':
 				update((s) => ({ ...s, error: msg.message }));
 				break;
@@ -126,6 +170,7 @@ function createGameStore() {
 	function disconnect() {
 		clearReconnect();
 		clearHeartbeat();
+		prevPlayers = null;
 		currentGameId = null;
 		currentToken = null;
 		ws?.close();

@@ -9,12 +9,17 @@ database_id = "f0459e96-4a30-451a-a093-8b373ae0adf3"
 
 [durable_objects]
 bindings = [
-  { name = "GAME_ROOM", class_name = "GameRoom" }
+  { name = "GAME_ROOM", class_name = "GameRoom" },
+  { name = "LOBBY_ROOM", class_name = "LobbyRoom" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["GameRoom"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["LobbyRoom"]
 
 # Secrets (used by the GameRoom Durable Object via env.*):
 # wrangler secret put SESSION_SECRET --config worker/wrangler.toml

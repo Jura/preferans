@@ -7,10 +7,15 @@
 		MIN_BULLET_TARGET
 	} from '$lib/constants/game';
 	import { t } from '$lib/i18n';
+	import { lobby } from '$lib/stores/lobby';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	let bulletTarget = $state(DEFAULT_BULLET_TARGET);
+
+	// Use real-time lobby data when the WebSocket is connected; fall back to SSR data
+	const games = $derived($lobby.connected ? $lobby.games : data.games);
+	const usersPresence = $derived($lobby.connected ? $lobby.users : data.usersPresence);
 
 	const presenceStatusDot: Record<'online' | 'away' | 'offline', string> = {
 		online: '🟢',
@@ -81,7 +86,7 @@
 				<details class="users-dropdown">
 					<summary>{$t('app.lobby.usersPresence')}</summary>
 					<ul aria-label={$t('app.lobby.usersPresenceAria')}>
-						{#each data.usersPresence as player}
+						{#each usersPresence as player}
 							<li>
 								<span class="presence-text">
 									{presenceStatusDot[player.status]}
@@ -94,14 +99,14 @@
 				</details>
 			</div>
 
-			{#if data.games.length === 0}
+			{#if games.length === 0}
 				<div class="empty-games">
 					<span class="empty-icon">🎴</span>
 					<p>{$t('app.lobby.emptyGames')}</p>
 				</div>
 			{:else}
 				<ul class="games-list" aria-label={$t('app.lobby.gamesListAria')}>
-					{#each data.games as game}
+					{#each games as game}
 						<li class="game-card">
 							<div class="game-info">
 								<span class="game-host">{game.host_name}</span>
