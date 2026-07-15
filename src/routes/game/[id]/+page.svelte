@@ -108,8 +108,12 @@
 		}
 	});
 
+	function sameCard(a: Card, b: Card): boolean {
+		return a.suit === b.suit && a.rank === b.rank;
+	}
+
 	function toggleDiscard(card: Card) {
-		const idx = discardSelection.findIndex((c) => c.suit === card.suit && c.rank === card.rank);
+		const idx = discardSelection.findIndex((c) => sameCard(c, card));
 		if (idx >= 0) {
 			discardSelection = discardSelection.filter((_, i) => i !== idx);
 		} else if (discardSelection.length < 2) {
@@ -133,7 +137,7 @@
 			return;
 		}
 		if (!canPlayCard) return;
-		if (selectedCard?.suit === card.suit && selectedCard?.rank === card.rank) {
+		if (selectedCard && sameCard(selectedCard, card)) {
 			// Second click confirms the card play
 			game.send({ type: 'play_card', card });
 			selectedCard = null;
@@ -159,7 +163,7 @@
 	}
 
 	function isDiscardSelected(card: Card): boolean {
-		return discardSelection.some((c) => c.suit === card.suit && c.rank === card.rank);
+		return discardSelection.some((c) => sameCard(c, card));
 	}
 
 	function playerName(playerId: string | null): string {

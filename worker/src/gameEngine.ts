@@ -189,7 +189,7 @@ export const WHIST_OBLIGATION: Record<ContractLevel, number> = {
 const RASPASS_PRICES = [2, 4, 6];
 
 export function raspassPrice(streak: number): number {
-	return RASPASS_PRICES[Math.min(streak, RASPASS_PRICES.length - 1)];
+	return RASPASS_PRICES[Math.min(Math.max(streak, 0), RASPASS_PRICES.length - 1)];
 }
 
 export function contractPrice(c: Contract): number {
@@ -768,7 +768,7 @@ export function applyWidowSelection(
 	if (!state.wonBid) throw new Error('No winning bid');
 
 	if (sameCard(discard[0], discard[1])) {
-		throw new Error('Discard two different cards');
+		throw new Error('The two discarded cards must be different');
 	}
 	const combined = [...(state.hands[playerId] ?? []), ...state.widow];
 	for (const c of discard) {
