@@ -140,14 +140,17 @@ Note: migration commands are intentionally bound to `worker/wrangler.toml`.
 
 ## Preferans Rules (Game Summary)
 
-- Deck: 32 cards (7 through Ace)
+The implemented variant is **Ленинградка** (Leningrad tournament conventions) — see [CONVENTIONS.md](CONVENTIONS.md) for the full convention list.
+
+- Deck: 32 cards (7 through Ace); suits rank ♠ < ♣ < ♦ < ♥ < no-trump
 - Players: exactly 3
-- Deal: 10 cards per player + 2 cards in the kitty
-- Bidding: ascending contracts
-- Contracts: 6-10 tricks in suit, no-trump, misere, grand
-- Kitty: bidding winner takes kitty and discards
-- Play: trick-taking with declared trump mode
-- Scoring: based on contract result
+- Deal: 10 cards per player + 2 cards in the widow (прикуп)
+- Bidding: multi-round ascending auction from 6♠; misère may only be a player's first bid and is outbid only by nine-level contracts
+- Widow: the auction winner takes the widow, discards two cards, and announces the final contract (not lower than the winning bid)
+- Whisting: defenders declare вист / пас / полвиста; pass-pass throws the contract in, a lone whister may invite the passer's cards (gentleman's whist) and chooses light or open play
+- Распасовка: if everyone passes, an all-pass round is played — widow cards dictate the first two lead suits, trick price grows 2 → 4 → 6 with consecutive all-pass rounds
+- Play: trick-taking, must follow suit, must trump when void; misère and light play reveal hands after the first (dark) lead
+- Scoring: пуля (pool), гора (mountain, doubled undertricks), and висты; the bullet closes when every player fills the pool, then scores settle via the standard mountain/pool/whist formula
 
 ## Table Governance
 
