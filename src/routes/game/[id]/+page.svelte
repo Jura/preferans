@@ -362,7 +362,11 @@
 					{#each $game.state?.players ?? [] as player}
 						{@const vote = finishProposal.votes[player.id]}
 						<li class="vote-item" class:vote-yes={vote === 'yes'} class:vote-no={vote === 'no'}>
-							<PlayerBadge playerId={player.id} name={player.name} />
+							<PlayerBadge
+								playerId={player.id}
+								name={player.name}
+								offline={player.isOnline === false}
+							/>
 							<span class="vote-badge">
 								{vote === 'yes' ? '✓' : vote === 'no' ? '✗' : '…'}
 							</span>

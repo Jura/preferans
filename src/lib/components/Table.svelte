@@ -69,7 +69,11 @@
 				style="--pos: {player.position}"
 			>
 				<div class="player-name">
-					<PlayerBadge playerId={player.id} name={player.name} />
+					<PlayerBadge
+						playerId={player.id}
+						name={player.name}
+						offline={player.isOnline === false}
+					/>
 					{#if player.id === currentPlayerId && currentContract}
 						<span class={`current-contract ${contractSuitClass(currentContract)}`}>
 							{#if currentContract.type === 'misere'}

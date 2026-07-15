@@ -67,7 +67,13 @@ type ServerMessage =
 interface ClientGameState {
 	id: string;
 	phase: string;
-	players: { id: string; name: string; avatarUrl: string | null; position: number }[];
+	players: {
+		id: string;
+		name: string;
+		avatarUrl: string | null;
+		position: number;
+		isOnline: boolean;
+	}[];
 	currentPlayerId: string | null;
 	hand: Card[];
 	widow: Card[];
@@ -340,16 +346,11 @@ export class GameRoom implements DurableObject {
 		const stored = await this.state.storage.get<GameState>('gameState');
 		if (stored) {
 			this.gameState = normalizeState({ ...stored, bulletTarget });
+			await this.hydratePlayerInfoFromDatabase();
 			return;
 		}
 		// Load player ids from DB
-		const players = await this.env.DB.prepare(
-			`SELECT gp.player_id, gp.position, u.name, u.avatar_url
-			 FROM game_players gp JOIN users u ON u.id = gp.player_id
-			 WHERE gp.game_id = ? ORDER BY gp.position`
-		)
-			.bind(this.gameId)
-			.all<{ player_id: string; position: number; name: string; avatar_url: string | null }>();
+		const players = await this.getPlayersFromDatabase();
 
 		const playerIds = players.results.map((p) => p.player_id);
 		for (const p of players.results) {
@@ -364,15 +365,7 @@ export class GameRoom implements DurableObject {
 			return false;
 		}
 
-		const players = await this.env.DB.prepare(
-			`SELECT gp.player_id, gp.position, u.name, u.avatar_url
-			 FROM game_players gp
-			 JOIN users u ON u.id = gp.player_id
-			 WHERE gp.game_id = ?
-			 ORDER BY gp.position`
-		)
-			.bind(this.gameId)
-			.all<{ player_id: string; position: number; name: string; avatar_url: string | null }>();
+		const players = await this.getPlayersFromDatabase();
 
 		for (const player of players.results) {
 			this.playerInfo.set(player.player_id, {
@@ -693,11 +686,15 @@ export class GameRoom implements DurableObject {
 
 	private buildClientState(forPlayerId: PlayerId): ClientGameState {
 		const gs = this.gameState!;
+		const onlinePlayerIds = new Set(
+			Array.from(this.sessions.values(), (session) => session.playerId)
+		);
 		const players = gs.playerIds.map((id, idx) => ({
 			id,
 			name: this.playerInfo.get(id)?.name ?? id,
 			avatarUrl: this.playerInfo.get(id)?.avatarUrl ?? null,
-			position: idx as 0 | 1 | 2
+			position: idx as 0 | 1 | 2,
+			isOnline: onlinePlayerIds.has(id)
 		}));
 
 		const pendingWhist = whistOptions(gs);
@@ -766,5 +763,27 @@ export class GameRoom implements DurableObject {
 		} catch {
 			// ignore send errors
 		}
+	}
+
+	private async hydratePlayerInfoFromDatabase() {
+		const players = await this.getPlayersFromDatabase();
+		for (const player of players.results) {
+			this.playerInfo.set(player.player_id, {
+				name: player.name,
+				avatarUrl: player.avatar_url
+			});
+		}
+	}
+
+	private async getPlayersFromDatabase() {
+		return this.env.DB.prepare(
+			`SELECT gp.player_id, gp.position, u.name, u.avatar_url
+			 FROM game_players gp
+			 JOIN users u ON u.id = gp.player_id
+			 WHERE gp.game_id = ?
+			 ORDER BY gp.position`
+		)
+			.bind(this.gameId)
+			.all<{ player_id: string; position: number; name: string; avatar_url: string | null }>();
 	}
 }

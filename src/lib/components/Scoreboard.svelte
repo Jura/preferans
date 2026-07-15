@@ -44,7 +44,11 @@
 						{#if player.avatarUrl}
 							<img src={player.avatarUrl} alt={player.name} class="avatar" width="24" height="24" />
 						{/if}
-						<PlayerBadge playerId={player.id} name={player.name} />
+						<PlayerBadge
+							playerId={player.id}
+							name={player.name}
+							offline={player.isOnline === false}
+						/>
 					</td>
 					<td class="num pool">{pool[player.id] ?? 0}/{bulletTarget}</td>
 					<td class="num mountain">{mountain[player.id] ?? 0}</td>
