@@ -12,7 +12,8 @@
 			"playing": "Гра",
 			"scoring": "Рахунок",
 			"paused": "Пауза",
-			"finished": "Завершена"
+			"finished": "Завершена",
+			"whisting": "Віст"
 		},
 		"language": {
 			"label": "Мова",
@@ -121,8 +122,6 @@
 			"trump": "Козир",
 			"contract": "Контракт",
 			"misere": "Мізер",
-			"grand": "Гранд",
-			"openMisere": "Відкритий мізер",
 			"declarer": "Грає: {{name}}",
 			"connecting": "Підключення до гри…",
 			"loadingAria": "Завантаження",
@@ -149,13 +148,48 @@
 			"notifications": {
 				"playerJoined": "{{name}} приєднався до столу!",
 				"playerLeft": "{{name}} покинув стіл."
-			}
+			},
+			"raspass": "Розпасовка",
+			"raspassPrice": "Ціна взятки: {{price}}",
+			"raspassLead": "Карта прикупу показує масть ходу: {{suit}}",
+			"raspassResult": "Розпасовка: кожна взятка пишеться в гору.",
+			"whisters": "Вістують: {{names}}",
+			"openPlay": "гра у світлу",
+			"widowTitle": "Прикуп — скиньте дві карти",
+			"widowHint": "Оберіть дві карти для скидання та оголосіть остаточний контракт.",
+			"announceContract": "Контракт:",
+			"contractTooLow": "Контракт не може бути нижчим за виграний торг ({{bid}})",
+			"misereStays": "Замовлений мізер грається мізером.",
+			"confirmDiscard": "Скинути й оголосити ({{count}}/2)",
+			"discardSelected": "У знос: {{cards}}",
+			"whistTitle": "Контракт {{contract}} — ваше рішення",
+			"whistChoice": {
+				"whist": "Віст",
+				"pass": "Пас",
+				"half_whist": "Піввіста"
+			},
+			"lightChoiceTitle": "Грати у світлу чи в темну?",
+			"playLight": "У світлу (відкрити карти)",
+			"playDark": "У темну",
+			"awaitingLightChoice": "{{name}} обирає гру у світлу чи в темну…",
+			"roundOver": "Роздача {{roundNumber}} завершена",
+			"gameOver": "Гру завершено",
+			"thrownIn": "{{name}} записує {{contract}} без гри",
+			"contractMade": "{{name}} зіграв {{contract}} ({{tricks}} взяток)",
+			"contractFailed": "{{name}} підсів на {{contract}} ({{tricks}} взяток)",
+			"tricksTaken": "взяток: {{count}}",
+			"nextRound": "Наступна роздача",
+			"openHandOf": "Відкриті карти: {{name}}"
 		},
 		"scoreboard": {
 			"aria": "Рахунок",
 			"title": "Рахунок — раунд {{roundNumber}}",
 			"player": "Гравець",
-			"points": "Очки"
+			"pool": "Пуля",
+			"mountain": "Гора",
+			"whists": "Вісти",
+			"total": "Підсумок",
+			"poolHint": "Розмір пулі: {{bulletTarget}}"
 		},
 		"hand": {
 			"empty": "Немає карт"

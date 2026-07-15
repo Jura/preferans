@@ -12,7 +12,8 @@
 			"playing": "Playing",
 			"scoring": "Scoring",
 			"paused": "Paused",
-			"finished": "Finished"
+			"finished": "Finished",
+			"whisting": "Whisting"
 		},
 		"language": {
 			"label": "Language",
@@ -121,8 +122,6 @@
 			"trump": "Trump",
 			"contract": "Contract",
 			"misere": "Misere",
-			"grand": "Grand",
-			"openMisere": "Open misere",
 			"declarer": "Declarer: {{name}}",
 			"connecting": "Connecting to game…",
 			"loadingAria": "Loading",
@@ -149,13 +148,48 @@
 			"notifications": {
 				"playerJoined": "{{name}} joined the table!",
 				"playerLeft": "{{name}} left the table."
-			}
+			},
+			"raspass": "All-pass round (распасовка)",
+			"raspassPrice": "Trick price: {{price}}",
+			"raspassLead": "Widow card dictates the lead suit: {{suit}}",
+			"raspassResult": "All-pass round: every trick goes to the mountain.",
+			"whisters": "Whisting: {{names}}",
+			"openPlay": "open play",
+			"widowTitle": "Widow — discard two cards",
+			"widowHint": "Click two cards to discard, then announce your final contract.",
+			"announceContract": "Contract:",
+			"contractTooLow": "The contract cannot be lower than the winning bid ({{bid}})",
+			"misereStays": "A misère bid is played as misère.",
+			"confirmDiscard": "Discard and announce ({{count}}/2)",
+			"discardSelected": "To discard: {{cards}}",
+			"whistTitle": "Contract {{contract}} — your declaration",
+			"whistChoice": {
+				"whist": "Whist",
+				"pass": "Pass",
+				"half_whist": "Half-whist"
+			},
+			"lightChoiceTitle": "Play light or dark?",
+			"playLight": "Light (open cards)",
+			"playDark": "Dark",
+			"awaitingLightChoice": "{{name}} chooses light or dark play…",
+			"roundOver": "Deal {{roundNumber}} finished",
+			"gameOver": "Game over",
+			"thrownIn": "{{name}} takes {{contract}} without play",
+			"contractMade": "{{name}} made {{contract}} ({{tricks}} tricks)",
+			"contractFailed": "{{name}} failed {{contract}} ({{tricks}} tricks)",
+			"tricksTaken": "{{count}} tricks",
+			"nextRound": "Next deal",
+			"openHandOf": "Open cards of {{name}}"
 		},
 		"scoreboard": {
 			"aria": "Score",
 			"title": "Score — round {{roundNumber}}",
 			"player": "Player",
-			"points": "Points"
+			"pool": "Pool",
+			"mountain": "Mountain",
+			"whists": "Whists",
+			"total": "Total",
+			"poolHint": "Pool target: {{bulletTarget}}"
 		},
 		"hand": {
 			"empty": "No cards"

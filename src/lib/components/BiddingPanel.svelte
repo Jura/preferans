@@ -1,15 +1,18 @@
 <script lang="ts">
 	import { t } from '$lib/i18n';
+	import { contractValue } from '$lib/types/preferans';
 	import type { Contract, Suit, ContractLevel } from '$lib/types/preferans';
 
 	interface Props {
 		/** All valid bids in ascending order of strength */
 		currentHighBid: Contract | null;
 		myTurn: boolean;
+		/** Misère may only be declared as the player's first bid */
+		canMisere: boolean;
 		onBid: (bid: Contract | 'pass') => void;
 	}
 
-	let { currentHighBid, myTurn, onBid }: Props = $props();
+	let { currentHighBid, myTurn, canMisere, onBid }: Props = $props();
 
 	const SUITS: Suit[] = ['spades', 'clubs', 'diamonds', 'hearts'];
 	const SUIT_SYMBOLS: Record<Suit, string> = {
@@ -25,15 +28,6 @@
 		hearts: 'hearts'
 	};
 	const LEVELS: ContractLevel[] = [6, 7, 8, 9, 10];
-
-	/** Numeric value of a contract for comparison */
-	function contractValue(c: Contract): number {
-		if (c.type === 'misere') return c.open ? 110 : 100;
-		if (c.type === 'grand') return c.open ? 130 + c.level * 10 : 120 + c.level * 10;
-		// suit contract: value per level + suit rank (spades=0, clubs=1, diamonds=2, hearts=3, no_trump=4)
-		const suitRank = c.suit === 'no_trump' ? 4 : SUITS.indexOf(c.suit as Suit);
-		return (c.level - 6) * 50 + suitRank;
-	}
 
 	function isValidBid(contract: Contract): boolean {
 		if (!currentHighBid) return true;
@@ -85,28 +79,26 @@
 		<button
 			class="bid-btn"
 			disabled={!myTurn || !isValidBid({ type: 'suit', level: selectedLevel, suit: selectedSuit })}
-			onclick={() =>
-				onBid({ type: 'suit', level: selectedLevel, suit: selectedSuit })}
+			onclick={() => onBid({ type: 'suit', level: selectedLevel, suit: selectedSuit })}
 		>
 			{$t('app.bidding.announce', {
 				level: selectedLevel,
-				suit: selectedSuit !== 'no_trump' ? SUIT_SYMBOLS[selectedSuit as Suit] : $t('app.bidding.noTrumpShort')
+				suit:
+					selectedSuit !== 'no_trump'
+						? SUIT_SYMBOLS[selectedSuit as Suit]
+						: $t('app.bidding.noTrumpShort')
 			})}
 		</button>
 
 		<button
 			class="misere-btn"
-			disabled={!myTurn || !isValidBid({ type: 'misere', open: false })}
-			onclick={() => onBid({ type: 'misere', open: false })}
+			disabled={!myTurn || !canMisere || !isValidBid({ type: 'misere' })}
+			onclick={() => onBid({ type: 'misere' })}
 		>
 			{$t('app.bidding.misere')}
 		</button>
 
-		<button
-			class="pass-btn"
-			disabled={!myTurn}
-			onclick={() => onBid('pass')}
-		>
+		<button class="pass-btn" disabled={!myTurn} onclick={() => onBid('pass')}>
 			{$t('app.bidding.pass')}
 		</button>
 	</div>

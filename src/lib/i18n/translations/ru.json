@@ -12,7 +12,8 @@
 			"playing": "Игра",
 			"scoring": "Счёт",
 			"paused": "Пауза",
-			"finished": "Завершена"
+			"finished": "Завершена",
+			"whisting": "Вист"
 		},
 		"language": {
 			"label": "Язык",
@@ -121,8 +122,6 @@
 			"trump": "Козырь",
 			"contract": "Контракт",
 			"misere": "Мизер",
-			"grand": "Гранд",
-			"openMisere": "Открытый мизер",
 			"declarer": "Играет: {{name}}",
 			"connecting": "Подключение к игре…",
 			"loadingAria": "Загрузка",
@@ -149,13 +148,48 @@
 			"notifications": {
 				"playerJoined": "{{name}} присоединился к столу!",
 				"playerLeft": "{{name}} покинул стол."
-			}
+			},
+			"raspass": "Распасовка",
+			"raspassPrice": "Цена взятки: {{price}}",
+			"raspassLead": "Карта прикупа показывает масть хода: {{suit}}",
+			"raspassResult": "Распасовка: каждая взятка пишется в гору.",
+			"whisters": "Вистуют: {{names}}",
+			"openPlay": "игра в светлую",
+			"widowTitle": "Прикуп — снесите две карты",
+			"widowHint": "Выберите две карты для сноса и объявите окончательный контракт.",
+			"announceContract": "Контракт:",
+			"contractTooLow": "Контракт не может быть ниже выигранной торговли ({{bid}})",
+			"misereStays": "Заказанный мизер играется мизером.",
+			"confirmDiscard": "Снести и объявить ({{count}}/2)",
+			"discardSelected": "В снос: {{cards}}",
+			"whistTitle": "Контракт {{contract}} — ваше решение",
+			"whistChoice": {
+				"whist": "Вист",
+				"pass": "Пас",
+				"half_whist": "Полвиста"
+			},
+			"lightChoiceTitle": "Играть в светлую или втёмную?",
+			"playLight": "В светлую (открыть карты)",
+			"playDark": "Втёмную",
+			"awaitingLightChoice": "{{name}} выбирает игру в светлую или втёмную…",
+			"roundOver": "Раздача {{roundNumber}} завершена",
+			"gameOver": "Игра окончена",
+			"thrownIn": "{{name}} записывает {{contract}} без игры",
+			"contractMade": "{{name}} сыграл {{contract}} ({{tricks}} взяток)",
+			"contractFailed": "{{name}} подсел на {{contract}} ({{tricks}} взяток)",
+			"tricksTaken": "взяток: {{count}}",
+			"nextRound": "Следующая раздача",
+			"openHandOf": "Открытые карты: {{name}}"
 		},
 		"scoreboard": {
 			"aria": "Счёт",
 			"title": "Счёт — раунд {{roundNumber}}",
 			"player": "Игрок",
-			"points": "Очки"
+			"pool": "Пуля",
+			"mountain": "Гора",
+			"whists": "Висты",
+			"total": "Итог",
+			"poolHint": "Размер пули: {{bulletTarget}}"
 		},
 		"hand": {
 			"empty": "Нет карт"
