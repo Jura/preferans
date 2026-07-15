@@ -57,6 +57,13 @@
 		presence.stop();
 		lobby.disconnect();
 	});
+
+	function avatarInitial(name: string): string {
+		const trimmed = name.trim();
+		if (!trimmed) return '?';
+		const first = Array.from(trimmed)[0];
+		return /\p{L}/u.test(first) ? first.toUpperCase() : '?';
+	}
 </script>
 
 <svelte:head>
@@ -66,42 +73,69 @@
 <div class="app">
 	<header>
 		<a href="/" class="logo" aria-label={$t('app.homeAria')}>
-			<span class="logo-icon">🃏</span>
 			<span class="logo-text">{$t('app.name')}</span>
 		</a>
 
 		<nav>
-			<form method="POST" action="/preferences/locale" class="locale-form">
-				<label for="locale" class="locale-label">{$t('app.language.label')}</label>
-				<select
-					id="locale"
-					name="locale"
-					value={data.locale}
-					onchange={(event) => event.currentTarget.form?.requestSubmit()}
-				>
-					{#each data.locales as localeOption}
-						<option value={localeOption}>{$t(`app.language.${localeOption}`)}</option>
-					{/each}
-				</select>
-			</form>
 			{#if data.user}
-				{#if data.user.role === 'admin'}
-					<a href="/admin/users" class="btn-outline">{$t('app.admin.nav')}</a>
-				{/if}
-				<span class="user-info">
-					{#if data.user.avatarUrl}
-						<img
-							src={data.user.avatarUrl}
-							alt={data.user.name}
-							class="avatar"
-							width="32"
-							height="32"
-						/>
-					{/if}
-					<span class="user-name">{data.user.name}</span>
-				</span>
-				<button class="btn-outline" onclick={() => auth.logout()}>{$t('app.auth.logout')}</button>
+				<details class="user-menu">
+					<summary class="menu-trigger" aria-label={data.user.name}>
+						{#if data.user.avatarUrl}
+							<img
+								src={data.user.avatarUrl}
+								alt={data.user.name}
+								class="avatar"
+								width="32"
+								height="32"
+							/>
+						{:else}
+							<span class="avatar-placeholder" aria-hidden="true"
+								>{avatarInitial(data.user.name)}</span
+							>
+						{/if}
+					</summary>
+					<div class="menu-panel">
+						<div class="menu-section">
+							<form method="POST" action="/preferences/locale" class="locale-form">
+								<label for="locale" class="visually-hidden">{$t('app.language.label')}</label>
+								<select
+									id="locale"
+									name="locale"
+									value={data.locale}
+									onchange={(event) => event.currentTarget.form?.requestSubmit()}
+								>
+									{#each data.locales as localeOption}
+										<option value={localeOption}>{$t(`app.language.${localeOption}`)}</option>
+									{/each}
+								</select>
+							</form>
+						</div>
+
+						<button class="btn-outline menu-btn" onclick={() => auth.logout()}>
+							{$t('app.auth.logout')}
+						</button>
+
+						{#if data.user.role === 'admin'}
+							<div class="menu-section admin-section">
+								<a href="/admin/users" class="btn-outline admin-link">{$t('app.admin.nav')}</a>
+							</div>
+						{/if}
+					</div>
+				</details>
 			{:else}
+				<form method="POST" action="/preferences/locale" class="locale-form">
+					<label for="locale" class="visually-hidden">{$t('app.language.label')}</label>
+					<select
+						id="locale"
+						name="locale"
+						value={data.locale}
+						onchange={(event) => event.currentTarget.form?.requestSubmit()}
+					>
+						{#each data.locales as localeOption}
+							<option value={localeOption}>{$t(`app.language.${localeOption}`)}</option>
+						{/each}
+					</select>
+				</form>
 				<a href="/auth/login" class="btn-primary">{$t('app.auth.login')}</a>
 			{/if}
 		</nav>
@@ -175,10 +209,6 @@
 		text-decoration: none;
 	}
 
-	.logo-icon {
-		font-size: 28px;
-	}
-
 	nav {
 		display: flex;
 		align-items: center;
@@ -191,11 +221,6 @@
 		gap: 6px;
 	}
 
-	.locale-label {
-		font-size: 13px;
-		color: #c0b090;
-	}
-
 	select {
 		background: rgba(255, 255, 255, 0.08);
 		border: 1px solid rgba(200, 169, 110, 0.35);
@@ -204,20 +229,77 @@
 		padding: 6px 8px;
 	}
 
-	.user-info {
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	.user-menu {
+		position: relative;
+	}
+
+	.menu-trigger {
+		list-style: none;
+		cursor: pointer;
 		display: flex;
 		align-items: center;
-		gap: 8px;
 	}
 
-	.avatar {
+	.user-menu summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.avatar,
+	.avatar-placeholder {
 		border-radius: 50%;
 		border: 2px solid #c8a96e;
+		width: 32px;
+		height: 32px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(255, 255, 255, 0.08);
+		color: #f0e6d3;
+		font-size: 14px;
+		font-weight: 700;
 	}
 
-	.user-name {
-		font-size: 14px;
-		color: #f0e6d3;
+	.menu-panel {
+		position: absolute;
+		right: 0;
+		top: calc(100% + 8px);
+		min-width: 180px;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		background: rgba(15, 15, 30, 0.96);
+		border: 1px solid rgba(200, 169, 110, 0.35);
+		border-radius: 10px;
+		padding: 10px;
+		z-index: 200;
+	}
+
+	.menu-section {
+		display: flex;
+		justify-content: center;
+	}
+
+	.menu-btn,
+	.admin-link {
+		width: 100%;
+		text-align: center;
+	}
+
+	.admin-section {
+		border-top: 1px solid rgba(200, 169, 110, 0.25);
+		padding-top: 8px;
 	}
 
 	.btn-primary {
@@ -264,5 +346,24 @@
 		font-size: 13px;
 		color: #666;
 		border-top: 1px solid rgba(255, 255, 255, 0.05);
+	}
+
+	@media (max-width: 640px) {
+		header {
+			padding: 10px 12px;
+		}
+
+		.logo-text {
+			font-size: 18px;
+		}
+
+		nav {
+			gap: 8px;
+		}
+
+		.btn-primary {
+			padding: 6px 12px;
+			font-size: 13px;
+		}
 	}
 </style>

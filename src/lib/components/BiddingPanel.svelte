@@ -58,6 +58,7 @@
 			<button
 				class="suit-btn"
 				class:active={selectedSuit === suit}
+				class:black={suit === 'spades' || suit === 'clubs'}
 				class:red={suit === 'diamonds' || suit === 'hearts'}
 				onclick={() => (selectedSuit = suit)}
 				title={$t(`app.bidding.suitName.${SUIT_TRANSLATION_KEYS[suit]}`)}
@@ -153,6 +154,10 @@
 		color: #ffd700;
 	}
 
+	.suit-btn.black {
+		color: #111;
+	}
+
 	.suit-btn.red {
 		color: #e74c3c;
 	}
@@ -165,6 +170,7 @@
 		width: auto;
 		padding: 0 8px;
 		font-size: 12px;
+		color: #ffd700;
 	}
 
 	.bid-btn,

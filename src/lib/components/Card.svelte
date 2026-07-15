@@ -55,6 +55,9 @@
 
 <style>
 	.card {
+		--card-mobile-width: 56px;
+		--card-mobile-height: 84px;
+
 		position: relative;
 		width: 64px;
 		height: 96px;
@@ -149,15 +152,15 @@
 	/* ── Compact card for small screens ── */
 	@media (max-width: 480px) {
 		.card {
-			width: 40px;
-			height: 60px;
+			width: var(--card-mobile-width);
+			height: var(--card-mobile-height);
 			border-radius: 5px;
 			border-width: 1px;
 			padding: 2px;
 		}
 
 		.corner {
-			font-size: 9px;
+			font-size: 18px;
 		}
 
 		.top-left {
@@ -171,16 +174,16 @@
 		}
 
 		.rank {
-			font-size: 9px;
+			font-size: 18px;
 		}
 
 		.suit {
-			font-size: 8px;
+			font-size: 16px;
 		}
 
-		/* Hide center suit to save space; top-left corner is enough */
 		.center-suit {
-			display: none;
+			display: block;
+			font-size: 24px;
 		}
 
 		.back-pattern {
