@@ -35,7 +35,7 @@
 	class:black={!isRed}
 	class:ineligible={playable && !eligible}
 	{onclick}
-	disabled={!playable || faceDown || (playable && !eligible)}
+	disabled={!playable || faceDown || !eligible}
 	aria-label={faceDown
 		? $t('app.card.faceDown')
 		: $t('app.card.cardAria', { rank: card.rank, suit: SUIT_SYMBOLS[card.suit] })}
