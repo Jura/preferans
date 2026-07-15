@@ -7,18 +7,24 @@
 		cards: Card[];
 		playable?: boolean;
 		selectedCard?: Card | null;
+		eligibleCards?: Card[] | null;
 		onPlayCard?: (card: Card) => void;
 		label?: string;
 	}
 
-	let { cards, playable = false, selectedCard = null, onPlayCard, label }: Props = $props();
+	let { cards, playable = false, selectedCard = null, eligibleCards = null, onPlayCard, label }: Props = $props();
 
 	function isSelected(card: Card): boolean {
 		return selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;
 	}
 
+	function isEligible(card: Card): boolean {
+		if (!eligibleCards) return true;
+		return eligibleCards.some((c) => c.suit === card.suit && c.rank === card.rank);
+	}
+
 	function handleCardClick(card: Card) {
-		if (playable && onPlayCard) {
+		if (playable && isEligible(card) && onPlayCard) {
 			onPlayCard(card);
 		}
 	}
@@ -30,6 +36,7 @@
 			{card}
 			selected={isSelected(card)}
 			{playable}
+			eligible={isEligible(card)}
 			onclick={() => handleCardClick(card)}
 		/>
 	{/each}

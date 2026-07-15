@@ -10,6 +10,7 @@
 	import { t } from '$lib/i18n';
 	import { contractValue } from '$lib/types/preferans';
 	import { sortHand } from '$lib/utils/cards';
+	import { validCardsForPlay } from '$lib/utils/cards';
 	import type { PageData } from './$types';
 	import type {
 		Card,
@@ -97,6 +98,20 @@
 	// ── Sorted hand derived state ──
 	let sortedHand = $derived(sortHand($myHand));
 
+	// ── Legal cards for the current trick ──
+	// Mirrors validCards() in the game engine so we can disable illegal cards
+	// and auto-play when only one option is available.
+	let eligibleCards = $derived(
+		canPlayCard
+			? validCardsForPlay(
+					sortedHand,
+					$currentTrick,
+					$game.state?.trump ?? null,
+					$game.state?.raspassUpcard?.suit ?? null
+				)
+			: null
+	);
+
 	// ── Open hands organised by relative position ──
 	// Key = playerId, value = sorted cards. We sort each open hand too.
 	let sortedOpenHands = $derived(
@@ -161,6 +176,23 @@
 			declaredLevel = wonBid.level;
 			declaredSuit = wonBid.suit;
 		}
+	});
+
+	// Auto-play when there is exactly one legal card to play.
+	// A non-reactive guard prevents re-sending the same card if the server
+	// briefly echoes back an unchanged state.
+	let lastAutoPlayKey: string | null = null;
+	$effect(() => {
+		if (!canPlayCard || !eligibleCards || eligibleCards.length !== 1) {
+			lastAutoPlayKey = null;
+			return;
+		}
+		const card = eligibleCards[0];
+		const key = `${card.suit}:${card.rank}`;
+		if (key === lastAutoPlayKey) return;
+		lastAutoPlayKey = key;
+		selectedCard = null;
+		game.send({ type: 'play_card', card });
 	});
 
 	function sameCard(a: Card, b: Card): boolean {
@@ -709,6 +741,7 @@
 						cards={sortedHand}
 						playable={canPlayCard}
 						{selectedCard}
+						{eligibleCards}
 						onPlayCard={handlePlayCard}
 						label={$t('app.game.yourCards')}
 					/>

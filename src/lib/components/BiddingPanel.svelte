@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { t } from '$lib/i18n';
 	import { contractValue } from '$lib/types/preferans';
-	import type { Contract, Suit, ContractLevel } from '$lib/types/preferans';
+	import type { Contract, Suit, ContractLevel, ContractSuit } from '$lib/types/preferans';
 
 	interface Props {
 		/** All valid bids in ascending order of strength */
@@ -34,6 +34,20 @@
 		return contractValue(contract) > contractValue(currentHighBid);
 	}
 
+	/** True when at least one suit at this level would beat the current high bid. */
+	function isLevelUsable(level: ContractLevel): boolean {
+		if (!currentHighBid) return true;
+		// no_trump is the highest suit at any level; if even that doesn't beat
+		// the current high bid, the entire level is dead.
+		return contractValue({ type: 'suit', level, suit: 'no_trump' }) > contractValue(currentHighBid);
+	}
+
+	/** True when selectedLevel + this suit would beat the current high bid. */
+	function isSuitUsable(suit: ContractSuit): boolean {
+		if (!currentHighBid) return true;
+		return contractValue({ type: 'suit', level: selectedLevel, suit }) > contractValue(currentHighBid);
+	}
+
 	let selectedLevel: ContractLevel = $state(6);
 	let selectedSuit: Suit | 'no_trump' = $state('spades');
 </script>
@@ -46,6 +60,7 @@
 			<button
 				class="level-btn"
 				class:active={selectedLevel === level}
+				disabled={!isLevelUsable(level)}
 				onclick={() => (selectedLevel = level)}
 			>
 				{level}
@@ -60,6 +75,7 @@
 				class:active={selectedSuit === suit}
 				class:black={suit === 'spades' || suit === 'clubs'}
 				class:red={suit === 'diamonds' || suit === 'hearts'}
+				disabled={!isSuitUsable(suit)}
 				onclick={() => (selectedSuit = suit)}
 				title={$t(`app.bidding.suitName.${SUIT_TRANSLATION_KEYS[suit]}`)}
 			>
@@ -69,6 +85,7 @@
 		<button
 			class="suit-btn nt"
 			class:active={selectedSuit === 'no_trump'}
+			disabled={!isSuitUsable('no_trump')}
 			onclick={() => (selectedSuit = 'no_trump')}
 			title={$t('app.bidding.noTrump')}
 		>
@@ -152,6 +169,12 @@
 		background: rgba(200, 169, 110, 0.3);
 		border-color: #ffd700;
 		color: #ffd700;
+	}
+
+	.level-btn:disabled,
+	.suit-btn:disabled {
+		opacity: 0.3;
+		cursor: not-allowed;
 	}
 
 	.suit-btn.black {

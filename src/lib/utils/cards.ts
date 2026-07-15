@@ -1,4 +1,4 @@
-import type { Card, Suit } from '$lib/types/preferans';
+import type { Card, Suit, Trick } from '$lib/types/preferans';
 import { RANK_ORDER } from '$lib/types/preferans';
 
 const SUIT_COLOR: Record<Suit, 'black' | 'red'> = {
@@ -49,4 +49,38 @@ export function sortHand(cards: Card[]): Card[] {
 	}
 
 	return ordered.flatMap((s) => bySuit.get(s)!);
+}
+
+/**
+ * Returns the subset of `hand` that is legal to play in the current situation.
+ * Mirrors the engine's `validCards()` function so the client can apply the same
+ * rules locally (for disabling illegal cards and auto-playing forced plays).
+ *
+ * @param hand - Player's current hand
+ * @param trick - The trick in progress (null or empty = player leads)
+ * @param trump - Trump suit for the round (null = no-trump / misère)
+ * @param forcedLeadSuit - During распасовка, the widow-dictated lead suit
+ */
+export function validCardsForPlay(
+	hand: Card[],
+	trick: Trick | null,
+	trump: Suit | null,
+	forcedLeadSuit: Suit | null = null
+): Card[] {
+	if (!trick || trick.cards.length === 0) {
+		// Leading — constrained only by the распасовка widow card
+		if (forcedLeadSuit) {
+			const forced = hand.filter((c) => c.suit === forcedLeadSuit);
+			if (forced.length > 0) return forced;
+		}
+		return hand;
+	}
+	const leadSuit = trick.leadSuit ?? trick.cards[0].card.suit;
+	const sameSuit = hand.filter((c) => c.suit === leadSuit);
+	if (sameSuit.length > 0) return sameSuit;
+	if (trump) {
+		const trumpCards = hand.filter((c) => c.suit === trump);
+		if (trumpCards.length > 0) return trumpCards;
+	}
+	return hand; // Any card
 }
