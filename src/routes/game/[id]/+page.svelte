@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { game, myHand, currentTrick, gamePhase } from '$lib/stores/game';
 	import Hand from '$lib/components/Hand.svelte';
 	import Table from '$lib/components/Table.svelte';
 	import Scoreboard from '$lib/components/Scoreboard.svelte';
 	import BiddingPanel from '$lib/components/BiddingPanel.svelte';
+	import PlayerBadge from '$lib/components/PlayerBadge.svelte';
 	import { t } from '$lib/i18n';
 	import { contractValue } from '$lib/types/preferans';
+	import { sortHand } from '$lib/utils/cards';
 	import type { PageData } from './$types';
 	import type {
 		Card,
@@ -23,6 +26,10 @@
 	let selectedCard: Card | null = $state(null);
 	let tableAgeSeconds = $state(0);
 	let tableTimer: ReturnType<typeof setInterval> | null = null;
+	/** Track whether a finishProposal was active so we can redirect on approval. */
+	let hadFinishProposal = $state(false);
+	/** Show the lobby-redirect countdown message after approved finish. */
+	let redirectingToLobby = $state(false);
 
 	const SUIT_SYMBOLS: Record<string, string> = {
 		spades: '♠',
@@ -83,13 +90,26 @@
 	let canPlayCard = $derived($gamePhase === 'playing' && isMyTurn && !lightDecisionPending);
 	let isDeclarer = $derived($game.state?.declarerId === myPlayerId);
 
+	// ── Sorted hand derived state ──
+	let sortedHand = $derived(sortHand($myHand));
+
+	// ── Open hands organised by relative position ──
+	// Key = playerId, value = sorted cards. We sort each open hand too.
+	let sortedOpenHands = $derived(
+		Object.fromEntries(
+			Object.entries($game.state?.openHands ?? {}).map(([pid, cards]) => [pid, sortHand(cards)])
+		)
+	);
+
 	// ── Widow (discard + final contract) state ──
 	let discardSelection: Card[] = $state([]);
 	let declaredLevel: ContractLevel = $state(6);
 	let declaredSuit: ContractSuit = $state('spades');
 
 	let combinedWidowHand = $derived(
-		$gamePhase === 'widow' && isDeclarer ? [...$myHand, ...($game.state?.widow ?? [])] : []
+		$gamePhase === 'widow' && isDeclarer
+			? sortHand([...$myHand, ...($game.state?.widow ?? [])])
+			: []
 	);
 	let wonBid = $derived($game.state?.wonBid ?? null);
 	let misereBid = $derived(wonBid?.type === 'misere');
@@ -99,6 +119,19 @@
 	let declarationValid = $derived(
 		misereBid || (wonBid !== null && contractValue(declaredContract) >= contractValue(wonBid))
 	);
+
+	$effect(() => {
+		// Track whether a finish proposal has ever been active this session
+		if (finishProposal) hadFinishProposal = true;
+	});
+
+	$effect(() => {
+		// Redirect to lobby after an early finish vote is approved
+		if ($gamePhase === 'finished' && hadFinishProposal) {
+			redirectingToLobby = true;
+			setTimeout(() => goto('/'), 3000);
+		}
+	});
 
 	$effect(() => {
 		// Preselect the winning bid as the announced contract
@@ -253,11 +286,57 @@
 		</div>
 	{/if}
 
-	{#if activeProposal}
+	<!-- Finish-early modal – blocks the table until all players vote -->
+	{#if finishProposal}
+		{@const proposerName =
+			$game.state?.players.find((p) => p.id === finishProposal.proposedBy)?.name ?? ''}
+		<div
+			class="modal-backdrop"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="finish-modal-title"
+		>
+			<div class="modal-card">
+				<h2 id="finish-modal-title" class="modal-title">
+					{$t('app.game.finishEarlyModalTitle')}
+				</h2>
+				<p class="modal-body">
+					{$t('app.game.finishEarlyModalBody', { name: proposerName })}
+				</p>
+				<!-- Show each player's vote status -->
+				<ul class="vote-list">
+					{#each $game.state?.players ?? [] as player}
+						{@const vote = finishProposal.votes[player.id]}
+						<li class="vote-item" class:vote-yes={vote === 'yes'} class:vote-no={vote === 'no'}>
+							<PlayerBadge playerId={player.id} name={player.name} />
+							<span class="vote-badge">
+								{vote === 'yes' ? '✓' : vote === 'no' ? '✗' : '…'}
+							</span>
+						</li>
+					{/each}
+				</ul>
+				{#if hasPendingVote && !isProposalProposer}
+					<div class="modal-actions">
+						<button type="button" class="vote-btn yes" onclick={() => voteOnProposal(true)}>
+							{$t('app.game.voteYes')}
+						</button>
+						<button type="button" class="vote-btn no" onclick={() => voteOnProposal(false)}>
+							{$t('app.game.voteNo')}
+						</button>
+					</div>
+				{:else if isProposalProposer}
+					<p class="modal-waiting">{$t('app.game.proposalBy', { name: proposerName })}</p>
+				{/if}
+			</div>
+		</div>
+	{/if}
+
+	<!-- Pause proposal banner (less intrusive – game is already paused or mid-round) -->
+	{#if pauseProposal}
 		<div class="proposal-banner" role="status">
 			<p>
 				{$t('app.game.proposalBy', {
-					name: $game.state?.players.find((p) => p.id === activeProposal.proposedBy)?.name ?? ''
+					name: $game.state?.players.find((p) => p.id === pauseProposal.proposedBy)?.name ?? ''
 				})}
 			</p>
 			{#if hasPendingVote && !isProposalProposer}
@@ -386,13 +465,51 @@
 					</div>
 				{/if}
 
-				<!-- Open hands (светлая игра / мизер) -->
-				{#each Object.entries($game.state.openHands) as [playerId, cards] (playerId)}
-					<div class="open-hand">
-						<h4>{$t('app.game.openHandOf', { name: playerName(playerId) })}</h4>
-						<Hand {cards} playable={false} label={playerName(playerId)} />
+				<!-- Open hands (светлая игра / мизер):
+				     Current player's hand is at the bottom (shown in .my-hand below).
+				     Other players' open hands are laid out left / right according to
+				     their table position. -->
+				{#if Object.keys(sortedOpenHands).length > 0}
+					{@const openEntries = Object.entries(sortedOpenHands)}
+					<!-- Determine relative positions: position 1 = left, position 2 = right -->
+					{@const leftPlayer = $game.state.players.find(
+						(p) =>
+							p.id !== myPlayerId && openEntries.some(([id]) => id === p.id) && p.position === 1
+					)}
+					{@const rightPlayer = $game.state.players.find(
+						(p) =>
+							p.id !== myPlayerId && openEntries.some(([id]) => id === p.id) && p.position === 2
+					)}
+					<div class="open-hands-row">
+						{#if leftPlayer && sortedOpenHands[leftPlayer.id]}
+							<div class="open-hand open-hand-left">
+								<h4>{$t('app.game.openHandOf', { name: leftPlayer.name })}</h4>
+								<Hand
+									cards={sortedOpenHands[leftPlayer.id]}
+									playable={false}
+									label={leftPlayer.name}
+								/>
+							</div>
+						{/if}
+						{#if rightPlayer && sortedOpenHands[rightPlayer.id]}
+							<div class="open-hand open-hand-right">
+								<h4>{$t('app.game.openHandOf', { name: rightPlayer.name })}</h4>
+								<Hand
+									cards={sortedOpenHands[rightPlayer.id]}
+									playable={false}
+									label={rightPlayer.name}
+								/>
+							</div>
+						{/if}
+						<!-- Remaining open hands that don't match a known position (e.g. spectator view) -->
+						{#each openEntries.filter(([id]) => id !== leftPlayer?.id && id !== rightPlayer?.id) as [playerId, cards] (playerId)}
+							<div class="open-hand">
+								<h4>{$t('app.game.openHandOf', { name: playerName(playerId) })}</h4>
+								<Hand {cards} playable={false} label={playerName(playerId)} />
+							</div>
+						{/each}
 					</div>
-				{/each}
+				{/if}
 
 				<!-- Widow: declarer discards two cards and announces the contract -->
 				{#if $gamePhase === 'widow' && isDeclarer}
@@ -570,10 +687,10 @@
 						})}
 					</p>
 				</div>
-			{:else if $myHand.length > 0}
+			{:else if sortedHand.length > 0}
 				<div class="my-hand">
 					<Hand
-						cards={$myHand}
+						cards={sortedHand}
 						playable={canPlayCard}
 						{selectedCard}
 						onPlayCard={handlePlayCard}
@@ -586,6 +703,13 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Lobby redirect notice after early finish -->
+	{#if redirectingToLobby}
+		<div class="redirect-notice" role="status">
+			{$t('app.game.redirectingToLobby')}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -923,6 +1047,7 @@
 		border: 1px dashed rgba(200, 169, 110, 0.4);
 		border-radius: 10px;
 		padding: 6px 12px;
+		min-width: 0;
 	}
 
 	.open-hand h4 {
@@ -931,6 +1056,21 @@
 		color: #c8a96e;
 		text-transform: uppercase;
 		letter-spacing: 1px;
+	}
+
+	/* Container for the side-by-side layout of open hands */
+	.open-hands-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+		justify-content: center;
+		width: 100%;
+	}
+
+	.open-hand-left,
+	.open-hand-right {
+		flex: 1 1 auto;
+		min-width: 0;
 	}
 
 	.round-summary {
@@ -1005,6 +1145,126 @@
 		margin: 4px 0 0;
 	}
 
+	/* ── Finish-early modal ── */
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.75);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 500;
+		padding: 16px;
+	}
+
+	.modal-card {
+		background: #1a1a2e;
+		border: 1px solid rgba(200, 169, 110, 0.6);
+		border-radius: 16px;
+		padding: 24px 28px;
+		max-width: 440px;
+		width: 100%;
+		color: #f0e6d3;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+		animation: slideUp 0.2s ease;
+	}
+
+	@keyframes slideUp {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.modal-title {
+		margin: 0 0 10px;
+		font-size: 18px;
+		color: #ffd700;
+		text-align: center;
+	}
+
+	.modal-body {
+		font-size: 14px;
+		color: #c0b090;
+		text-align: center;
+		margin: 0 0 16px;
+	}
+
+	.vote-list {
+		list-style: none;
+		padding: 0;
+		margin: 0 0 16px;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.vote-item {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		background: rgba(255, 255, 255, 0.04);
+		border-radius: 8px;
+		padding: 6px 12px;
+		font-size: 14px;
+	}
+
+	.vote-badge {
+		font-size: 16px;
+		font-weight: bold;
+		color: #888;
+	}
+
+	.vote-item.vote-yes .vote-badge {
+		color: #2ecc71;
+	}
+
+	.vote-item.vote-no .vote-badge {
+		color: #e74c3c;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 10px;
+		justify-content: center;
+	}
+
+	.modal-waiting {
+		text-align: center;
+		font-size: 13px;
+		color: #c0b090;
+		margin: 0;
+	}
+
+	/* Lobby redirect notice */
+	.redirect-notice {
+		position: fixed;
+		bottom: 24px;
+		left: 50%;
+		transform: translateX(-50%);
+		background: rgba(46, 204, 113, 0.15);
+		border: 1px solid rgba(46, 204, 113, 0.5);
+		color: #b7f7d0;
+		border-radius: 20px;
+		padding: 10px 24px;
+		font-size: 14px;
+		z-index: 600;
+		animation: fadeIn 0.3s ease;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
 	@media (max-width: 768px) {
 		.game-area {
 			flex-direction: column;
@@ -1019,6 +1279,35 @@
 		.waiting-shell,
 		.leave-table-btn {
 			width: 100%;
+		}
+
+		.open-hands-row {
+			flex-direction: column;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.game-page {
+			gap: 8px;
+		}
+
+		.status-bar {
+			font-size: 11px;
+			gap: 8px;
+			padding: 6px 10px;
+		}
+
+		.governance-actions {
+			gap: 4px;
+		}
+
+		.governance-btn {
+			font-size: 11px;
+			padding: 6px 10px;
+		}
+
+		.modal-card {
+			padding: 16px 18px;
 		}
 	}
 </style>

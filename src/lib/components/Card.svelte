@@ -32,7 +32,7 @@
 	class:face-down={faceDown}
 	class:red={isRed}
 	class:black={!isRed}
-	onclick={onclick}
+	{onclick}
 	disabled={!playable || faceDown}
 	aria-label={faceDown
 		? $t('app.card.faceDown')
@@ -72,6 +72,7 @@
 		font-family: Georgia, serif;
 		padding: 4px;
 		user-select: none;
+		flex-shrink: 0;
 	}
 
 	.card:hover.playable {
@@ -143,5 +144,55 @@
 		font-size: 64px;
 		opacity: 0.4;
 		color: #fff;
+	}
+
+	/* ── Compact card for small screens ── */
+	@media (max-width: 480px) {
+		.card {
+			width: 40px;
+			height: 60px;
+			border-radius: 5px;
+			border-width: 1px;
+			padding: 2px;
+		}
+
+		.corner {
+			font-size: 9px;
+		}
+
+		.top-left {
+			top: 2px;
+			left: 3px;
+		}
+
+		.bottom-right {
+			bottom: 2px;
+			right: 3px;
+		}
+
+		.rank {
+			font-size: 9px;
+		}
+
+		.suit {
+			font-size: 8px;
+		}
+
+		/* Hide center suit to save space; top-left corner is enough */
+		.center-suit {
+			display: none;
+		}
+
+		.back-pattern {
+			font-size: 36px;
+		}
+
+		.card:hover.playable {
+			transform: translateY(-8px);
+		}
+
+		.card.selected {
+			transform: translateY(-10px);
+		}
 	}
 </style>

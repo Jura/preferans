@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CardComponent from './Card.svelte';
+	import PlayerBadge from './PlayerBadge.svelte';
 	import { t } from '$lib/i18n';
 	import type { Trick, Player, Card } from '$lib/types/preferans';
 
@@ -44,7 +45,9 @@
 				class:self={player.id === myPlayerId}
 				style="--pos: {player.position}"
 			>
-				<div class="player-name">{player.name}</div>
+				<div class="player-name">
+					<PlayerBadge playerId={player.id} name={player.name} />
+				</div>
 				<div class="played-card">
 					{#if card}
 						<CardComponent {card} playable={false} />
@@ -141,6 +144,11 @@
 		padding: 2px 6px;
 	}
 
+	.player-name :global(.player-badge) {
+		color: inherit;
+		font-size: inherit;
+	}
+
 	.player-slot.self .player-name {
 		color: #ffd700;
 		font-weight: bold;
@@ -184,6 +192,27 @@
 		to {
 			opacity: 1;
 			transform: translateX(-50%) translateY(0);
+		}
+	}
+
+	@media (max-width: 480px) {
+		.table {
+			width: 280px;
+			height: 200px;
+			border-width: 3px;
+		}
+
+		.table-center {
+			width: 160px;
+			height: 130px;
+		}
+
+		.trump-suit {
+			font-size: 16px;
+		}
+
+		.trump-label {
+			font-size: 8px;
 		}
 	}
 </style>

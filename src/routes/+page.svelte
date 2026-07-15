@@ -8,6 +8,7 @@
 	} from '$lib/constants/game';
 	import { t } from '$lib/i18n';
 	import { lobby } from '$lib/stores/lobby';
+	import PlayerBadge from '$lib/components/PlayerBadge.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -91,7 +92,7 @@
 							<li>
 								<span class="presence-text">
 									{presenceStatusDot[player.status]}
-									{player.name}
+									<PlayerBadge playerId={player.id} name={player.name} />
 									({$t(`app.lobby.presence.${player.status}`)})
 								</span>
 							</li>

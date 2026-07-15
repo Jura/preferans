@@ -179,7 +179,12 @@
 			"contractFailed": "{{name}} failed {{contract}} ({{tricks}} tricks)",
 			"tricksTaken": "{{count}} tricks",
 			"nextRound": "Next deal",
-			"openHandOf": "Open cards of {{name}}"
+			"openHandOf": "Open cards of {{name}}",
+			"finishEarlyModalTitle": "Finish game early?",
+			"finishEarlyModalBody": "{{name}} has proposed to end the game early. All players must agree.",
+			"pauseModalTitle": "Pause the game?",
+			"pauseModalBody": "{{name}} has proposed to pause the game.",
+			"redirectingToLobby": "Game ended. Returning to lobby…"
 		},
 		"scoreboard": {
 			"aria": "Score",
@@ -218,6 +223,13 @@
 				"diamonds": "Diamonds",
 				"hearts": "Hearts"
 			}
+		},
+		"player": {
+			"leaderboardRank": "Leaderboard rank",
+			"gamesPlayed": "Games played",
+			"cumulativeScore": "Cumulative score",
+			"lastSeen": "Last seen",
+			"neverSeen": "Never"
 		}
 	}
 }
