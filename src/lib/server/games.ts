@@ -2,6 +2,7 @@ import {
 	ACTIVE_TABLE_PHASES,
 	BULLET_TARGET_STEP,
 	DEFAULT_BULLET_TARGET,
+	LOBBY_TABLE_PHASES,
 	MAX_PLAYERS,
 	MAX_BULLET_TARGET,
 	MIN_BULLET_TARGET
@@ -10,6 +11,7 @@ import {
 type Database = App.Platform['env']['DB'];
 
 const ACTIVE_TABLE_PHASES_SQL = ACTIVE_TABLE_PHASES.map(() => '?').join(', ');
+const LOBBY_TABLE_PHASES_SQL = LOBBY_TABLE_PHASES.map(() => '?').join(', ');
 
 export function getActiveTablePhasesSql() {
 	return ACTIVE_TABLE_PHASES_SQL;
@@ -17,6 +19,14 @@ export function getActiveTablePhasesSql() {
 
 export function getActiveTablePhaseBindings() {
 	return [...ACTIVE_TABLE_PHASES];
+}
+
+export function getLobbyTablePhasesSql() {
+	return LOBBY_TABLE_PHASES_SQL;
+}
+
+export function getLobbyTablePhaseBindings() {
+	return [...LOBBY_TABLE_PHASES];
 }
 
 export async function findActiveGameForUser(
@@ -68,4 +78,46 @@ export function findNextOpenSeat(occupiedPositions: number[]) {
 	return Array.from({ length: MAX_PLAYERS }, (_, position) => position).find(
 		(position) => !occupied.has(position)
 	);
+}
+
+export async function cleanupStaleGames(db: Database) {
+	await db.batch([
+		// Incomplete waiting tables: close after 1 hour.
+		db.prepare(
+			`UPDATE games
+			 SET phase = 'finished', updated_at = datetime('now')
+			 WHERE phase = 'waiting'
+			   AND COALESCE(is_pinned, 0) = 0
+			   AND created_at <= datetime('now', '-1 hour')
+			   AND id IN (
+			   	SELECT g.id
+			   	FROM games g
+			   	LEFT JOIN game_players gp ON gp.game_id = g.id
+			   	WHERE g.phase = 'waiting'
+			   	  AND COALESCE(g.is_pinned, 0) = 0
+			   	  AND g.created_at <= datetime('now', '-1 hour')
+			   	GROUP BY g.id
+			   	HAVING COUNT(gp.player_id) < 3
+			   )`
+		),
+		// Active non-paused tables: forfeit after 1 hour inactivity.
+		db.prepare(
+			`UPDATE games
+			 SET phase = 'finished', updated_at = datetime('now')
+			 WHERE phase IN ('dealing', 'bidding', 'widow', 'discard', 'playing', 'scoring')
+			   AND COALESCE(is_pinned, 0) = 0
+			   AND updated_at <= datetime('now', '-1 hour')`
+		),
+		// Paused tables: dismiss at requested deadline or after one week inactivity.
+		db.prepare(
+			`UPDATE games
+			 SET phase = 'finished', updated_at = datetime('now')
+			 WHERE phase = 'paused'
+			   AND COALESCE(is_pinned, 0) = 0
+			   AND (
+			   	(paused_until IS NOT NULL AND paused_until <= datetime('now'))
+			   	OR updated_at <= datetime('now', '-7 days')
+			   )`
+		)
+	]);
 }

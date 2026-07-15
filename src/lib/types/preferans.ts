@@ -87,7 +87,19 @@ export type GamePhase =
 	| 'discard' // declarer discards 2 cards
 	| 'playing' // tricks being played
 	| 'scoring' // round over, scores shown
+	| 'paused' // paused by unanimous vote
 	| 'finished'; // game over
+
+export type ProposalVote = 'yes' | 'no' | null;
+
+export interface FinishProposal {
+	proposedBy: PlayerId;
+	votes: Record<PlayerId, ProposalVote>;
+}
+
+export interface PauseProposal extends FinishProposal {
+	durationMinutes: number | null;
+}
 
 export interface Trick {
 	cards: { playerId: PlayerId; card: Card }[];
@@ -128,6 +140,12 @@ export interface GameState {
 	scores: Record<PlayerId, number>;
 	/** Number of rounds played */
 	roundNumber: number;
+	/** Pending unanimous finish proposal */
+	finishProposal: FinishProposal | null;
+	/** Pending unanimous pause proposal */
+	pauseProposal: PauseProposal | null;
+	/** Pause deadline (null = indefinite pause) */
+	pausedUntil: string | null;
 }
 
 // ─── WebSocket message types ──────────────────────────────────────────────────
@@ -137,6 +155,10 @@ export type ClientMessage =
 	| { type: 'bid'; bid: Bid }
 	| { type: 'select_widow'; keep: [Card, Card] }
 	| { type: 'play_card'; card: Card }
+	| { type: 'request_finish_early' }
+	| { type: 'vote_finish_early'; approve: boolean }
+	| { type: 'request_pause'; durationMinutes: number | null }
+	| { type: 'vote_pause'; approve: boolean }
 	| { type: 'ping' };
 
 export type ServerMessage =
@@ -148,6 +170,8 @@ export type ServerMessage =
 	| { type: 'trick_won'; winnerId: PlayerId; trick: Trick }
 	| { type: 'round_complete'; score: RoundScore }
 	| { type: 'game_over'; scores: Record<PlayerId, number> }
+	| { type: 'proposal_started'; proposal: FinishProposal | PauseProposal }
+	| { type: 'proposal_closed' }
 	| { type: 'error'; message: string }
 	| { type: 'pong' };
 
@@ -179,6 +203,8 @@ export type LobbyGame = {
 	host_name: string;
 	player_count: number;
 	bullet_target: number;
+	is_pinned: number;
+	paused_until: string | null;
 };
 
 export type LobbyClientMessage = { type: 'ping' };

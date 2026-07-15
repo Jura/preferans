@@ -16,6 +16,7 @@
 	// Use real-time lobby data when the WebSocket is connected; fall back to SSR data
 	const games = $derived($lobby.connected ? $lobby.games : data.games);
 	const usersPresence = $derived($lobby.connected ? $lobby.users : data.usersPresence);
+	const isAdmin = $derived(data.user?.role === 'admin');
 
 	const presenceStatusDot: Record<'online' | 'away' | 'offline', string> = {
 		online: '🟢',
@@ -107,8 +108,13 @@
 			{:else}
 				<ul class="games-list" aria-label={$t('app.lobby.gamesListAria')}>
 					{#each games as game}
-						<li class="game-card">
+						<li class="game-card" class:pinned-table={game.is_pinned === 1}>
 							<div class="game-info">
+								{#if game.is_pinned === 1}
+									<span class="pin-badge" aria-label={$t('app.lobby.pinnedAria')}
+										>📌 {$t('app.lobby.pinned')}</span
+									>
+								{/if}
 								<span class="game-host">{game.host_name}</span>
 								<span class="game-players"
 									>{$t('app.lobby.playersCount', { count: game.player_count })}</span
@@ -122,18 +128,45 @@
 									>{$t('app.lobby.bulletTargetBadge', { count: game.bullet_target })}</span
 								>
 								<span class="game-phase badge">{$t(`app.phase.${game.phase}`)}</span>
-							</div>
-							<a
-								href="/game/{game.id}"
-								class="btn-join"
-								aria-label={$t('app.lobby.joinGameAria', { hostName: game.host_name })}
-							>
-								{#if data.activeGameId === game.id}
-									{$t('app.lobby.returnToGame')}
-								{:else}
-									{game.player_count < 3 ? $t('app.lobby.join') : $t('app.lobby.watch')}
+								{#if game.phase === 'paused' && game.paused_until !== null}
+									<span class="badge paused-until">
+										{$t('app.lobby.pausedUntil', {
+											time: new Date(game.paused_until).toLocaleString()
+										})}
+									</span>
 								{/if}
-							</a>
+							</div>
+							<div class="game-actions">
+								<a
+									href="/game/{game.id}"
+									class="btn-join"
+									aria-label={$t('app.lobby.joinGameAria', { hostName: game.host_name })}
+								>
+									{#if data.activeGameId === game.id}
+										{$t('app.lobby.returnToGame')}
+									{:else}
+										{game.player_count < 3 ? $t('app.lobby.join') : $t('app.lobby.watch')}
+									{/if}
+								</a>
+								{#if isAdmin}
+									<form method="POST" action="?/adminDealOut">
+										<input type="hidden" name="gameId" value={game.id} />
+										<button type="submit" class="btn-admin">{$t('app.lobby.dealOut')}</button>
+									</form>
+									<form method="POST" action="?/adminDismiss">
+										<input type="hidden" name="gameId" value={game.id} />
+										<button type="submit" class="btn-admin danger">{$t('app.lobby.dismiss')}</button
+										>
+									</form>
+									<form method="POST" action="?/adminTogglePin">
+										<input type="hidden" name="gameId" value={game.id} />
+										<input type="hidden" name="pin" value={game.is_pinned === 1 ? '0' : '1'} />
+										<button type="submit" class="btn-admin secondary">
+											{game.is_pinned === 1 ? $t('app.lobby.unpin') : $t('app.lobby.pin')}
+										</button>
+									</form>
+								{/if}
+							</div>
 						</li>
 					{/each}
 				</ul>
@@ -395,6 +428,11 @@
 		transition: background 0.15s;
 	}
 
+	.pinned-table {
+		border-color: rgba(255, 215, 0, 0.7);
+		background: rgba(255, 215, 0, 0.08);
+	}
+
 	.game-card:hover {
 		background: rgba(255, 255, 255, 0.07);
 	}
@@ -404,6 +442,22 @@
 		align-items: center;
 		gap: 12px;
 		flex-wrap: wrap;
+	}
+
+	.game-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+	}
+
+	.pin-badge {
+		font-size: 12px;
+		background: rgba(255, 215, 0, 0.2);
+		color: #ffe898;
+		padding: 2px 8px;
+		border-radius: 12px;
 	}
 
 	.game-host {
@@ -431,6 +485,28 @@
 		font-size: 14px;
 		white-space: nowrap;
 		transition: background 0.15s;
+	}
+
+	.btn-admin {
+		background: rgba(200, 169, 110, 0.12);
+		color: #c8a96e;
+		border: 1px solid rgba(200, 169, 110, 0.35);
+		padding: 6px 10px;
+		border-radius: 6px;
+		font-size: 12px;
+		cursor: pointer;
+	}
+
+	.btn-admin.secondary {
+		color: #9cc7ff;
+		border-color: rgba(156, 199, 255, 0.45);
+		background: rgba(156, 199, 255, 0.12);
+	}
+
+	.btn-admin.danger {
+		color: #ffb3b3;
+		border-color: rgba(255, 120, 120, 0.45);
+		background: rgba(255, 120, 120, 0.12);
 	}
 
 	.btn-join:hover {

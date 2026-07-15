@@ -45,6 +45,13 @@
 	});
 
 	let isMyTurn = $derived($game.state?.currentPlayerId === data.user?.id);
+	let myPlayerId = $derived(data.user?.id ?? '');
+	let finishProposal = $derived($game.state?.finishProposal ?? null);
+	let pauseProposal = $derived($game.state?.pauseProposal ?? null);
+	// Backend enforces mutual exclusion (only one proposal can be active at a time).
+	let activeProposal = $derived(finishProposal ?? pauseProposal);
+	let isProposalProposer = $derived(activeProposal?.proposedBy === myPlayerId);
+	let hasPendingVote = $derived(activeProposal ? activeProposal.votes[myPlayerId] === null : false);
 
 	let canPlayCard = $derived($gamePhase === 'playing' && isMyTurn);
 
@@ -61,6 +68,24 @@
 
 	function handleBid(bid: Bid) {
 		game.send({ type: 'bid', bid });
+	}
+
+	function proposeFinishEarly() {
+		game.send({ type: 'request_finish_early' });
+	}
+
+	function proposePause(durationMinutes: number | null) {
+		game.send({ type: 'request_pause', durationMinutes });
+	}
+
+	function voteOnProposal(approve: boolean) {
+		if (finishProposal) {
+			game.send({ type: 'vote_finish_early', approve });
+			return;
+		}
+		if (pauseProposal) {
+			game.send({ type: 'vote_pause', approve });
+		}
 	}
 </script>
 
@@ -92,6 +117,73 @@
 			<span class="error-msg" role="alert">{$game.error}</span>
 		{/if}
 	</div>
+
+	{#if $game.state && $gamePhase !== 'waiting' && $gamePhase !== 'finished'}
+		<div class="governance-actions">
+			<button
+				type="button"
+				class="governance-btn"
+				onclick={proposeFinishEarly}
+				disabled={Boolean(activeProposal)}
+				aria-disabled={Boolean(activeProposal)}
+			>
+				{$t('app.game.suggestFinishEarly')}
+			</button>
+			{#if $gamePhase !== 'paused'}
+				<button
+					type="button"
+					class="governance-btn"
+					onclick={() => proposePause(60)}
+					disabled={Boolean(activeProposal)}
+					aria-disabled={Boolean(activeProposal)}
+				>
+					{$t('app.game.suggestPauseHour')}
+				</button>
+				<button
+					type="button"
+					class="governance-btn"
+					onclick={() => proposePause(null)}
+					disabled={Boolean(activeProposal)}
+					aria-disabled={Boolean(activeProposal)}
+				>
+					{$t('app.game.suggestPauseIndefinite')}
+				</button>
+			{/if}
+		</div>
+	{/if}
+
+	{#if activeProposal}
+		<div class="proposal-banner" role="status">
+			<p>
+				{$t('app.game.proposalBy', {
+					name: $game.state?.players.find((p) => p.id === activeProposal.proposedBy)?.name ?? ''
+				})}
+			</p>
+			{#if hasPendingVote && !isProposalProposer}
+				<div class="proposal-actions">
+					<button type="button" class="vote-btn yes" onclick={() => voteOnProposal(true)}>
+						{$t('app.game.voteYes')}
+					</button>
+					<button type="button" class="vote-btn no" onclick={() => voteOnProposal(false)}>
+						{$t('app.game.voteNo')}
+					</button>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	{#if $gamePhase === 'paused'}
+		{@const pausedUntil = $game.state?.pausedUntil ?? null}
+		<div class="proposal-banner" role="status">
+			{#if pausedUntil !== null}
+				<p>
+					{$t('app.game.pausedUntil', { time: new Date(pausedUntil).toLocaleString() })}
+				</p>
+			{:else}
+				<p>{$t('app.game.pausedIndefinitely')}</p>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Main game area -->
 	<div class="game-area">
@@ -237,6 +329,66 @@
 		border-radius: 8px;
 		font-size: 13px;
 		flex-wrap: wrap;
+	}
+
+	.governance-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.governance-btn {
+		border: 1px solid rgba(200, 169, 110, 0.35);
+		background: rgba(200, 169, 110, 0.12);
+		color: #f0e6d3;
+		border-radius: 999px;
+		padding: 8px 14px;
+		font-size: 13px;
+		cursor: pointer;
+	}
+
+	.governance-btn:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
+
+	.proposal-banner {
+		background: rgba(255, 255, 255, 0.06);
+		border: 1px solid rgba(200, 169, 110, 0.3);
+		border-radius: 12px;
+		padding: 10px 14px;
+		color: #f0e6d3;
+		display: grid;
+		gap: 8px;
+	}
+
+	.proposal-banner p {
+		margin: 0;
+	}
+
+	.proposal-actions {
+		display: flex;
+		gap: 8px;
+	}
+
+	.vote-btn {
+		border-radius: 8px;
+		border: 1px solid transparent;
+		padding: 6px 10px;
+		font-size: 13px;
+		cursor: pointer;
+	}
+
+	.vote-btn.yes {
+		background: rgba(46, 204, 113, 0.16);
+		border-color: rgba(46, 204, 113, 0.5);
+		color: #b7f7d0;
+	}
+
+	.vote-btn.no {
+		background: rgba(255, 107, 107, 0.14);
+		border-color: rgba(255, 107, 107, 0.5);
+		color: #ffd2d2;
 	}
 
 	.phase-label {

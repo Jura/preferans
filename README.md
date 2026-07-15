@@ -6,14 +6,14 @@ This project uses SvelteKit for the web app UI and Cloudflare platform services 
 
 ## Technology Stack
 
-| Layer | Technology |
-|---|---|
-| Web application | SvelteKit 2 + Svelte 5 (runes mode) |
-| Primary deployment target | Cloudflare Pages |
-| Realtime game rooms | Cloudflare Durable Objects |
-| Game API runtime (local dev and legacy split deploy) | Cloudflare Workers |
-| Database | Cloudflare D1 (SQLite) |
-| Authentication | Google OAuth 2.0 |
+| Layer                                                | Technology                          |
+| ---------------------------------------------------- | ----------------------------------- |
+| Web application                                      | SvelteKit 2 + Svelte 5 (runes mode) |
+| Primary deployment target                            | Cloudflare Pages                    |
+| Realtime game rooms                                  | Cloudflare Durable Objects          |
+| Game API runtime (local dev and legacy split deploy) | Cloudflare Workers                  |
+| Database                                             | Cloudflare D1 (SQLite)              |
+| Authentication                                       | Google OAuth 2.0                    |
 
 ## Repository Structure
 
@@ -148,6 +148,19 @@ Note: migration commands are intentionally bound to `worker/wrangler.toml`.
 - Kitty: bidding winner takes kitty and discards
 - Play: trick-taking with declared trump mode
 - Scoring: based on contract result
+
+## Table Governance
+
+- A table auto-deals as soon as the third player joins; seating order is randomized at that moment.
+- Leaving is only available while the table is still in `waiting`.
+- During an active game, players can propose:
+  - early finish (unanimous yes closes the table with current scores),
+  - pause (fixed duration or indefinite, also unanimous).
+- Admins can pin tables and manually deal out or dismiss tables from the lobby.
+- Non-pinned stale tables are auto-closed:
+  - incomplete waiting tables after 1 hour,
+  - inactive active tables after 1 hour,
+  - paused tables at pause deadline or after 1 week of inactivity.
 
 ## Development Commands
 

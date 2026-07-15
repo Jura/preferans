@@ -33,6 +33,8 @@ interface LobbyGame {
 	host_name: string;
 	player_count: number;
 	bullet_target: number;
+	is_pinned: number;
+	paused_until: string | null;
 }
 
 interface UserPresence {
@@ -197,11 +199,13 @@ export class LobbyRoom implements DurableObject {
 				        strftime('%Y-%m-%dT%H:%M:%SZ', g.created_at) AS created_at,
 				        u.name AS host_name,
 				        g.bullet_target,
+				        COALESCE(g.is_pinned, 0) AS is_pinned,
+				        g.paused_until,
 				        COALESCE(COUNT(gp.player_id), 0) AS player_count
 				 FROM games g
 				 JOIN users u ON u.id = g.host_id
 				 LEFT JOIN game_players gp ON gp.game_id = g.id
-				 WHERE g.phase IN ('waiting', 'dealing', 'bidding', 'widow', 'discard', 'playing', 'scoring')
+				 WHERE g.phase IN ('waiting', 'dealing', 'bidding', 'widow', 'discard', 'playing', 'scoring', 'paused')
 				 GROUP BY g.id
 				 ORDER BY g.created_at DESC
 				 LIMIT 20`

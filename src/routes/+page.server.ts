@@ -1,9 +1,10 @@
 import type { PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import {
+	cleanupStaleGames,
 	findActiveGameForUser,
-	getActiveTablePhaseBindings,
-	getActiveTablePhasesSql,
+	getLobbyTablePhaseBindings,
+	getLobbyTablePhasesSql,
 	parseBulletTarget
 } from '$lib/server/games';
 import { normalizeEmail } from '$lib/server/user-access';
@@ -41,31 +42,41 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		host_name: string;
 		player_count: number;
 		bullet_target: number;
+		is_pinned: number;
+		paused_until: string | null;
 	}> = [];
+
+	await cleanupStaleGames(platform.env.DB);
+
 	const activeGame = locals.user
 		? await findActiveGameForUser(platform.env.DB, locals.user.id)
 		: null;
 
 	if (locals.user) {
-		const activeTablesFilter = getActiveTablePhasesSql();
-		const activeTablePhaseBindings = getActiveTablePhaseBindings();
+		const shouldFilterToUserActiveGame = Boolean(activeGame && locals.user.role !== 'admin');
+		const visibleTablesFilter = getLobbyTablePhasesSql();
+		const visibleTablePhaseBindings = getLobbyTablePhaseBindings();
 		const gamesQuery = await platform.env.DB.prepare(
 			`SELECT g.id, g.phase,
 			        strftime('%Y-%m-%dT%H:%M:%SZ', g.created_at) AS created_at,
 			        u.name AS host_name,
 			        g.bullet_target,
+			        COALESCE(g.is_pinned, 0) AS is_pinned,
+			        g.paused_until,
 			        COALESCE(COUNT(gp.player_id), 0) AS player_count
 			 FROM games g
 			 JOIN users u ON u.id = g.host_id
 			 LEFT JOIN game_players gp ON gp.game_id = g.id
-			 WHERE g.phase IN (${activeTablesFilter})
-			   ${activeGame ? 'AND g.id = ?' : ''}
+			 WHERE g.phase IN (${visibleTablesFilter})
+			   ${shouldFilterToUserActiveGame ? 'AND g.id = ?' : ''}
 			 GROUP BY g.id
 			 ORDER BY g.created_at DESC
 			 LIMIT 20`
 		)
 			.bind(
-				...(activeGame ? [...activeTablePhaseBindings, activeGame.id] : activeTablePhaseBindings)
+				...(shouldFilterToUserActiveGame
+					? [...visibleTablePhaseBindings, activeGame!.id]
+					: visibleTablePhaseBindings)
 			)
 			.all<{
 				id: string;
@@ -74,6 +85,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 				host_name: string;
 				player_count: number;
 				bullet_target: number;
+				is_pinned: number;
+				paused_until: string | null;
 			}>();
 		games = gamesQuery.results;
 	}
@@ -160,5 +173,77 @@ export const actions = {
 		]);
 
 		redirect(303, `/game/${gameId}`);
+	},
+	adminDealOut: async ({ request, locals, platform }) => {
+		if (!locals.user || locals.user.role !== 'admin') {
+			redirect(303, '/');
+		}
+		if (!platform?.env?.DB || !platform.env.GAME_ROOM) {
+			return fail(503, { adminDealOut: true });
+		}
+
+		const formData = await request.formData();
+		const gameId = formData.get('gameId');
+		if (typeof gameId !== 'string' || gameId.length === 0) {
+			return fail(400, { adminDealOut: true });
+		}
+
+		const doId = platform.env.GAME_ROOM.idFromName(gameId);
+		const stub = platform.env.GAME_ROOM.get(doId);
+		await stub.fetch(
+			new Request(`https://game/admin/deal-out?gameId=${encodeURIComponent(gameId)}`, {
+				method: 'POST'
+			})
+		);
+		return { adminDealOut: true };
+	},
+	adminDismiss: async ({ request, locals, platform }) => {
+		if (!locals.user || locals.user.role !== 'admin') {
+			redirect(303, '/');
+		}
+		if (!platform?.env?.DB || !platform.env.GAME_ROOM) {
+			return fail(503, { adminDismiss: true });
+		}
+
+		const formData = await request.formData();
+		const gameId = formData.get('gameId');
+		if (typeof gameId !== 'string' || gameId.length === 0) {
+			return fail(400, { adminDismiss: true });
+		}
+
+		const doId = platform.env.GAME_ROOM.idFromName(gameId);
+		const stub = platform.env.GAME_ROOM.get(doId);
+		await stub.fetch(
+			new Request(`https://game/admin/dismiss?gameId=${encodeURIComponent(gameId)}`, {
+				method: 'POST'
+			})
+		);
+		return { adminDismiss: true };
+	},
+	adminTogglePin: async ({ request, locals, platform }) => {
+		if (!locals.user || locals.user.role !== 'admin') {
+			redirect(303, '/');
+		}
+		if (!platform?.env?.DB) {
+			return fail(503, { adminTogglePin: true });
+		}
+
+		const formData = await request.formData();
+		const gameId = formData.get('gameId');
+		const pinValue = formData.get('pin');
+		if (
+			typeof gameId !== 'string' ||
+			gameId.length === 0 ||
+			(pinValue !== '0' && pinValue !== '1')
+		) {
+			return fail(400, { adminTogglePin: true });
+		}
+
+		await platform.env.DB.prepare(
+			`UPDATE games SET is_pinned = ?, updated_at = datetime('now') WHERE id = ?`
+		)
+			.bind(pinValue, gameId)
+			.run();
+		return { adminTogglePin: true };
 	}
 };
