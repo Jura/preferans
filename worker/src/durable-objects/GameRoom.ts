@@ -79,6 +79,10 @@ export class GameRoom implements DurableObject {
 	constructor(state: DurableObjectState, env: Env) {
 		this.state = state;
 		this.env = env;
+		// Restore in-memory sessions from any WebSockets that survived DO hibernation.
+		// Cloudflare keeps accepted WebSockets alive across hibernation/eviction cycles;
+		// the attachment holds the data we need to rebuild our sessions map.
+		this.restoreSessionsFromHibernation();
 	}
 
 	async fetch(request: Request): Promise<Response> {
@@ -174,6 +178,15 @@ export class GameRoom implements DurableObject {
 		// Attach session id to the WebSocket for later retrieval
 		(server as unknown as { sessionId: string }).sessionId = sessionId;
 
+		// Persist session metadata on the WebSocket so it can be recovered after
+		// the DO wakes from hibernation (in-memory sessions are cleared on sleep).
+		server.serializeAttachment({
+			playerId,
+			playerName: tokenRow.name,
+			avatarUrl: tokenRow.avatar_url,
+			sessionId
+		});
+
 		// Send current state to the newly connected player
 		this.sendToSocket(server, {
 			type: 'game_state',
@@ -224,6 +237,26 @@ export class GameRoom implements DurableObject {
 	}
 
 	// ─── Private helpers ────────────────────────────────────────────────────────
+
+	/**
+	 * Rebuild the in-memory sessions map from WebSockets that survived DO hibernation.
+	 * Called in the constructor so every handler starts with a populated sessions map,
+	 * ensuring broadcasts reach all connected players even after the DO was evicted.
+	 */
+	private restoreSessionsFromHibernation(): void {
+		for (const ws of this.state.getWebSockets()) {
+			const att = ws.deserializeAttachment() as {
+				playerId: string;
+				playerName: string;
+				avatarUrl: string | null;
+				sessionId: string;
+			} | null;
+			if (!att?.sessionId) continue;
+			this.sessions.set(att.sessionId, { ws, playerId: att.playerId, playerName: att.playerName });
+			(ws as unknown as { sessionId: string }).sessionId = att.sessionId;
+			this.playerInfo.set(att.playerId, { name: att.playerName, avatarUrl: att.avatarUrl });
+		}
+	}
 
 	private getSession(ws: WebSocket): WebSocketSession | undefined {
 		const sessionId = (ws as unknown as { sessionId: string }).sessionId;

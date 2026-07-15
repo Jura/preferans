@@ -24,7 +24,6 @@ function createGameStore() {
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	let currentGameId: string | null = null;
-	let currentToken: string | null = null;
 
 	/**
 	 * Snapshot of players from the last received game_state, keyed by player id.
@@ -49,7 +48,6 @@ function createGameStore() {
 
 	function connect(gameId: string, token: string) {
 		currentGameId = gameId;
-		currentToken = token;
 		prevPlayers = null;
 		clearReconnect();
 
@@ -92,16 +90,25 @@ function createGameStore() {
 			if (event.code === ACCESS_REVOKED_CLOSE_CODE) {
 				clearReconnect();
 				currentGameId = null;
-				currentToken = null;
 				window.location.href = '/auth/denied';
 				return;
 			}
 			if (!event.wasClean && currentGameId) {
-				// Reconnect after 3 seconds
+				// The original token is single-use (marked used on first connect), so
+				// we must fetch a fresh token before each reconnect attempt.
+				const gameIdAtClose = currentGameId;
 				reconnectTimer = setTimeout(() => {
-					if (currentGameId && currentToken) {
-						connect(currentGameId, currentToken);
-					}
+					if (!currentGameId) return;
+					fetch(`/api/game/${gameIdAtClose}/ws-token`)
+						.then((res) => (res.ok ? (res.json() as Promise<{ token: string }>) : null))
+						.then((data) => {
+							if (data?.token && currentGameId === gameIdAtClose) {
+								connect(gameIdAtClose, data.token);
+							}
+						})
+						.catch(() => {
+							// Network error – will not reconnect; user can refresh the page.
+						});
 				}, 3000);
 			}
 		});
@@ -172,7 +179,6 @@ function createGameStore() {
 		clearHeartbeat();
 		prevPlayers = null;
 		currentGameId = null;
-		currentToken = null;
 		ws?.close();
 		ws = null;
 		set({ state: null, status: 'disconnected', error: null });
