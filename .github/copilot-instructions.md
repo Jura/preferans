@@ -13,12 +13,18 @@
 - Reuse existing types from `src/lib/types/preferans.ts` where possible.
 - Preserve existing naming and architecture patterns in routes, stores, and components.
 
+## Documentation
+- README should be revised and updated when new features are added or existing ones are changed.
+- Obsolete sections should be removed.
+- Documentation should be kept succinct and only include relevant information for developers and contributors.
+
 ## Frontend Guidelines (SvelteKit)
 - Follow existing Svelte 5 runes patterns used in the codebase.
 - Prefer strongly typed props and state.
 - Keep UI components in `src/lib/components/` small and composable.
 - Put client state/websocket interactions in stores under `src/lib/stores/`.
 - Avoid introducing new dependencies unless necessary.
+- All frontend changes should be tested in both desktop and mobile views. Responsive design is important for the game experience.
 
 ## Worker and Game Engine Guidelines
 - Keep game rule logic centralized in `worker/src/gameEngine.ts`.
