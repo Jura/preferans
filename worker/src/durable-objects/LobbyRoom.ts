@@ -82,6 +82,10 @@ export class LobbyRoom implements DurableObject {
 	constructor(state: DurableObjectState, env: Env) {
 		this.state = state;
 		this.env = env;
+		// Restore sessions from any WebSockets that survived DO hibernation so that
+		// broadcasts (alarm-based polls and /notify calls from GameRoom) reach all
+		// connected lobby clients even after the DO was evicted.
+		this.restoreSessionsFromHibernation();
 	}
 
 	async fetch(request: Request): Promise<Response> {
@@ -130,6 +134,9 @@ export class LobbyRoom implements DurableObject {
 		(server as unknown as { sessionId: string }).sessionId = sessionId;
 		this.sessions.set(sessionId, { ws: server, userId: tokenRow.user_id });
 
+		// Persist session metadata so it can be recovered after DO hibernation.
+		server.serializeAttachment({ userId: tokenRow.user_id, sessionId });
+
 		// Send current state immediately to the new client
 		await this.refreshAndBroadcastToSocket(server);
 
@@ -167,6 +174,18 @@ export class LobbyRoom implements DurableObject {
 	}
 
 	// ─── Private helpers ────────────────────────────────────────────────────────
+
+	/** Rebuild the in-memory sessions map from WebSockets that survived DO hibernation. */
+	private restoreSessionsFromHibernation(): void {
+		for (const ws of this.state.getWebSockets()) {
+			const att = ws.deserializeAttachment() as { userId: string; sessionId: string } | null;
+			if (!att?.sessionId) continue;
+			if (!this.sessions.has(att.sessionId)) {
+				this.sessions.set(att.sessionId, { ws, userId: att.userId });
+				(ws as unknown as { sessionId: string }).sessionId = att.sessionId;
+			}
+		}
+	}
 
 	private parseMessage(data: string | ArrayBuffer): { type: string } | null {
 		try {
