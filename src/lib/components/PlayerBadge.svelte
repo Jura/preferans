@@ -29,6 +29,9 @@
 	let showTooltip = $state(false);
 	let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
 
+	// Unique id for aria-describedby wiring (stable for lifetime of component)
+	let tooltipId = $derived(`player-tip-${playerId}`);
+
 	// Effective stats: prefer pre-loaded prop, fall back to lazily fetched data
 	let effectiveStats = $derived(stats ?? fetchedStats);
 
@@ -77,21 +80,36 @@
 	function handleBlur() {
 		showTooltip = false;
 	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			if (showTooltip) {
+				showTooltip = false;
+			} else {
+				handleFocus();
+			}
+		} else if (e.key === 'Escape') {
+			showTooltip = false;
+		}
+	}
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <span
 	class="player-badge {className}"
 	onmouseenter={handleMouseEnter}
 	onmouseleave={handleMouseLeave}
 	onfocus={handleFocus}
 	onblur={handleBlur}
+	onkeydown={handleKeydown}
 	tabindex="0"
-	role="button"
-	aria-label={name}
+	aria-describedby={showTooltip ? tooltipId : undefined}
 >
 	{name}
 	{#if showTooltip}
-		<div class="tooltip" role="tooltip">
+		<div class="tooltip" role="tooltip" id={tooltipId}>
 			{#if loading}
 				<span class="tooltip-loading">…</span>
 			{:else if effectiveStats}

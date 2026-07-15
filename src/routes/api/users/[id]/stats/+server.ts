@@ -43,31 +43,13 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 		.bind(userId)
 		.first<{ cnt: number }>();
 
-	// Cumulative final-settlement score across all finished games.
-	// game_rounds stores the running scores in result_json -> scores.<playerId>.
-	// We take the highest round_num per finished game (= final state of that game).
-	const scoreResult = await platform.env.DB.prepare(
+	// Compute cumulative score and leaderboard rank in a single query.
+	// final_rounds: the last game_round per finished game (= final settlement state).
+	// player_totals: sum of final settlement scores per player across all finished games.
+	// Rank = 1 + count of players with a strictly higher score than this user.
+	const statsResult = await platform.env.DB.prepare(
 		`WITH final_rounds AS (
 		   SELECT gr.result_json
-		   FROM game_rounds gr
-		   INNER JOIN (
-		     SELECT game_id, MAX(round_num) AS max_round
-		     FROM game_rounds
-		     GROUP BY game_id
-		   ) latest ON gr.game_id = latest.game_id AND gr.round_num = latest.max_round
-		   WHERE gr.game_id IN (SELECT id FROM games WHERE phase = 'finished')
-		 )
-		 SELECT COALESCE(SUM(CAST(json_extract(result_json, '$.scores.' || ?) AS INTEGER)), 0) AS total
-		 FROM final_rounds
-		 WHERE json_extract(result_json, '$.scores.' || ?) IS NOT NULL`
-	)
-		.bind(userId, userId)
-		.first<{ total: number }>();
-
-	// Leaderboard rank: how many authorized players have a higher cumulative score?
-	const rankResult = await platform.env.DB.prepare(
-		`WITH final_rounds AS (
-		   SELECT gr.game_id, gr.result_json
 		   FROM game_rounds gr
 		   INNER JOIN (
 		     SELECT game_id, MAX(round_num) AS max_round
@@ -80,13 +62,17 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 		   SELECT s.key AS player_id, SUM(CAST(s.value AS INTEGER)) AS total
 		   FROM final_rounds, json_each(json_extract(result_json, '$.scores')) AS s
 		   GROUP BY s.key
+		 ),
+		 my_score AS (
+		   SELECT COALESCE((SELECT total FROM player_totals WHERE player_id = ?), 0) AS total
 		 )
-		 SELECT COUNT(*) + 1 AS rank
-		 FROM player_totals
-		 WHERE total > COALESCE((SELECT total FROM player_totals WHERE player_id = ?), 0)`
+		 SELECT
+		   my_score.total AS cumulative_score,
+		   (SELECT COUNT(*) + 1 FROM player_totals WHERE total > my_score.total) AS leaderboard_rank
+		 FROM my_score`
 	)
 		.bind(userId)
-		.first<{ rank: number }>();
+		.first<{ cumulative_score: number; leaderboard_rank: number }>();
 
 	return json({
 		id: user.id,
@@ -94,7 +80,7 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 		email: user.email,
 		lastActiveAt: user.last_active_at,
 		gamesPlayed: gamesPlayedResult?.cnt ?? 0,
-		cumulativeScore: scoreResult?.total ?? 0,
-		leaderboardRank: rankResult?.rank ?? 1
+		cumulativeScore: statsResult?.cumulative_score ?? 0,
+		leaderboardRank: statsResult?.leaderboard_rank ?? 1
 	});
 };

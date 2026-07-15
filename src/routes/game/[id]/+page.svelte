@@ -31,6 +31,9 @@
 	/** Show the lobby-redirect countdown message after approved finish. */
 	let redirectingToLobby = $state(false);
 
+	/** Delay (ms) before redirecting to lobby after an approved early-finish vote. */
+	const REDIRECT_DELAY_MS = 3000;
+
 	const SUIT_SYMBOLS: Record<string, string> = {
 		spades: '♠',
 		clubs: '♣',
@@ -101,6 +104,24 @@
 		)
 	);
 
+	// Pre-compute the open-hand layout so we don't re-filter in the template.
+	let openHandEntries = $derived(Object.entries(sortedOpenHands));
+	let openHandLeftPlayer = $derived(
+		$game.state?.players.find(
+			(p) => p.id !== myPlayerId && openHandEntries.some(([id]) => id === p.id) && p.position === 1
+		) ?? null
+	);
+	let openHandRightPlayer = $derived(
+		$game.state?.players.find(
+			(p) => p.id !== myPlayerId && openHandEntries.some(([id]) => id === p.id) && p.position === 2
+		) ?? null
+	);
+	let openHandOthers = $derived(
+		openHandEntries.filter(
+			([id]) => id !== openHandLeftPlayer?.id && id !== openHandRightPlayer?.id
+		)
+	);
+
 	// ── Widow (discard + final contract) state ──
 	let discardSelection: Card[] = $state([]);
 	let declaredLevel: ContractLevel = $state(6);
@@ -129,7 +150,7 @@
 		// Redirect to lobby after an early finish vote is approved
 		if ($gamePhase === 'finished' && hadFinishProposal) {
 			redirectingToLobby = true;
-			setTimeout(() => goto('/'), 3000);
+			setTimeout(() => goto('/'), REDIRECT_DELAY_MS);
 		}
 	});
 
@@ -469,40 +490,30 @@
 				     Current player's hand is at the bottom (shown in .my-hand below).
 				     Other players' open hands are laid out left / right according to
 				     their table position. -->
-				{#if Object.keys(sortedOpenHands).length > 0}
-					{@const openEntries = Object.entries(sortedOpenHands)}
-					<!-- Determine relative positions: position 1 = left, position 2 = right -->
-					{@const leftPlayer = $game.state.players.find(
-						(p) =>
-							p.id !== myPlayerId && openEntries.some(([id]) => id === p.id) && p.position === 1
-					)}
-					{@const rightPlayer = $game.state.players.find(
-						(p) =>
-							p.id !== myPlayerId && openEntries.some(([id]) => id === p.id) && p.position === 2
-					)}
+				{#if openHandEntries.length > 0}
 					<div class="open-hands-row">
-						{#if leftPlayer && sortedOpenHands[leftPlayer.id]}
+						{#if openHandLeftPlayer && sortedOpenHands[openHandLeftPlayer.id]}
 							<div class="open-hand open-hand-left">
-								<h4>{$t('app.game.openHandOf', { name: leftPlayer.name })}</h4>
+								<h4>{$t('app.game.openHandOf', { name: openHandLeftPlayer.name })}</h4>
 								<Hand
-									cards={sortedOpenHands[leftPlayer.id]}
+									cards={sortedOpenHands[openHandLeftPlayer.id]}
 									playable={false}
-									label={leftPlayer.name}
+									label={openHandLeftPlayer.name}
 								/>
 							</div>
 						{/if}
-						{#if rightPlayer && sortedOpenHands[rightPlayer.id]}
+						{#if openHandRightPlayer && sortedOpenHands[openHandRightPlayer.id]}
 							<div class="open-hand open-hand-right">
-								<h4>{$t('app.game.openHandOf', { name: rightPlayer.name })}</h4>
+								<h4>{$t('app.game.openHandOf', { name: openHandRightPlayer.name })}</h4>
 								<Hand
-									cards={sortedOpenHands[rightPlayer.id]}
+									cards={sortedOpenHands[openHandRightPlayer.id]}
 									playable={false}
-									label={rightPlayer.name}
+									label={openHandRightPlayer.name}
 								/>
 							</div>
 						{/if}
 						<!-- Remaining open hands that don't match a known position (e.g. spectator view) -->
-						{#each openEntries.filter(([id]) => id !== leftPlayer?.id && id !== rightPlayer?.id) as [playerId, cards] (playerId)}
+						{#each openHandOthers as [playerId, cards] (playerId)}
 							<div class="open-hand">
 								<h4>{$t('app.game.openHandOf', { name: playerName(playerId) })}</h4>
 								<Hand {cards} playable={false} label={playerName(playerId)} />
