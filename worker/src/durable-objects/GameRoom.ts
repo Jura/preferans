@@ -1,10 +1,26 @@
-import type { GameState, PlayerId, Card, Bid, FinishProposal, PauseProposal } from '../gameEngine';
+import type {
+	GameState,
+	PlayerId,
+	Card,
+	Bid,
+	WhistChoice,
+	FinishProposal,
+	PauseProposal,
+	RoundSummary,
+	Contract
+} from '../gameEngine';
 import {
 	createInitialState,
+	normalizeState,
 	startRound,
 	applyBid,
 	applyWidowSelection,
-	applyPlayCard
+	applyWhistChoice,
+	applyLightChoice,
+	applyPlayCard,
+	whistOptions,
+	requiredLeadSuit,
+	raspassPrice
 } from '../gameEngine';
 import { UPDATE_LAST_ACTIVE_SQL } from '../db';
 
@@ -30,7 +46,9 @@ const MS_PER_MINUTE = 60 * 1000;
 type ClientMessage =
 	| { type: 'join'; token: string }
 	| { type: 'bid'; bid: Bid }
-	| { type: 'select_widow'; keep: [Card, Card] }
+	| { type: 'select_widow'; discard: [Card, Card]; contract: Contract }
+	| { type: 'whist'; choice: WhistChoice }
+	| { type: 'choose_open'; open: boolean }
 	| { type: 'play_card'; card: Card }
 	| { type: 'request_finish_early' }
 	| { type: 'vote_finish_early'; approve: boolean }
@@ -56,11 +74,29 @@ interface ClientGameState {
 	currentTrick: GameState['currentTrick'];
 	completedTricks: GameState['completedTricks'];
 	bids: GameState['bids'];
+	wonBid: Contract | null;
 	contract: GameState['contract'];
 	declarerId: string | null;
 	trump: string | null;
+	whistDeclarations: GameState['whistDeclarations'];
+	/** Whist options for THIS player, when their declaration is awaited */
+	whistOptions: WhistChoice[] | null;
+	whisters: PlayerId[];
+	lightDecisionBy: PlayerId | null;
+	playedOpen: boolean;
+	/** Other players' hands revealed to everyone (открытая игра) */
+	openHands: Record<PlayerId, Card[]>;
+	raspass: boolean;
+	raspassPrice: number;
+	/** Widow card dictating the current lead suit during распасовка */
+	raspassUpcard: Card | null;
+	pool: Record<PlayerId, number>;
+	mountain: Record<PlayerId, number>;
+	whists: Record<PlayerId, Record<PlayerId, number>>;
+	bulletTarget: number;
 	scores: Record<string, number>;
 	roundNumber: number;
+	roundSummary: RoundSummary | null;
 	finishProposal: FinishProposal | null;
 	pauseProposal: PauseProposal | null;
 	pausedUntil: string | null;
@@ -296,14 +332,14 @@ export class GameRoom implements DurableObject {
 	}
 
 	private async loadGameState() {
+		const gameRow = await this.env.DB.prepare(`SELECT bullet_target FROM games WHERE id = ?`)
+			.bind(this.gameId)
+			.first<{ bullet_target: number }>();
+		const bulletTarget = gameRow?.bullet_target ?? 100;
+
 		const stored = await this.state.storage.get<GameState>('gameState');
 		if (stored) {
-			this.gameState = {
-				...stored,
-				finishProposal: stored.finishProposal ?? null,
-				pauseProposal: stored.pauseProposal ?? null,
-				pausedUntil: stored.pausedUntil ?? null
-			};
+			this.gameState = normalizeState({ ...stored, bulletTarget });
 			return;
 		}
 		// Load player ids from DB
@@ -319,7 +355,7 @@ export class GameRoom implements DurableObject {
 		for (const p of players.results) {
 			this.playerInfo.set(p.player_id, { name: p.name, avatarUrl: p.avatar_url });
 		}
-		this.gameState = createInitialState(this.gameId, playerIds);
+		this.gameState = createInitialState(this.gameId, playerIds, bulletTarget);
 		await this.persistState();
 	}
 
@@ -346,22 +382,18 @@ export class GameRoom implements DurableObject {
 		}
 
 		const playerIds = players.results.map((player) => player.player_id);
+		const previousIds = this.gameState.playerIds;
 		const rosterChanged =
-			playerIds.length !== this.gameState.playerIds.length ||
-			playerIds.some((playerId, index) => this.gameState.playerIds[index] !== playerId);
+			playerIds.length !== previousIds.length ||
+			playerIds.some((playerId, index) => previousIds[index] !== playerId);
 
 		if (!rosterChanged) {
 			return false;
 		}
 
-		const currentScores = this.gameState.scores ?? {};
-		this.gameState = {
-			...this.gameState,
-			playerIds,
-			scores: Object.fromEntries(
-				playerIds.map((playerId) => [playerId, currentScores[playerId] ?? 0])
-			)
-		};
+		this.gameState = normalizeState(
+			createInitialState(this.gameId, playerIds, this.gameState.bulletTarget)
+		);
 
 		// Auto-deal when the third player joins and randomize order at that point.
 		if (playerIds.length === 3) {
@@ -473,7 +505,27 @@ export class GameRoom implements DurableObject {
 
 			case 'select_widow': {
 				if (!this.gameState) return;
-				this.gameState = applyWidowSelection(this.gameState, playerId, msg.keep);
+				this.gameState = applyWidowSelection(this.gameState, playerId, msg.discard, msg.contract);
+				await this.persistState();
+				this.broadcastState();
+				return;
+			}
+
+			case 'whist': {
+				if (!this.gameState) return;
+				this.gameState = applyWhistChoice(this.gameState, playerId, msg.choice);
+				await this.persistState();
+				// Whisting may end the deal immediately (e.g. pass-pass or half-whist)
+				if (this.gameState.phase === 'scoring' || this.gameState.phase === 'finished') {
+					await this.saveRoundResult();
+				}
+				this.broadcastState();
+				return;
+			}
+
+			case 'choose_open': {
+				if (!this.gameState) return;
+				this.gameState = applyLightChoice(this.gameState, playerId, msg.open);
 				await this.persistState();
 				this.broadcastState();
 				return;
@@ -484,7 +536,7 @@ export class GameRoom implements DurableObject {
 				this.gameState = applyPlayCard(this.gameState, playerId, msg.card);
 				await this.persistState();
 				// If round ended, save round result to DB
-				if (this.gameState.phase === 'scoring') {
+				if (this.gameState.phase === 'scoring' || this.gameState.phase === 'finished') {
 					await this.saveRoundResult();
 				}
 				this.broadcastState();
@@ -620,7 +672,7 @@ export class GameRoom implements DurableObject {
 	}
 
 	private async saveRoundResult() {
-		if (!this.gameState?.contract || !this.gameState.declarerId) return;
+		if (!this.gameState?.roundSummary) return;
 		await this.env.DB.prepare(
 			`INSERT INTO game_rounds (game_id, round_num, result_json)
 			 VALUES (?, ?, ?)`
@@ -629,8 +681,10 @@ export class GameRoom implements DurableObject {
 				this.gameId,
 				this.gameState.roundNumber,
 				JSON.stringify({
-					declarerId: this.gameState.declarerId,
-					contract: this.gameState.contract,
+					summary: this.gameState.roundSummary,
+					pool: this.gameState.pool,
+					mountain: this.gameState.mountain,
+					whists: this.gameState.whists,
 					scores: this.gameState.scores
 				})
 			)
@@ -646,21 +700,47 @@ export class GameRoom implements DurableObject {
 			position: idx as 0 | 1 | 2
 		}));
 
+		const pendingWhist = whistOptions(gs);
+		const openHands: Record<PlayerId, Card[]> = {};
+		for (const pid of gs.openHands) {
+			if (pid !== forPlayerId) openHands[pid] = gs.hands[pid] ?? [];
+		}
+		const upcardSuit = requiredLeadSuit(gs);
+		const raspassUpcard =
+			gs.raspass && gs.completedTricks.length < 2 && upcardSuit
+				? (gs.widow[gs.completedTricks.length] ?? null)
+				: null;
+
 		return {
 			id: gs.id,
 			phase: gs.phase,
 			players,
 			currentPlayerId: gs.currentPlayerId,
 			hand: gs.hands[forPlayerId] ?? [],
-			widow: gs.declarerId === forPlayerId ? gs.widow : [],
+			widow: gs.declarerId === forPlayerId && gs.phase === 'widow' ? gs.widow : [],
 			currentTrick: gs.currentTrick,
 			completedTricks: gs.completedTricks,
 			bids: gs.bids,
+			wonBid: gs.wonBid,
 			contract: gs.contract,
 			declarerId: gs.declarerId,
 			trump: gs.trump,
+			whistDeclarations: gs.whistDeclarations,
+			whistOptions: pendingWhist?.playerId === forPlayerId ? pendingWhist.options : null,
+			whisters: gs.whisters,
+			lightDecisionBy: gs.lightDecisionBy,
+			playedOpen: gs.playedOpen,
+			openHands,
+			raspass: gs.raspass,
+			raspassPrice: raspassPrice(gs.raspassStreak),
+			raspassUpcard,
+			pool: gs.pool,
+			mountain: gs.mountain,
+			whists: gs.whists,
+			bulletTarget: gs.bulletTarget,
 			scores: gs.scores,
 			roundNumber: gs.roundNumber,
+			roundSummary: gs.roundSummary,
 			finishProposal: gs.finishProposal ?? null,
 			pauseProposal: gs.pauseProposal ?? null,
 			pausedUntil: gs.pausedUntil ?? null
