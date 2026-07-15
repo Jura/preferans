@@ -6,11 +6,12 @@
 		card: Card;
 		selected?: boolean;
 		playable?: boolean;
+		eligible?: boolean;
 		faceDown?: boolean;
 		onclick?: () => void;
 	}
 
-	let { card, selected = false, playable = true, faceDown = false, onclick }: Props = $props();
+	let { card, selected = false, playable = true, eligible = true, faceDown = false, onclick }: Props = $props();
 
 	const SUIT_SYMBOLS: Record<Suit, string> = {
 		spades: '♠',
@@ -32,8 +33,9 @@
 	class:face-down={faceDown}
 	class:red={isRed}
 	class:black={!isRed}
+	class:ineligible={playable && !eligible}
 	{onclick}
-	disabled={!playable || faceDown}
+	disabled={!playable || faceDown || (playable && !eligible)}
 	aria-label={faceDown
 		? $t('app.card.faceDown')
 		: $t('app.card.cardAria', { rank: card.rank, suit: SUIT_SYMBOLS[card.suit] })}
@@ -92,6 +94,12 @@
 	.card:not(.playable) {
 		cursor: default;
 		opacity: 0.85;
+	}
+
+	.card.ineligible {
+		opacity: 0.4;
+		filter: grayscale(15%);
+		cursor: not-allowed;
 	}
 
 	.card.face-down {
