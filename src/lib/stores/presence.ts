@@ -6,7 +6,7 @@ export type PresenceStatus = 'online' | 'away' | 'offline';
 const ONLINE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
 const AWAY_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 
-/** How often to send a heartbeat to update last_active_at on the server */
+/** How often to evaluate local status and notify the active socket of user activity */
 const HEARTBEAT_INTERVAL_MS = 30_000; // 30 seconds
 
 /** How often to re-evaluate and update the local presence status */
@@ -19,6 +19,8 @@ function createPresenceStore() {
 	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	let statusTimer: ReturnType<typeof setInterval> | null = null;
 	let started = false;
+	/** Callback registered by the active WebSocket store (lobby or game) to send an activity message. */
+	let activitySender: (() => void) | null = null;
 
 	function computeStatus(): PresenceStatus {
 		const elapsed = Date.now() - lastActivityAt;
@@ -32,16 +34,13 @@ function createPresenceStore() {
 		set('online');
 	}
 
-	async function sendHeartbeat() {
+	function sendHeartbeat() {
 		const status = computeStatus();
 		set(status);
-		// Only ping server if user has been active (online/away); skip if offline
+		// Only signal the server if the user has been active (online/away); skip if offline.
+		// The active socket store (lobby or game) owns the transport.
 		if (status !== 'offline') {
-			try {
-				await fetch('/api/presence', { method: 'PATCH' });
-			} catch {
-				// Ignore network errors – not critical
-			}
+			activitySender?.();
 		}
 	}
 
@@ -62,14 +61,14 @@ function createPresenceStore() {
 			window.addEventListener(ev, recordActivity, { passive: true });
 		}
 
-		// Periodic heartbeat to keep last_active_at fresh on the server
-		heartbeatTimer = setInterval(() => void sendHeartbeat(), HEARTBEAT_INTERVAL_MS);
+		// Periodic heartbeat to keep last_active_at fresh on the server via the active socket
+		heartbeatTimer = setInterval(() => sendHeartbeat(), HEARTBEAT_INTERVAL_MS);
 
 		// Re-evaluate local status more frequently (catches transitions to away/offline)
 		statusTimer = setInterval(() => set(computeStatus()), STATUS_CHECK_INTERVAL_MS);
 
 		// Send first heartbeat immediately
-		void sendHeartbeat();
+		sendHeartbeat();
 	}
 
 	/** Call when the user logs out or the app unmounts. */
@@ -87,7 +86,15 @@ function createPresenceStore() {
 		}
 	}
 
-	return { subscribe, start, stop };
+	/**
+	 * Register the function that the active WebSocket store (lobby or game) will use to
+	 * send an `activity` message to the server. Pass `null` to unregister (e.g. on disconnect).
+	 */
+	function setActivitySender(fn: (() => void) | null) {
+		activitySender = fn;
+	}
+
+	return { subscribe, start, stop, setActivitySender };
 }
 
 export const presence = createPresenceStore();

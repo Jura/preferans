@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { page } from '$app/stores';
 	import { auth } from '$lib/stores/auth';
 	import { presence } from '$lib/stores/presence';
 	import { lobby } from '$lib/stores/lobby';
@@ -22,11 +23,33 @@
 		if (data.user) {
 			// Start tracking user activity for presence
 			presence.start();
+		}
+	});
 
-			// Connect to the lobby WebSocket for real-time lobby updates
-			if (data.lobbyToken) {
-				lobby.connect(data.lobbyToken);
-			}
+	// Manage the lobby WebSocket reactively based on the current route.
+	// Game pages have their own socket that handles presence; the lobby socket is
+	// redundant there and is disconnected to avoid keeping two sockets open at once.
+	// On return to non-game routes the layout server issues a fresh token, so we
+	// can reconnect here whenever $page.url changes.
+	$effect(() => {
+		// Destructure at the top so Svelte always tracks both `user` and `lobbyToken`
+		// as reactive dependencies. If we read them conditionally (e.g. behind an early
+		// return), Svelte would only track whichever branches actually ran on the last
+		// execution – meaning a new lobbyToken could go unnoticed when isGamePage is true.
+		const { user, lobbyToken } = data;
+
+		if (!user) {
+			lobby.disconnect();
+			return;
+		}
+
+		const isGamePage = $page.url.pathname.startsWith('/game/');
+
+		if (isGamePage) {
+			lobby.disconnect();
+		} else if (lobbyToken) {
+			// lobby.connect() is a no-op when a connection is already open
+			lobby.connect(lobbyToken);
 		}
 	});
 
