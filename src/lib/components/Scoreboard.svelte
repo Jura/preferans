@@ -31,7 +31,9 @@
 		<thead>
 			<tr>
 				<th>{$t('app.scoreboard.player')}</th>
-				<th title={$t('app.scoreboard.poolHint', { bulletTarget })}>{$t('app.scoreboard.pool')}</th>
+				<th title={$t('app.scoreboard.poolHint', { bulletTarget })}
+					>{$t('app.scoreboard.pool')}<br /><span class="pool-target">/{bulletTarget}</span></th
+				>
 				<th>{$t('app.scoreboard.mountain')}</th>
 				<th>{$t('app.scoreboard.whists')}</th>
 				<th>{$t('app.scoreboard.total')}</th>
@@ -108,6 +110,12 @@
 
 	.pool {
 		color: #ffd700;
+	}
+
+	.pool-target {
+		font-size: 10px;
+		color: rgba(200, 169, 110, 0.6);
+		font-weight: normal;
 	}
 
 	.pool-amount {

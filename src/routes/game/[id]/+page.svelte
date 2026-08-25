@@ -588,12 +588,10 @@
 				{#if $gamePhase === 'widow' && !widowTakenByDeclarer && $game.state.widow.length > 0}
 					<div class="widow-area widow-reveal">
 						<h3>{$t('app.game.widowRevealTitle')}</h3>
-						<p class="widow-hint">{$t('app.game.widowRevealHint', { name: playerName($game.state.declarerId) })}</p>
-						<Hand
-							cards={$game.state.widow}
-							playable={false}
-							label={$t('app.game.widow')}
-						/>
+						<p class="widow-hint">
+							{$t('app.game.widowRevealHint', { name: playerName($game.state.declarerId) })}
+						</p>
+						<Hand cards={$game.state.widow} playable={false} label={$t('app.game.widow')} />
 						{#if isDeclarer}
 							<button class="confirm-btn" onclick={takeWidow}>
 								{$t('app.game.takeWidow')}
@@ -830,7 +828,10 @@
 				<div class="last-trick-cards">
 					{#each lastCompletedTrick.cards as entry}
 						{@const playerN = playerName(entry.playerId)}
-						<div class="last-trick-card-slot" class:winner={entry.playerId === lastCompletedTrick.winnerId}>
+						<div
+							class="last-trick-card-slot"
+							class:winner={entry.playerId === lastCompletedTrick.winnerId}
+						>
 							<span class="last-trick-player">{playerN}</span>
 							<Hand cards={[entry.card]} playable={false} label={playerN} />
 							{#if entry.playerId === lastCompletedTrick.winnerId}

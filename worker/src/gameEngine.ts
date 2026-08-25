@@ -1004,7 +1004,12 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 		const winnerId = trickWinner(newTrick, state.trump);
 		const completedTrick: Trick = { ...newTrick, winnerId };
 		// Keep the trick on the table (currentTrick) and mark it as pending confirmation
-		return { ...next, currentTrick: completedTrick, pendingTrick: completedTrick, currentPlayerId: winnerId };
+		return {
+			...next,
+			currentTrick: completedTrick,
+			pendingTrick: completedTrick,
+			currentPlayerId: winnerId
+		};
 	}
 
 	return { ...next, currentPlayerId: seatAfter(next, playerId) };

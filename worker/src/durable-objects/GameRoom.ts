@@ -738,9 +738,10 @@ export class GameRoom implements DurableObject {
 			players,
 			currentPlayerId: gs.currentPlayerId,
 			hand: gs.hands[forPlayerId] ?? [],
-			widow: gs.phase === 'widow' && (gs.declarerId === forPlayerId || !gs.widowTakenByDeclarer)
-			? gs.widow
-			: [],
+			widow:
+				gs.phase === 'widow' && (gs.declarerId === forPlayerId || !gs.widowTakenByDeclarer)
+					? gs.widow
+					: [],
 			currentTrick: gs.currentTrick,
 			completedTricks: gs.completedTricks,
 			bids: gs.bids,
