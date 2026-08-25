@@ -2,7 +2,7 @@
 	import CardComponent from './Card.svelte';
 	import PlayerBadge from './PlayerBadge.svelte';
 	import { t } from '$lib/i18n';
-	import type { Trick, Player, Card, Contract } from '$lib/types/preferans';
+	import type { Trick, Player, Card, Contract, Bid, WhistChoice } from '$lib/types/preferans';
 
 	interface Props {
 		trick: Trick | null;
@@ -11,6 +11,10 @@
 		trump?: import('$lib/types/preferans').Suit | null;
 		currentPlayerId?: string | null;
 		currentContract?: Contract | null;
+		declarerId?: string | null;
+		bids?: { playerId: string; bid: Bid }[];
+		whistDeclarations?: { playerId: string; choice: WhistChoice }[];
+		phase?: string;
 	}
 
 	let {
@@ -19,7 +23,11 @@
 		myPlayerId,
 		trump = null,
 		currentPlayerId = null,
-		currentContract = null
+		currentContract = null,
+		declarerId = null,
+		bids = [],
+		whistDeclarations = [],
+		phase = ''
 	}: Props = $props();
 
 	const SUIT_SYMBOLS: Record<string, string> = {
@@ -37,6 +45,27 @@
 		return trick?.cards.find((c) => c.playerId === playerId)?.card ?? null;
 	}
 
+	/** Last bid made by this player during the bidding phase */
+	function getLastBid(playerId: string): Bid | null {
+		const playerBids = bids.filter((b) => b.playerId === playerId);
+		return playerBids.length > 0 ? playerBids[playerBids.length - 1].bid : null;
+	}
+
+	/** Whist declaration made by this player */
+	function getWhistDeclaration(playerId: string): WhistChoice | null {
+		return whistDeclarations.find((d) => d.playerId === playerId)?.choice ?? null;
+	}
+
+	function formatBidLabel(bid: Bid): string {
+		if (bid === 'pass') return $t('app.table.bidPass');
+		if (bid.type === 'misere') return $t('app.game.misere');
+		return `${bid.level}${bid.suit === 'no_trump' ? $t('app.game.noTrumpShort') : SUIT_SYMBOLS[bid.suit]}`;
+	}
+
+	function formatWhistLabel(choice: WhistChoice): string {
+		return $t(`app.game.whistChoice.${choice}`);
+	}
+
 	// Sort players by their relative position so that position 0 (self/bottom)
 	// is always rendered first, followed by position 1 (left) and 2 (right).
 	// This ensures :nth-child(1/2/3) CSS selectors always map to the correct seat.
@@ -48,6 +77,15 @@
 		if (contract.suit === 'no_trump') return 'suit-nt';
 		if (contract.suit === 'diamonds' || contract.suit === 'hearts') return 'suit-red';
 		if (contract.suit === 'spades' || contract.suit === 'clubs') return 'suit-black';
+		return '';
+	}
+
+	function bidSuitClass(bid: Bid): string {
+		if (bid === 'pass') return 'bid-pass';
+		if (bid.type === 'misere') return 'bid-misere';
+		if (bid.suit === 'no_trump') return 'suit-nt';
+		if (bid.suit === 'diamonds' || bid.suit === 'hearts') return 'suit-red';
+		if (bid.suit === 'spades' || bid.suit === 'clubs') return 'suit-black';
 		return '';
 	}
 </script>
@@ -67,6 +105,8 @@
 	<div class="table-center">
 		{#each sortedPlayers as player}
 			{@const card = getCardForPlayer(player.id)}
+			{@const lastBid = phase === 'bidding' ? getLastBid(player.id) : null}
+			{@const whistDecl = phase === 'whisting' ? getWhistDeclaration(player.id) : null}
 			<div
 				class="player-slot"
 				class:self={player.id === myPlayerId}
@@ -79,7 +119,7 @@
 						name={player.name}
 						offline={player.isOnline === false}
 					/>
-					{#if player.id === currentPlayerId && currentContract}
+					{#if player.id === declarerId && currentContract && phase !== 'bidding'}
 						<span class={`current-contract ${contractSuitClass(currentContract)}`}>
 							{#if currentContract.type === 'misere'}
 								{$t('app.game.misere')}
@@ -89,6 +129,16 @@
 									? $t('app.game.noTrumpShort')
 									: SUIT_SYMBOLS[currentContract.suit]}
 							{/if}
+						</span>
+					{/if}
+					{#if lastBid !== null}
+						<span class={`bid-label ${bidSuitClass(lastBid)}`}>
+							{formatBidLabel(lastBid)}
+						</span>
+					{/if}
+					{#if whistDecl !== null}
+						<span class="whist-label whist-{whistDecl}">
+							{formatWhistLabel(whistDecl)}
 						</span>
 					{/if}
 				</div>
@@ -238,6 +288,53 @@
 	.suit-nt {
 		color: #ffd700;
 		border-color: rgba(255, 215, 0, 0.5);
+	}
+
+	.bid-label {
+		font-size: 11px;
+		font-weight: 700;
+		line-height: 1;
+		padding: 2px 5px;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.5);
+		border: 1px solid rgba(200, 169, 110, 0.5);
+		color: #c8a96e;
+	}
+
+	.bid-label.bid-pass {
+		color: #aaa;
+		border-color: rgba(170, 170, 170, 0.4);
+	}
+
+	.bid-label.bid-misere {
+		color: #ff6b6b;
+		border-color: rgba(255, 107, 107, 0.5);
+		background: rgba(139, 0, 0, 0.3);
+	}
+
+	.whist-label {
+		font-size: 11px;
+		font-weight: 700;
+		line-height: 1;
+		padding: 2px 5px;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.5);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.whist-label.whist-whist {
+		color: #c8a96e;
+		border-color: rgba(200, 169, 110, 0.5);
+	}
+
+	.whist-label.whist-pass {
+		color: #aaa;
+		border-color: rgba(170, 170, 170, 0.4);
+	}
+
+	.whist-label.whist-half_whist {
+		color: #ffb347;
+		border-color: rgba(255, 179, 71, 0.5);
 	}
 
 	.played-card {

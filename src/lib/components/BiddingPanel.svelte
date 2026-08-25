@@ -45,7 +45,9 @@
 	/** True when selectedLevel + this suit would beat the current high bid. */
 	function isSuitUsable(suit: ContractSuit): boolean {
 		if (!currentHighBid) return true;
-		return contractValue({ type: 'suit', level: selectedLevel, suit }) > contractValue(currentHighBid);
+		return (
+			contractValue({ type: 'suit', level: selectedLevel, suit }) > contractValue(currentHighBid)
+		);
 	}
 
 	let selectedLevel: ContractLevel = $state(6);
@@ -151,13 +153,13 @@
 
 	.level-btn,
 	.suit-btn {
-		width: 40px;
-		height: 40px;
+		width: 48px;
+		height: 48px;
 		border: 1px solid #c8a96e;
 		border-radius: 6px;
 		background: rgba(255, 255, 255, 0.05);
 		color: #f0e6d3;
-		font-size: 16px;
+		font-size: 22px;
 		cursor: pointer;
 		transition:
 			background 0.15s,

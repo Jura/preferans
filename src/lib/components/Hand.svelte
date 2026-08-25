@@ -12,7 +12,14 @@
 		label?: string;
 	}
 
-	let { cards, playable = false, selectedCard = null, eligibleCards = null, onPlayCard, label }: Props = $props();
+	let {
+		cards,
+		playable = false,
+		selectedCard = null,
+		eligibleCards = null,
+		onPlayCard,
+		label
+	}: Props = $props();
 
 	function isSelected(card: Card): boolean {
 		return selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;

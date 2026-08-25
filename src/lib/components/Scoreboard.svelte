@@ -31,7 +31,9 @@
 		<thead>
 			<tr>
 				<th>{$t('app.scoreboard.player')}</th>
-				<th title={$t('app.scoreboard.poolHint', { bulletTarget })}>{$t('app.scoreboard.pool')}</th>
+				<th title={$t('app.scoreboard.poolHint', { bulletTarget })}
+					>{$t('app.scoreboard.pool')}<br /><span class="pool-target">/{bulletTarget}</span></th
+				>
 				<th>{$t('app.scoreboard.mountain')}</th>
 				<th>{$t('app.scoreboard.whists')}</th>
 				<th>{$t('app.scoreboard.total')}</th>
@@ -50,7 +52,9 @@
 							offline={player.isOnline === false}
 						/>
 					</td>
-					<td class="num pool">{pool[player.id] ?? 0}/{bulletTarget}</td>
+					<td class="num pool">
+						<span class="pool-amount">{pool[player.id] ?? 0}</span>
+					</td>
 					<td class="num mountain">{mountain[player.id] ?? 0}</td>
 					<td class="num">{whistBalance(player.id)}</td>
 					<td class="num score" class:negative={(scores[player.id] ?? 0) < 0}>
@@ -105,6 +109,18 @@
 	}
 
 	.pool {
+		color: #ffd700;
+	}
+
+	.pool-target {
+		font-size: 10px;
+		color: rgba(200, 169, 110, 0.6);
+		font-weight: normal;
+	}
+
+	.pool-amount {
+		font-size: 18px;
+		font-weight: bold;
 		color: #ffd700;
 	}
 

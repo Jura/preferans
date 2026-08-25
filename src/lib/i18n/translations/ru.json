@@ -184,7 +184,15 @@
 			"finishEarlyModalBody": "{{name}} предлагает закончить игру досрочно. Все игроки должны согласиться.",
 			"pauseModalTitle": "Поставить игру на паузу?",
 			"pauseModalBody": "{{name}} предлагает поставить игру на паузу.",
-			"redirectingToLobby": "Игра завершена. Возврат в лобби…"
+			"redirectingToLobby": "Игра завершена. Возврат в лобби…",
+			"widowRevealTitle": "Прикуп открыт",
+			"widowRevealHint": "{{name}} выиграл торги. Все могут увидеть прикуп до того, как он будет взят.",
+			"takeWidow": "Взять прикуп",
+			"confirmTrick": "Забрать взятку",
+			"awaitingTrickConfirm": "{{name}} забирает взятку…",
+			"showLastTrick": "Показать последнюю взятку",
+			"lastTrickTitle": "Последняя взятка",
+			"closeModal": "Закрыть"
 		},
 		"scoreboard": {
 			"aria": "Счёт",
@@ -203,7 +211,8 @@
 			"fallbackPlayer": "Игрок",
 			"aria": "Стол",
 			"emptySlot": "Карта ещё не сыграна",
-			"winner": "{{name}} берёт взятку!"
+			"winner": "{{name}} берёт взятку!",
+			"bidPass": "Пас"
 		},
 		"card": {
 			"faceDown": "Карта рубашкой",

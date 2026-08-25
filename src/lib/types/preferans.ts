@@ -208,6 +208,10 @@ export interface GameState {
 	pauseProposal: PauseProposal | null;
 	/** Pause deadline (null = indefinite pause) */
 	pausedUntil: string | null;
+	/** true after the declarer has explicitly taken the widow (after reveal to all) */
+	widowTakenByDeclarer: boolean;
+	/** Completed trick awaiting confirmation by the winner before clearing the table */
+	pendingTrick: Trick | null;
 }
 
 // ─── WebSocket message types ──────────────────────────────────────────────────
@@ -215,10 +219,12 @@ export interface GameState {
 export type ClientMessage =
 	| { type: 'join'; gameId: string; token: string }
 	| { type: 'bid'; bid: Bid }
+	| { type: 'take_widow' }
 	| { type: 'select_widow'; discard: [Card, Card]; contract: Contract }
 	| { type: 'whist'; choice: WhistChoice }
 	| { type: 'choose_open'; open: boolean }
 	| { type: 'play_card'; card: Card }
+	| { type: 'confirm_trick' }
 	| { type: 'start_round' }
 	| { type: 'request_finish_early' }
 	| { type: 'vote_finish_early'; approve: boolean }

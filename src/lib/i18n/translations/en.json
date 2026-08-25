@@ -157,6 +157,9 @@
 			"openPlay": "open play",
 			"widowTitle": "Widow — discard two cards",
 			"widowHint": "Click two cards to discard, then announce your final contract.",
+			"widowRevealTitle": "Widow revealed",
+			"widowRevealHint": "{{name}} has won the bid. Everyone may see the widow before it is taken.",
+			"takeWidow": "Take widow",
 			"announceContract": "Contract:",
 			"contractTooLow": "The contract cannot be lower than the winning bid ({{bid}})",
 			"misereStays": "A misère bid is played as misère.",
@@ -184,7 +187,12 @@
 			"finishEarlyModalBody": "{{name}} has proposed to end the game early. All players must agree.",
 			"pauseModalTitle": "Pause the game?",
 			"pauseModalBody": "{{name}} has proposed to pause the game.",
-			"redirectingToLobby": "Game ended. Returning to lobby…"
+			"redirectingToLobby": "Game ended. Returning to lobby…",
+			"confirmTrick": "Confirm trick",
+			"awaitingTrickConfirm": "{{name}} is reviewing the trick…",
+			"showLastTrick": "Show last trick",
+			"lastTrickTitle": "Last trick",
+			"closeModal": "Close"
 		},
 		"scoreboard": {
 			"aria": "Score",
@@ -203,7 +211,8 @@
 			"fallbackPlayer": "Player",
 			"aria": "Table",
 			"emptySlot": "Card not played yet",
-			"winner": "{{name}} takes the trick!"
+			"winner": "{{name}} takes the trick!",
+			"bidPass": "Pass"
 		},
 		"card": {
 			"faceDown": "Face-down card",

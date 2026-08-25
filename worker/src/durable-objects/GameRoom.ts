@@ -14,10 +14,12 @@ import {
 	normalizeState,
 	startRound,
 	applyBid,
+	applyTakeWidow,
 	applyWidowSelection,
 	applyWhistChoice,
 	applyLightChoice,
 	applyPlayCard,
+	applyConfirmTrick,
 	whistOptions,
 	requiredLeadSuit,
 	raspassPrice
@@ -46,10 +48,12 @@ const MS_PER_MINUTE = 60 * 1000;
 type ClientMessage =
 	| { type: 'join'; token: string }
 	| { type: 'bid'; bid: Bid }
+	| { type: 'take_widow' }
 	| { type: 'select_widow'; discard: [Card, Card]; contract: Contract }
 	| { type: 'whist'; choice: WhistChoice }
 	| { type: 'choose_open'; open: boolean }
 	| { type: 'play_card'; card: Card }
+	| { type: 'confirm_trick' }
 	| { type: 'request_finish_early' }
 	| { type: 'vote_finish_early'; approve: boolean }
 	| { type: 'request_pause'; durationMinutes: number | null }
@@ -504,6 +508,14 @@ export class GameRoom implements DurableObject {
 				return;
 			}
 
+			case 'take_widow': {
+				if (!this.gameState) return;
+				this.gameState = applyTakeWidow(this.gameState, playerId);
+				await this.persistState();
+				this.broadcastState();
+				return;
+			}
+
 			case 'whist': {
 				if (!this.gameState) return;
 				this.gameState = applyWhistChoice(this.gameState, playerId, msg.choice);
@@ -529,6 +541,17 @@ export class GameRoom implements DurableObject {
 				this.gameState = applyPlayCard(this.gameState, playerId, msg.card);
 				await this.persistState();
 				// If round ended, save round result to DB
+				if (this.gameState.phase === 'scoring' || this.gameState.phase === 'finished') {
+					await this.saveRoundResult();
+				}
+				this.broadcastState();
+				return;
+			}
+
+			case 'confirm_trick': {
+				if (!this.gameState) return;
+				this.gameState = applyConfirmTrick(this.gameState, playerId);
+				await this.persistState();
 				if (this.gameState.phase === 'scoring' || this.gameState.phase === 'finished') {
 					await this.saveRoundResult();
 				}
@@ -715,7 +738,10 @@ export class GameRoom implements DurableObject {
 			players,
 			currentPlayerId: gs.currentPlayerId,
 			hand: gs.hands[forPlayerId] ?? [],
-			widow: gs.declarerId === forPlayerId && gs.phase === 'widow' ? gs.widow : [],
+			widow:
+				gs.phase === 'widow' && (gs.declarerId === forPlayerId || !gs.widowTakenByDeclarer)
+					? gs.widow
+					: [],
 			currentTrick: gs.currentTrick,
 			completedTricks: gs.completedTricks,
 			bids: gs.bids,
@@ -741,7 +767,9 @@ export class GameRoom implements DurableObject {
 			roundSummary: gs.roundSummary,
 			finishProposal: gs.finishProposal ?? null,
 			pauseProposal: gs.pauseProposal ?? null,
-			pausedUntil: gs.pausedUntil ?? null
+			pausedUntil: gs.pausedUntil ?? null,
+			widowTakenByDeclarer: gs.widowTakenByDeclarer,
+			pendingTrick: gs.pendingTrick ?? null
 		};
 	}
 

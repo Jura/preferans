@@ -184,7 +184,15 @@
 			"finishEarlyModalBody": "{{name}} пропонує завершити гру достроково. Всі гравці мають погодитися.",
 			"pauseModalTitle": "Поставити гру на паузу?",
 			"pauseModalBody": "{{name}} пропонує поставити гру на паузу.",
-			"redirectingToLobby": "Гру завершено. Повернення до лобі…"
+			"redirectingToLobby": "Гру завершено. Повернення до лобі…",
+			"widowRevealTitle": "Прикуп відкрито",
+			"widowRevealHint": "{{name}} виграв торги. Усі можуть побачити прикуп перед тим, як він буде взятий.",
+			"takeWidow": "Взяти прикуп",
+			"confirmTrick": "Забрати хід",
+			"awaitingTrickConfirm": "{{name}} забирає хід…",
+			"showLastTrick": "Показати останній хід",
+			"lastTrickTitle": "Останній хід",
+			"closeModal": "Закрити"
 		},
 		"scoreboard": {
 			"aria": "Рахунок",
@@ -203,7 +211,8 @@
 			"fallbackPlayer": "Гравець",
 			"aria": "Стіл",
 			"emptySlot": "Карту ще не зіграно",
-			"winner": "{{name}} бере хабар!"
+			"winner": "{{name}} бере хабар!",
+			"bidPass": "Пас"
 		},
 		"card": {
 			"faceDown": "Карта сорочкою вниз",

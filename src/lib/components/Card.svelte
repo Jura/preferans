@@ -11,7 +11,14 @@
 		onclick?: () => void;
 	}
 
-	let { card, selected = false, playable = true, eligible = true, faceDown = false, onclick }: Props = $props();
+	let {
+		card,
+		selected = false,
+		playable = true,
+		eligible = true,
+		faceDown = false,
+		onclick
+	}: Props = $props();
 
 	const SUIT_SYMBOLS: Record<Suit, string> = {
 		spades: '♠',
