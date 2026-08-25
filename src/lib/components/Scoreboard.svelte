@@ -50,7 +50,9 @@
 							offline={player.isOnline === false}
 						/>
 					</td>
-					<td class="num pool">{pool[player.id] ?? 0}/{bulletTarget}</td>
+					<td class="num pool">
+						<span class="pool-amount">{pool[player.id] ?? 0}</span>
+					</td>
 					<td class="num mountain">{mountain[player.id] ?? 0}</td>
 					<td class="num">{whistBalance(player.id)}</td>
 					<td class="num score" class:negative={(scores[player.id] ?? 0) < 0}>
@@ -105,6 +107,12 @@
 	}
 
 	.pool {
+		color: #ffd700;
+	}
+
+	.pool-amount {
+		font-size: 18px;
+		font-weight: bold;
 		color: #ffd700;
 	}
 

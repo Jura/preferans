@@ -138,6 +138,10 @@ export interface GameState {
 	finishProposal: FinishProposal | null;
 	pauseProposal: PauseProposal | null;
 	pausedUntil: string | null;
+	/** true after the declarer has explicitly taken the widow (after reveal to all) */
+	widowTakenByDeclarer: boolean;
+	/** Completed trick awaiting confirmation by the winner before clearing the table */
+	pendingTrick: Trick | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -636,7 +640,9 @@ export function createInitialState(
 		roundSummary: null,
 		finishProposal: null,
 		pauseProposal: null,
-		pausedUntil: null
+		pausedUntil: null,
+		widowTakenByDeclarer: false,
+		pendingTrick: null
 	};
 }
 
@@ -664,7 +670,9 @@ export function normalizeState(stored: GameState): GameState {
 		roundSummary: stored.roundSummary ?? null,
 		finishProposal: stored.finishProposal ?? null,
 		pauseProposal: stored.pauseProposal ?? null,
-		pausedUntil: stored.pausedUntil ?? null
+		pausedUntil: stored.pausedUntil ?? null,
+		widowTakenByDeclarer: stored.widowTakenByDeclarer ?? false,
+		pendingTrick: stored.pendingTrick ?? null
 	};
 }
 
@@ -698,6 +706,8 @@ export function startRound(state: GameState): GameState {
 		finishProposal: null,
 		pauseProposal: null,
 		pausedUntil: null,
+		widowTakenByDeclarer: false,
+		pendingTrick: null,
 		currentPlayerId: firstHandId,
 		roundNumber: state.roundNumber + 1
 	};
@@ -744,6 +754,7 @@ export function applyBid(state: GameState, playerId: PlayerId, bid: Bid): GameSt
 				wonBid: contract,
 				declarerId: winnerId,
 				phase: 'widow',
+				widowTakenByDeclarer: false,
 				currentPlayerId: winnerId
 			};
 		}
@@ -752,6 +763,21 @@ export function applyBid(state: GameState, playerId: PlayerId, bid: Bid): GameSt
 	}
 
 	return { ...next, currentPlayerId: nextActiveBidder(next, playerId) };
+}
+
+/**
+ * Declarer explicitly takes the widow cards (making them visible only to themselves
+ * from this point). Must be called after the initial widow reveal phase where all
+ * players can see the widow.
+ */
+export function applyTakeWidow(state: GameState, playerId: PlayerId): GameState {
+	if (state.phase !== 'widow' || state.declarerId !== playerId) {
+		throw new Error('Not your turn to take the widow');
+	}
+	if (state.widowTakenByDeclarer) {
+		throw new Error('Widow has already been taken');
+	}
+	return { ...state, widowTakenByDeclarer: true };
 }
 
 /**
@@ -766,6 +792,9 @@ export function applyWidowSelection(
 ): GameState {
 	if (state.phase !== 'widow' || state.declarerId !== playerId) {
 		throw new Error('Not your turn to take the widow');
+	}
+	if (!state.widowTakenByDeclarer) {
+		throw new Error('You must take the widow before selecting a discard');
 	}
 	if (!state.wonBid) throw new Error('No winning bid');
 
@@ -933,6 +962,9 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 	if (state.lightDecisionBy) {
 		throw new Error('Waiting for the whisters to choose light or dark play');
 	}
+	if (state.pendingTrick) {
+		throw new Error('Confirm the completed trick before playing the next card');
+	}
 	const hand = state.hands[playerId] ?? [];
 	if (!isValidPlay(card, hand, state.currentTrick, state.trump, requiredLeadSuit(state))) {
 		throw new Error('Invalid card play');
@@ -967,21 +999,46 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 		}
 	}
 
-	// Trick complete?
+	// Trick complete? Keep it visible until the winner confirms.
 	if (newTrick.cards.length === state.playerIds.length) {
 		const winnerId = trickWinner(newTrick, state.trump);
 		const completedTrick: Trick = { ...newTrick, winnerId };
-		const completedTricks = [...next.completedTricks, completedTrick];
-		next = { ...next, currentTrick: null, completedTricks, currentPlayerId: winnerId };
-
-		if (completedTricks.length === 10) {
-			const outcome = state.raspass
-				? scoreRaspass(next)
-				: scoreContract(next, tricksByPlayer(next)[next.declarerId!] ?? 0, true);
-			return applyOutcome(next, outcome);
-		}
-		return next;
+		// Keep the trick on the table (currentTrick) and mark it as pending confirmation
+		return { ...next, currentTrick: completedTrick, pendingTrick: completedTrick, currentPlayerId: winnerId };
 	}
 
 	return { ...next, currentPlayerId: seatAfter(next, playerId) };
+}
+
+/**
+ * The trick winner confirms the trick, removing it from the table and
+ * advancing play (or scoring the round if 10 tricks have been played).
+ */
+export function applyConfirmTrick(state: GameState, playerId: PlayerId): GameState {
+	if (state.phase !== 'playing') {
+		throw new Error('Not in playing phase');
+	}
+	if (!state.pendingTrick) {
+		throw new Error('No trick pending confirmation');
+	}
+	if (state.pendingTrick.winnerId !== playerId) {
+		throw new Error('Only the trick winner can confirm the trick');
+	}
+
+	const completedTricks = [...state.completedTricks, state.pendingTrick];
+	const next: GameState = {
+		...state,
+		currentTrick: null,
+		pendingTrick: null,
+		completedTricks
+	};
+
+	if (completedTricks.length === 10) {
+		const outcome = state.raspass
+			? scoreRaspass(next)
+			: scoreContract(next, tricksByPlayer(next)[next.declarerId!] ?? 0, true);
+		return applyOutcome(next, outcome);
+	}
+
+	return next;
 }

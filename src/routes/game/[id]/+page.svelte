@@ -92,8 +92,19 @@
 	let hasPendingVote = $derived(activeProposal ? activeProposal.votes[myPlayerId] === null : false);
 
 	let lightDecisionPending = $derived($game.state?.lightDecisionBy ?? null);
-	let canPlayCard = $derived($gamePhase === 'playing' && isMyTurn && !lightDecisionPending);
+	let pendingTrick = $derived($game.state?.pendingTrick ?? null);
+	let isMyTrickToConfirm = $derived(pendingTrick?.winnerId === myPlayerId);
+	let widowTakenByDeclarer = $derived($game.state?.widowTakenByDeclarer ?? false);
+	let canPlayCard = $derived(
+		$gamePhase === 'playing' && isMyTurn && !lightDecisionPending && !pendingTrick
+	);
 	let isDeclarer = $derived($game.state?.declarerId === myPlayerId);
+
+	// ── Last trick modal ──
+	let showLastTrickModal = $state(false);
+	let lastCompletedTrick = $derived(
+		$game.state?.completedTricks?.[$game.state.completedTricks.length - 1] ?? null
+	);
 
 	// ── Sorted hand derived state ──
 	let sortedHand = $derived(sortHand($myHand));
@@ -144,7 +155,7 @@
 	let declaredSuit: ContractSuit = $state('spades');
 
 	let combinedWidowHand = $derived(
-		$gamePhase === 'widow' && isDeclarer
+		$gamePhase === 'widow' && isDeclarer && widowTakenByDeclarer
 			? sortHand([...$myHand, ...($game.state?.widow ?? [])])
 			: []
 	);
@@ -274,6 +285,14 @@
 		if (pauseProposal) {
 			game.send({ type: 'vote_pause', approve });
 		}
+	}
+
+	function takeWidow() {
+		game.send({ type: 'take_widow' });
+	}
+
+	function confirmTrick() {
+		game.send({ type: 'confirm_trick' });
 	}
 </script>
 
@@ -520,6 +539,10 @@
 							trump={$game.state.trump}
 							currentPlayerId={$game.state.currentPlayerId}
 							{currentContract}
+							declarerId={$game.state.declarerId}
+							bids={$game.state.bids}
+							whistDeclarations={$game.state.whistDeclarations}
+							phase={$gamePhase}
 						/>
 
 						{#if $game.state.raspass && $game.state.raspassUpcard}
@@ -561,8 +584,26 @@
 					</div>
 				{/if}
 
+				<!-- Widow reveal: visible to all players while declarer hasn't taken it yet -->
+				{#if $gamePhase === 'widow' && !widowTakenByDeclarer && $game.state.widow.length > 0}
+					<div class="widow-area widow-reveal">
+						<h3>{$t('app.game.widowRevealTitle')}</h3>
+						<p class="widow-hint">{$t('app.game.widowRevealHint', { name: playerName($game.state.declarerId) })}</p>
+						<Hand
+							cards={$game.state.widow}
+							playable={false}
+							label={$t('app.game.widow')}
+						/>
+						{#if isDeclarer}
+							<button class="confirm-btn" onclick={takeWidow}>
+								{$t('app.game.takeWidow')}
+							</button>
+						{/if}
+					</div>
+				{/if}
+
 				<!-- Widow: declarer discards two cards and announces the contract -->
-				{#if $gamePhase === 'widow' && isDeclarer}
+				{#if $gamePhase === 'widow' && isDeclarer && widowTakenByDeclarer}
 					<div class="widow-area">
 						<h3>{$t('app.game.widowTitle')}</h3>
 						<p class="widow-hint">{$t('app.game.widowHint')}</p>
@@ -713,7 +754,17 @@
 
 				<!-- Turn indicator -->
 				{#if !lightDecisionPending}
-					{#if $game.state.currentPlayerId && $game.state.currentPlayerId !== data.user?.id}
+					{#if pendingTrick}
+						{#if isMyTrickToConfirm}
+							<button class="confirm-btn confirm-trick-btn" onclick={confirmTrick}>
+								{$t('app.game.confirmTrick')}
+							</button>
+						{:else}
+							<div class="turn-indicator" role="status">
+								{$t('app.game.awaitingTrickConfirm', { name: playerName(pendingTrick.winnerId) })}
+							</div>
+						{/if}
+					{:else if $game.state.currentPlayerId && $game.state.currentPlayerId !== data.user?.id}
 						<div class="turn-indicator" role="status">
 							{$t('app.game.turn', { name: playerName($game.state.currentPlayerId) })}
 						</div>
@@ -721,10 +772,17 @@
 						<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
 					{/if}
 				{/if}
+
+				<!-- Show last trick button -->
+				{#if $gamePhase === 'playing' && lastCompletedTrick}
+					<button class="last-trick-btn" onclick={() => (showLastTrickModal = true)}>
+						{$t('app.game.showLastTrick')}
+					</button>
+				{/if}
 			{/if}
 
 			<!-- Player hand -->
-			{#if $gamePhase === 'widow' && isDeclarer}
+			{#if $gamePhase === 'widow' && isDeclarer && widowTakenByDeclarer}
 				<div class="my-hand">
 					<Hand
 						cards={combinedWidowHand}
@@ -756,6 +814,39 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Last trick modal -->
+	{#if showLastTrickModal && lastCompletedTrick}
+		<div
+			class="modal-backdrop"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="last-trick-modal-title"
+		>
+			<div class="modal-card">
+				<h2 id="last-trick-modal-title" class="modal-title">
+					{$t('app.game.lastTrickTitle')}
+				</h2>
+				<div class="last-trick-cards">
+					{#each lastCompletedTrick.cards as entry}
+						{@const playerN = playerName(entry.playerId)}
+						<div class="last-trick-card-slot" class:winner={entry.playerId === lastCompletedTrick.winnerId}>
+							<span class="last-trick-player">{playerN}</span>
+							<Hand cards={[entry.card]} playable={false} label={playerN} />
+							{#if entry.playerId === lastCompletedTrick.winnerId}
+								<span class="last-trick-winner-badge">★</span>
+							{/if}
+						</div>
+					{/each}
+				</div>
+				<div class="modal-actions">
+					<button type="button" class="vote-btn yes" onclick={() => (showLastTrickModal = false)}>
+						{$t('app.game.closeModal')}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Lobby redirect notice after early finish -->
 	{#if redirectingToLobby}
@@ -1445,5 +1536,66 @@
 		.open-hand-side :global(.card) {
 			margin-bottom: calc(-1 * var(--open-hand-overlap-mobile));
 		}
+	}
+
+	.widow-reveal {
+		border-color: rgba(200, 169, 110, 0.6);
+		background: rgba(0, 0, 0, 0.65);
+	}
+
+	.confirm-trick-btn {
+		padding: 10px 28px;
+		border-radius: 8px;
+		border: 2px solid #ffd700;
+		background: rgba(255, 215, 0, 0.18);
+		color: #ffd700;
+		font-weight: bold;
+		font-size: 15px;
+		cursor: pointer;
+		animation: pulse 1.5s ease-in-out infinite;
+	}
+
+	.last-trick-btn {
+		border: 1px solid rgba(200, 169, 110, 0.4);
+		background: rgba(200, 169, 110, 0.1);
+		color: #c8a96e;
+		border-radius: 999px;
+		padding: 6px 14px;
+		font-size: 13px;
+		cursor: pointer;
+	}
+
+	.last-trick-cards {
+		display: flex;
+		gap: 16px;
+		justify-content: center;
+		flex-wrap: wrap;
+		margin: 16px 0;
+	}
+
+	.last-trick-card-slot {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 6px;
+		padding: 8px;
+		border-radius: 8px;
+		border: 1px solid rgba(200, 169, 110, 0.2);
+		background: rgba(0, 0, 0, 0.3);
+	}
+
+	.last-trick-card-slot.winner {
+		border-color: rgba(255, 215, 0, 0.6);
+		background: rgba(255, 215, 0, 0.08);
+	}
+
+	.last-trick-player {
+		font-size: 12px;
+		color: #c0b090;
+	}
+
+	.last-trick-winner-badge {
+		font-size: 16px;
+		color: #ffd700;
 	}
 </style>
