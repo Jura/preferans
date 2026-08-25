@@ -65,6 +65,22 @@ export interface PauseProposal extends FinishProposal {
 	durationMinutes: number | null;
 }
 
+/**
+ * How many tricks the declarer should be credited when ending by agreement:
+ * - 'fulfill'      — exactly contract.level (0 for misère)
+ * - 'rest_are_mine' — declarer takes all remaining unplayed tricks
+ * - number         — specific trick count for the declarer
+ */
+export type AgreementTerm = number | 'fulfill' | 'rest_are_mine';
+
+/** Mid-round "end by agreement" proposal (only for active players: declarer + whisters) */
+export interface AgreementProposal {
+	proposedBy: PlayerId;
+	term: AgreementTerm;
+	/** Only the active players (declarer + whisters) appear here; passers are excluded */
+	votes: Record<PlayerId, ProposalVote>;
+}
+
 export interface Trick {
 	cards: { playerId: PlayerId; card: Card }[];
 	winnerId: PlayerId | null;
@@ -137,6 +153,8 @@ export interface GameState {
 	roundSummary: RoundSummary | null;
 	finishProposal: FinishProposal | null;
 	pauseProposal: PauseProposal | null;
+	/** Pending mid-round "end by agreement" proposal */
+	agreementProposal: AgreementProposal | null;
 	pausedUntil: string | null;
 	/** true after the declarer has explicitly taken the widow (after reveal to all) */
 	widowTakenByDeclarer: boolean;
@@ -640,12 +658,12 @@ export function createInitialState(
 		roundSummary: null,
 		finishProposal: null,
 		pauseProposal: null,
+		agreementProposal: null,
 		pausedUntil: null,
 		widowTakenByDeclarer: false,
 		pendingTrick: null
 	};
 }
-
 /** Fill defaults for states persisted by an older engine version. */
 export function normalizeState(stored: GameState): GameState {
 	const playerIds = stored.playerIds ?? [];
@@ -670,6 +688,7 @@ export function normalizeState(stored: GameState): GameState {
 		roundSummary: stored.roundSummary ?? null,
 		finishProposal: stored.finishProposal ?? null,
 		pauseProposal: stored.pauseProposal ?? null,
+		agreementProposal: stored.agreementProposal ?? null,
 		pausedUntil: stored.pausedUntil ?? null,
 		widowTakenByDeclarer: stored.widowTakenByDeclarer ?? false,
 		pendingTrick: stored.pendingTrick ?? null
@@ -705,6 +724,7 @@ export function startRound(state: GameState): GameState {
 		roundSummary: null,
 		finishProposal: null,
 		pauseProposal: null,
+		agreementProposal: null,
 		pausedUntil: null,
 		widowTakenByDeclarer: false,
 		pendingTrick: null,
@@ -999,8 +1019,7 @@ export function applyLightChoice(state: GameState, playerId: PlayerId, open: boo
 export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card): GameState {
 	// A whister may play on behalf of the declarer when the declarer's hand is open.
 	const actingForDeclarer =
-		state.currentPlayerId === state.declarerId &&
-		isControllingDeclarerHand(state, playerId);
+		state.currentPlayerId === state.declarerId && isControllingDeclarerHand(state, playerId);
 	const effectivePlayerId = actingForDeclarer ? state.declarerId! : playerId;
 
 	if (state.phase !== 'playing' || state.currentPlayerId !== effectivePlayerId) {
@@ -1082,8 +1101,7 @@ export function applyConfirmTrick(state: GameState, playerId: PlayerId): GameSta
 	// A whister may confirm the trick on behalf of the declarer when the
 	// declarer's hand is open and the declarer won the trick.
 	const actingForDeclarer =
-		state.pendingTrick.winnerId === state.declarerId &&
-		isControllingDeclarerHand(state, playerId);
+		state.pendingTrick.winnerId === state.declarerId && isControllingDeclarerHand(state, playerId);
 	const effectivePlayerId = actingForDeclarer ? state.declarerId! : playerId;
 	if (state.pendingTrick.winnerId !== effectivePlayerId) {
 		throw new Error('Only the trick winner can confirm the trick');
@@ -1105,4 +1123,65 @@ export function applyConfirmTrick(state: GameState, playerId: PlayerId): GameSta
 	}
 
 	return next;
+}
+
+/**
+ * Apply the agreed-upon outcome when all active players have voted to end the
+ * current play by agreement.  The declarer's trick count is resolved from the
+ * proposal term; remaining tricks are distributed to defenders for the whist
+ * calculation.
+ */
+export function applyAgreement(state: GameState): GameState {
+	if (state.phase !== 'playing') throw new Error('Not in playing phase');
+	if (!state.agreementProposal) throw new Error('No agreement proposal active');
+	const { declarerId, contract } = state;
+	if (!declarerId || !contract) throw new Error('No active contract');
+
+	// Merge the pending (unconfirmed) trick into the completed list so the
+	// total always reaches 10 after we add the synthetic remainder.
+	const allCompleted: Trick[] = [
+		...state.completedTricks,
+		...(state.pendingTrick ? [state.pendingTrick] : [])
+	];
+
+	const currentDeclarerTricks = allCompleted.filter((t) => t.winnerId === declarerId).length;
+	const totalRemaining = 10 - allCompleted.length;
+
+	// Resolve the agreement term to an absolute trick count for the declarer.
+	const term = state.agreementProposal.term;
+	let agreedDeclarerTricks: number;
+	if (term === 'fulfill') {
+		agreedDeclarerTricks = contract.type === 'misere' ? 0 : contract.level;
+	} else if (term === 'rest_are_mine') {
+		agreedDeclarerTricks = currentDeclarerTricks + totalRemaining;
+	} else {
+		agreedDeclarerTricks = term;
+	}
+
+	// Build synthetic completed-trick entries to give scoreContract correct
+	// per-player totals for the whist calculation.
+	const extraDeclarer = Math.max(0, agreedDeclarerTricks - currentDeclarerTricks);
+	const extraDefenderTotal = totalRemaining - extraDeclarer;
+	const defenders = state.playerIds.filter((p) => p !== declarerId);
+	const defenderRecipients = state.whisters.length > 0 ? state.whisters : defenders;
+
+	const syntheticTricks: Trick[] = [...allCompleted];
+	for (let i = 0; i < extraDeclarer; i++) {
+		syntheticTricks.push({ cards: [], winnerId: declarerId, leadSuit: null });
+	}
+	let remaining = extraDefenderTotal;
+	for (let i = 0; remaining > 0; i = (i + 1) % defenderRecipients.length) {
+		syntheticTricks.push({ cards: [], winnerId: defenderRecipients[i], leadSuit: null });
+		remaining--;
+	}
+
+	const syntheticState: GameState = {
+		...state,
+		completedTricks: syntheticTricks,
+		pendingTrick: null,
+		agreementProposal: null
+	};
+
+	const outcome = scoreContract(syntheticState, agreedDeclarerTricks, true);
+	return applyOutcome(syntheticState, outcome);
 }

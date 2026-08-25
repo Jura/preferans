@@ -117,6 +117,22 @@ export interface PauseProposal extends FinishProposal {
 	durationMinutes: number | null;
 }
 
+/**
+ * How many tricks the declarer should be credited when ending by agreement:
+ * - 'fulfill'       — exactly contract.level (0 for misère)
+ * - 'rest_are_mine' — declarer takes all remaining unplayed tricks
+ * - number          — specific trick count for the declarer
+ */
+export type AgreementTerm = number | 'fulfill' | 'rest_are_mine';
+
+/** Mid-round "end by agreement" proposal (only active players: declarer + whisters) */
+export interface AgreementProposal {
+	proposedBy: PlayerId;
+	term: AgreementTerm;
+	/** Only active players (declarer + whisters) appear here; passers are excluded */
+	votes: Record<PlayerId, ProposalVote>;
+}
+
 export interface Trick {
 	cards: { playerId: PlayerId; card: Card }[];
 	winnerId: PlayerId | null;
@@ -206,6 +222,8 @@ export interface GameState {
 	finishProposal: FinishProposal | null;
 	/** Pending unanimous pause proposal */
 	pauseProposal: PauseProposal | null;
+	/** Pending mid-round "end by agreement" proposal */
+	agreementProposal: AgreementProposal | null;
 	/** Pause deadline (null = indefinite pause) */
 	pausedUntil: string | null;
 	/** true after the declarer has explicitly taken the widow (after reveal to all) */
@@ -229,6 +247,8 @@ export type ClientMessage =
 	| { type: 'start_round' }
 	| { type: 'request_finish_early' }
 	| { type: 'vote_finish_early'; approve: boolean }
+	| { type: 'request_end_by_agreement'; term: AgreementTerm }
+	| { type: 'vote_end_by_agreement'; approve: boolean }
 	| { type: 'request_pause'; durationMinutes: number | null }
 	| { type: 'vote_pause'; approve: boolean }
 	| { type: 'ping' }

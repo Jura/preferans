@@ -19,7 +19,8 @@
 		ContractLevel,
 		ContractSuit,
 		Suit,
-		WhistChoice
+		WhistChoice,
+		AgreementTerm
 	} from '$lib/types/preferans';
 
 	let { data }: { data: PageData } = $props();
@@ -87,8 +88,9 @@
 	let currentContract = $derived($game.state?.contract ?? $game.state?.wonBid ?? null);
 	let finishProposal = $derived($game.state?.finishProposal ?? null);
 	let pauseProposal = $derived($game.state?.pauseProposal ?? null);
+	let agreementProposal = $derived($game.state?.agreementProposal ?? null);
 	// Backend enforces mutual exclusion (only one proposal can be active at a time).
-	let activeProposal = $derived(finishProposal ?? pauseProposal);
+	let activeProposal = $derived(finishProposal ?? pauseProposal ?? agreementProposal);
 	let isProposalProposer = $derived(activeProposal?.proposedBy === myPlayerId);
 	let hasPendingVote = $derived(activeProposal ? activeProposal.votes[myPlayerId] === null : false);
 
@@ -99,11 +101,21 @@
 
 	// ── Open-hand control (whister controls declarer's open hand) ──
 	let isDeclarerHandOpen = $derived(
-		$game.state?.declarerId != null &&
-			$game.state.declarerId in ($game.state?.openHands ?? {})
+		$game.state?.declarerId != null && $game.state.declarerId in ($game.state?.openHands ?? {})
 	);
 	let isWhister = $derived(($game.state?.whisters ?? []).includes(myPlayerId));
-	/** True when the whister is the one controlling the declarer's open cards. */
+	/** Whether this player can propose an end-by-agreement (declarer or whister, during play, non-raspass) */
+	let canProposeAgreement = $derived(
+		$gamePhase === 'playing' &&
+			!$game.state?.raspass &&
+			$game.state?.contract != null &&
+			(isDeclarer || isWhister)
+	);
+	/** UI state for the agreement-proposal form */
+	let showAgreementForm = $state(false);
+	let agreementTermSelected = $state<AgreementTerm>('fulfill');
+	let agreementTricksInput = $state(6);
+	/** Open-hand control (whister controls declarer's open hand) */
 	let canControlDeclarerHand = $derived(
 		$gamePhase === 'playing' &&
 			!lightDecisionPending &&
@@ -221,6 +233,11 @@
 	$effect(() => {
 		// Track whether a finish proposal has ever been active this session
 		if (finishProposal) hadFinishProposal = true;
+	});
+
+	$effect(() => {
+		// Close the agreement form if any proposal becomes active
+		if (activeProposal) showAgreementForm = false;
 	});
 
 	$effect(() => {
@@ -367,7 +384,26 @@
 		}
 		if (pauseProposal) {
 			game.send({ type: 'vote_pause', approve });
+			return;
 		}
+		if (agreementProposal) {
+			game.send({ type: 'vote_end_by_agreement', approve });
+		}
+	}
+
+	function proposeEndByAgreement() {
+		const term: AgreementTerm =
+			agreementTermSelected === 'fulfill' || agreementTermSelected === 'rest_are_mine'
+				? agreementTermSelected
+				: agreementTricksInput;
+		game.send({ type: 'request_end_by_agreement', term });
+		showAgreementForm = false;
+	}
+
+	function formatAgreementTerm(term: AgreementTerm): string {
+		if (term === 'fulfill') return $t('app.game.agreementTermFulfill');
+		if (term === 'rest_are_mine') return $t('app.game.agreementTermRestAreMine');
+		return $t('app.game.agreementTermTricks', { count: term });
 	}
 
 	function takeWidow() {
@@ -419,6 +455,17 @@
 			>
 				{$t('app.game.suggestFinishEarly')}
 			</button>
+			{#if canProposeAgreement}
+				<button
+					type="button"
+					class="governance-btn"
+					onclick={() => (showAgreementForm = !showAgreementForm)}
+					disabled={Boolean(activeProposal)}
+					aria-disabled={Boolean(activeProposal)}
+				>
+					{$t('app.game.suggestEndByAgreement')}
+				</button>
+			{/if}
 			{#if $gamePhase !== 'paused'}
 				<button
 					type="button"
@@ -440,6 +487,55 @@
 				</button>
 			{/if}
 		</div>
+		{#if showAgreementForm && canProposeAgreement && !activeProposal}
+			<div class="agreement-form">
+				<p class="agreement-form-label">{$t('app.game.agreementLabel')}</p>
+				<label class="agreement-radio">
+					<input
+						type="radio"
+						name="agreement-term"
+						value="fulfill"
+						bind:group={agreementTermSelected}
+					/>
+					{$t('app.game.agreementTermFulfill')}
+				</label>
+				<label class="agreement-radio">
+					<input
+						type="radio"
+						name="agreement-term"
+						value="rest_are_mine"
+						bind:group={agreementTermSelected}
+					/>
+					{$t('app.game.agreementTermRestAreMine')}
+				</label>
+				<label class="agreement-radio">
+					<input
+						type="radio"
+						name="agreement-term"
+						value={agreementTricksInput}
+						bind:group={agreementTermSelected}
+					/>
+					<input
+						type="number"
+						min="0"
+						max="10"
+						class="tricks-input"
+						bind:value={agreementTricksInput}
+						onclick={() => (agreementTermSelected = agreementTricksInput)}
+						oninput={() => (agreementTermSelected = agreementTricksInput)}
+					/>
+					{$t('app.game.agreementTermTricks', { count: agreementTricksInput })}
+				</label>
+				<div class="agreement-form-actions">
+					<button type="button" class="vote-btn yes" onclick={proposeEndByAgreement}>
+						{$t('app.game.voteYes')}
+					</button>
+					<button type="button" class="vote-btn no" onclick={() => (showAgreementForm = false)}>
+						{$t('app.game.voteNo')}
+					</button>
+				</div>
+			</div>
+		{/if}
 	{/if}
 
 	<!-- Finish-early modal – blocks the table until all players vote -->
@@ -522,6 +618,59 @@
 			{:else}
 				<p>{$t('app.game.pausedIndefinitely')}</p>
 			{/if}
+		</div>
+	{/if}
+
+	<!-- End-by-agreement proposal modal -->
+	{#if agreementProposal}
+		{@const agreementProposerName =
+			$game.state?.players.find((p) => p.id === agreementProposal.proposedBy)?.name ?? ''}
+		<div
+			class="modal-backdrop"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="agreement-modal-title"
+		>
+			<div class="modal-card">
+				<h2 id="agreement-modal-title" class="modal-title">
+					{$t('app.game.agreementModalTitle')}
+				</h2>
+				<p class="modal-body">
+					{$t('app.game.agreementModalBody', { name: agreementProposerName })}
+				</p>
+				<p class="agreement-term-display">
+					<strong>{$t('app.game.agreementLabel')}</strong>
+					{formatAgreementTerm(agreementProposal.term)}
+				</p>
+				<!-- Show each voter's vote status -->
+				<ul class="vote-list">
+					{#each $game.state?.players.filter((p) => p.id in agreementProposal.votes) ?? [] as player}
+						{@const vote = agreementProposal.votes[player.id]}
+						<li class="vote-item" class:vote-yes={vote === 'yes'} class:vote-no={vote === 'no'}>
+							<PlayerBadge
+								playerId={player.id}
+								name={player.name}
+								offline={player.isOnline === false}
+							/>
+							<span class="vote-badge">
+								{vote === 'yes' ? '✓' : vote === 'no' ? '✗' : '…'}
+							</span>
+						</li>
+					{/each}
+				</ul>
+				{#if hasPendingVote && !isProposalProposer}
+					<div class="modal-actions">
+						<button type="button" class="vote-btn yes" onclick={() => voteOnProposal(true)}>
+							{$t('app.game.voteYes')}
+						</button>
+						<button type="button" class="vote-btn no" onclick={() => voteOnProposal(false)}>
+							{$t('app.game.voteNo')}
+						</button>
+					</div>
+				{:else if isProposalProposer}
+					<p class="modal-waiting">{$t('app.game.proposalBy', { name: agreementProposerName })}</p>
+				{/if}
+			</div>
 		</div>
 	{/if}
 
@@ -608,9 +757,16 @@
 							<h4>{$t('app.game.openHandOf', { name: openHandLeftPlayer.name })}</h4>
 							<Hand
 								cards={sortedOpenHands[openHandLeftPlayer.id]}
-								playable={canControlDeclarerHand && openHandLeftPlayer.id === $game.state?.declarerId}
-								selectedCard={canControlDeclarerHand && openHandLeftPlayer.id === $game.state?.declarerId ? selectedOpenHandCard : null}
-								eligibleCards={canControlDeclarerHand && openHandLeftPlayer.id === $game.state?.declarerId ? declarerOpenHandEligibleCards : null}
+								playable={canControlDeclarerHand &&
+									openHandLeftPlayer.id === $game.state?.declarerId}
+								selectedCard={canControlDeclarerHand &&
+								openHandLeftPlayer.id === $game.state?.declarerId
+									? selectedOpenHandCard
+									: null}
+								eligibleCards={canControlDeclarerHand &&
+								openHandLeftPlayer.id === $game.state?.declarerId
+									? declarerOpenHandEligibleCards
+									: null}
 								onPlayCard={handlePlayOpenHandCard}
 								label={openHandLeftPlayer.name}
 							/>
@@ -652,9 +808,16 @@
 							<h4>{$t('app.game.openHandOf', { name: openHandRightPlayer.name })}</h4>
 							<Hand
 								cards={sortedOpenHands[openHandRightPlayer.id]}
-								playable={canControlDeclarerHand && openHandRightPlayer.id === $game.state?.declarerId}
-								selectedCard={canControlDeclarerHand && openHandRightPlayer.id === $game.state?.declarerId ? selectedOpenHandCard : null}
-								eligibleCards={canControlDeclarerHand && openHandRightPlayer.id === $game.state?.declarerId ? declarerOpenHandEligibleCards : null}
+								playable={canControlDeclarerHand &&
+									openHandRightPlayer.id === $game.state?.declarerId}
+								selectedCard={canControlDeclarerHand &&
+								openHandRightPlayer.id === $game.state?.declarerId
+									? selectedOpenHandCard
+									: null}
+								eligibleCards={canControlDeclarerHand &&
+								openHandRightPlayer.id === $game.state?.declarerId
+									? declarerOpenHandEligibleCards
+									: null}
 								onPlayCard={handlePlayOpenHandCard}
 								label={openHandRightPlayer.name}
 							/>
@@ -670,8 +833,12 @@
 								<Hand
 									{cards}
 									playable={canControlDeclarerHand && openPlayerId === $game.state?.declarerId}
-									selectedCard={canControlDeclarerHand && openPlayerId === $game.state?.declarerId ? selectedOpenHandCard : null}
-									eligibleCards={canControlDeclarerHand && openPlayerId === $game.state?.declarerId ? declarerOpenHandEligibleCards : null}
+									selectedCard={canControlDeclarerHand && openPlayerId === $game.state?.declarerId
+										? selectedOpenHandCard
+										: null}
+									eligibleCards={canControlDeclarerHand && openPlayerId === $game.state?.declarerId
+										? declarerOpenHandEligibleCards
+										: null}
 									onPlayCard={handlePlayOpenHandCard}
 									label={playerName(openPlayerId)}
 								/>
@@ -1006,6 +1173,52 @@
 	.governance-btn:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
+	}
+
+	.agreement-form {
+		background: rgba(255, 255, 255, 0.06);
+		border: 1px solid rgba(200, 169, 110, 0.3);
+		border-radius: 12px;
+		padding: 12px 16px;
+		color: #f0e6d3;
+		display: grid;
+		gap: 8px;
+	}
+
+	.agreement-form-label {
+		margin: 0;
+		font-size: 13px;
+		font-weight: 600;
+		color: #c8a96e;
+	}
+
+	.agreement-radio {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 13px;
+		cursor: pointer;
+	}
+
+	.tricks-input {
+		width: 52px;
+		background: rgba(0, 0, 0, 0.35);
+		border: 1px solid rgba(200, 169, 110, 0.4);
+		border-radius: 6px;
+		color: #f0e6d3;
+		padding: 2px 6px;
+		font-size: 13px;
+	}
+
+	.agreement-form-actions {
+		display: flex;
+		gap: 8px;
+		margin-top: 4px;
+	}
+
+	.agreement-term-display {
+		margin: 4px 0 8px;
+		font-size: 14px;
 	}
 
 	.proposal-banner {

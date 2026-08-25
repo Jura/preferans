@@ -6,6 +6,8 @@ import type {
 	WhistChoice,
 	FinishProposal,
 	PauseProposal,
+	AgreementProposal,
+	AgreementTerm,
 	RoundSummary,
 	Contract
 } from '../gameEngine';
@@ -21,6 +23,7 @@ import {
 	applyDeclarerOpenHand,
 	applyPlayCard,
 	applyConfirmTrick,
+	applyAgreement,
 	whistOptions,
 	requiredLeadSuit,
 	raspassPrice
@@ -58,6 +61,8 @@ type ClientMessage =
 	| { type: 'confirm_trick' }
 	| { type: 'request_finish_early' }
 	| { type: 'vote_finish_early'; approve: boolean }
+	| { type: 'request_end_by_agreement'; term: AgreementTerm }
+	| { type: 'vote_end_by_agreement'; approve: boolean }
 	| { type: 'request_pause'; durationMinutes: number | null }
 	| { type: 'vote_pause'; approve: boolean }
 	| { type: 'start_round' }
@@ -111,7 +116,10 @@ interface ClientGameState {
 	roundSummary: RoundSummary | null;
 	finishProposal: FinishProposal | null;
 	pauseProposal: PauseProposal | null;
+	agreementProposal: AgreementProposal | null;
 	pausedUntil: string | null;
+	widowTakenByDeclarer: boolean;
+	pendingTrick: GameState['pendingTrick'];
 }
 
 export class GameRoom implements DurableObject {
@@ -588,7 +596,11 @@ export class GameRoom implements DurableObject {
 				if (this.gameState.phase === 'waiting' || this.gameState.phase === 'finished') {
 					throw new Error('Early finish is only available after game start');
 				}
-				if (this.gameState.finishProposal || this.gameState.pauseProposal) {
+				if (
+					this.gameState.finishProposal ||
+					this.gameState.pauseProposal ||
+					this.gameState.agreementProposal
+				) {
 					throw new Error('Another vote is already in progress');
 				}
 				this.gameState = {
@@ -639,12 +651,95 @@ export class GameRoom implements DurableObject {
 				return;
 			}
 
+			case 'request_end_by_agreement': {
+				if (!this.gameState) return;
+				if (this.gameState.phase !== 'playing') {
+					throw new Error('End by agreement is only available during play');
+				}
+				if (this.gameState.raspass) {
+					throw new Error('End by agreement is not available during распасовка');
+				}
+				if (!this.gameState.declarerId || !this.gameState.contract) {
+					throw new Error('No active contract');
+				}
+				if (
+					this.gameState.finishProposal ||
+					this.gameState.pauseProposal ||
+					this.gameState.agreementProposal
+				) {
+					throw new Error('Another vote is already in progress');
+				}
+				// Only active players (declarer + whisters) may propose or vote.
+				const activePlayers = [this.gameState.declarerId, ...this.gameState.whisters];
+				if (!activePlayers.includes(playerId)) {
+					throw new Error('Only the declarer and whisters can propose end by agreement');
+				}
+				// Validate a numeric term.
+				if (
+					typeof msg.term === 'number' &&
+					(!Number.isInteger(msg.term) || msg.term < 0 || msg.term > 10)
+				) {
+					throw new Error('Trick count must be an integer between 0 and 10');
+				}
+				this.gameState = {
+					...this.gameState,
+					agreementProposal: {
+						proposedBy: playerId,
+						term: msg.term,
+						votes: this.createProposalVotes(activePlayers, playerId)
+					}
+				};
+				await this.persistState();
+				this.broadcastState();
+				return;
+			}
+
+			case 'vote_end_by_agreement': {
+				if (!this.gameState) return;
+				const agreementProposal = this.gameState.agreementProposal;
+				if (!agreementProposal) {
+					throw new Error('No end-by-agreement vote in progress');
+				}
+				if (!(playerId in agreementProposal.votes)) {
+					throw new Error('You are not a voter in this proposal');
+				}
+				if (agreementProposal.proposedBy === playerId) {
+					throw new Error("The proposer's vote is automatically counted as 'yes'");
+				}
+				const agreementVotes = {
+					...agreementProposal.votes,
+					[playerId]: msg.approve ? 'yes' : 'no'
+				} as Record<PlayerId, 'yes' | 'no' | null>;
+
+				if (this.proposalRejected(agreementVotes)) {
+					this.gameState = { ...this.gameState, agreementProposal: null };
+				} else if (this.proposalApproved(agreementVotes)) {
+					this.gameState = applyAgreement({
+						...this.gameState,
+						agreementProposal: { ...agreementProposal, votes: agreementVotes }
+					});
+					await this.saveRoundResult();
+				} else {
+					this.gameState = {
+						...this.gameState,
+						agreementProposal: { ...agreementProposal, votes: agreementVotes }
+					};
+				}
+				await this.persistState();
+				this.broadcastState();
+				return;
+			}
+
 			case 'request_pause': {
 				if (!this.gameState) return;
 				if (this.gameState.phase === 'waiting' || this.gameState.phase === 'finished') {
 					throw new Error('Pause is only available after game start');
 				}
-				if (this.gameState.finishProposal || this.gameState.pauseProposal) {
+				if (
+					this.gameState.finishProposal ||
+					this.gameState.pauseProposal ||
+					this.gameState.agreementProposal
+				) {
 					throw new Error('Another vote is already in progress');
 				}
 				if (
@@ -791,6 +886,7 @@ export class GameRoom implements DurableObject {
 			roundSummary: gs.roundSummary,
 			finishProposal: gs.finishProposal ?? null,
 			pauseProposal: gs.pauseProposal ?? null,
+			agreementProposal: gs.agreementProposal ?? null,
 			pausedUntil: gs.pausedUntil ?? null,
 			widowTakenByDeclarer: gs.widowTakenByDeclarer,
 			pendingTrick: gs.pendingTrick ?? null
