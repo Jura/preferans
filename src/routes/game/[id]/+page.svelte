@@ -100,7 +100,7 @@
 	// ── Open-hand control (whister controls declarer's open hand) ──
 	let isDeclarerHandOpen = $derived(
 		$game.state?.declarerId != null &&
-			Object.keys($game.state?.openHands ?? {}).includes($game.state!.declarerId)
+			$game.state.declarerId in ($game.state?.openHands ?? {})
 	);
 	let isWhister = $derived(($game.state?.whisters ?? []).includes(myPlayerId));
 	/** True when the whister is the one controlling the declarer's open cards. */
