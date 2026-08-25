@@ -920,12 +920,21 @@ function resolveWhisting(state: GameState): GameState {
 		decls.length === 3 && decls[0].choice === 'pass' && last(d0) === 'whist' ? d0 : null;
 
 	if (whisters.length > 0) {
+		// The open/closed choice is only offered when there is exactly one whister.
+		// With two whisters the game always plays closed (dark) — no choice is made.
+		const oneWhister = whisters.length === 1;
+		const firstIsNotDeclarer =
+			oneWhister && state.firstHandId !== null && state.firstHandId !== state.declarerId;
+		// If the first hand belongs to a defender, the lone whister must decide
+		// open/closed play *before* the first card (not «втемную»).
+		const lightDecisionBy = firstIsNotDeclarer ? whisters[0] : null;
 		return {
 			...state,
 			whisters,
 			whistReturnerId,
 			phase: 'playing',
-			currentPlayerId: state.firstHandId
+			currentPlayerId: state.firstHandId,
+			lightDecisionBy
 		};
 	}
 
@@ -1026,13 +1035,19 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 		currentTrick: newTrick
 	};
 
-	// The very first card of the deal is played «втемную»; right after it the
-	// declarer's hand opens on misère, and whisters choose light/dark play.
+	// The very first card of the deal is played «втемную» (when declarer leads);
+	// right after it the declarer's hand opens on misère, and whisters choose
+	// light/dark play. When a defender leads first, the choice was already made
+	// before the first card (in resolveWhisting).
 	const isFirstCard = state.completedTricks.length === 0 && trick.cards.length === 0;
 	if (isFirstCard && !state.raspass) {
 		if (state.contract?.type === 'misere' && state.declarerId) {
 			next = { ...next, openHands: [...new Set([...next.openHands, next.declarerId!])] };
-		} else if (state.whisters.length > 0 && !state.openHands.includes(state.declarerId!)) {
+		} else if (
+			state.whisters.length === 1 &&
+			!state.openHands.includes(state.declarerId!) &&
+			state.firstHandId === state.declarerId
+		) {
 			next = { ...next, lightDecisionBy: state.whisters[0] };
 		}
 	}
