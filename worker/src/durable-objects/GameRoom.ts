@@ -252,6 +252,13 @@ export class GameRoom implements DurableObject {
 	async webSocketMessage(ws: WebSocket, data: string | ArrayBuffer): Promise<void> {
 		const session = this.getSession(ws);
 		if (!session) return;
+
+		// After a Durable Object wakes from hibernation, in-memory state is lost.
+		// Restore it before handling any message so game actions don't silently fail.
+		if (!this.gameState) {
+			await this.loadGameState();
+		}
+
 		if (!(await this.hasActiveAccess(session.playerId))) {
 			this.sendToSocket(ws, { type: 'error', message: 'Access revoked' });
 			this.removeSession(ws);
@@ -466,6 +473,13 @@ export class GameRoom implements DurableObject {
 				if (await this.syncWaitingPlayersFromDatabase()) {
 					this.broadcastState();
 				}
+				// Always send fresh state back to the pinging client so it recovers from
+				// stale state after a Durable Object hibernation/wake cycle without needing
+				// a page reload. The pong is sent after so the client can track round-trips.
+				this.sendToSocket(session.ws, {
+					type: 'game_state',
+					state: this.buildClientState(session.playerId)
+				});
 				this.sendToSocket(session.ws, { type: 'pong' });
 				return;
 
