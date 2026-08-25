@@ -25,6 +25,7 @@
 	let { data }: { data: PageData } = $props();
 
 	let selectedCard: Card | null = $state(null);
+	let selectedOpenHandCard: Card | null = $state(null);
 	let tableAgeSeconds = $state(0);
 	let tableTimer: ReturnType<typeof setInterval> | null = null;
 	/** Track whether a finishProposal was active so we can redirect on approval. */
@@ -93,12 +94,44 @@
 
 	let lightDecisionPending = $derived($game.state?.lightDecisionBy ?? null);
 	let pendingTrick = $derived($game.state?.pendingTrick ?? null);
-	let isMyTrickToConfirm = $derived(pendingTrick?.winnerId === myPlayerId);
 	let widowTakenByDeclarer = $derived($game.state?.widowTakenByDeclarer ?? false);
-	let canPlayCard = $derived(
-		$gamePhase === 'playing' && isMyTurn && !lightDecisionPending && !pendingTrick
-	);
 	let isDeclarer = $derived($game.state?.declarerId === myPlayerId);
+
+	// ── Open-hand control (whister controls declarer's open hand) ──
+	let isDeclarerHandOpen = $derived(
+		$game.state?.declarerId != null &&
+			Object.keys($game.state?.openHands ?? {}).includes($game.state!.declarerId)
+	);
+	let isWhister = $derived(($game.state?.whisters ?? []).includes(myPlayerId));
+	/** True when the whister is the one controlling the declarer's open cards. */
+	let canControlDeclarerHand = $derived(
+		$gamePhase === 'playing' &&
+			!lightDecisionPending &&
+			!pendingTrick &&
+			isDeclarerHandOpen &&
+			isWhister &&
+			$game.state?.currentPlayerId === $game.state?.declarerId
+	);
+	/** True when the whister should confirm a trick won by the open-handed declarer. */
+	let isDeclarerTrickToConfirm = $derived(
+		pendingTrick != null &&
+			pendingTrick.winnerId === $game.state?.declarerId &&
+			isDeclarerHandOpen &&
+			isWhister
+	);
+
+	// Declarer cannot play their own hand once they've declared it open.
+	let canPlayCard = $derived(
+		$gamePhase === 'playing' &&
+			isMyTurn &&
+			!lightDecisionPending &&
+			!pendingTrick &&
+			!(isDeclarer && isDeclarerHandOpen)
+	);
+	// Declarer cannot confirm tricks from their open hand (whister does it).
+	let isMyTrickToConfirm = $derived(
+		pendingTrick?.winnerId === myPlayerId && !(isDeclarer && isDeclarerHandOpen)
+	);
 
 	// ── Last trick modal ──
 	let showLastTrickModal = $state(false);
@@ -129,6 +162,23 @@
 		Object.fromEntries(
 			Object.entries($game.state?.openHands ?? {}).map(([pid, cards]) => [pid, sortHand(cards)])
 		)
+	);
+
+	// ── Eligible cards in the declarer's open hand (for the controlling whister) ──
+	let declarerOpenHandCards = $derived(
+		isDeclarerHandOpen && $game.state?.declarerId
+			? (sortedOpenHands[$game.state.declarerId] ?? [])
+			: []
+	);
+	let declarerOpenHandEligibleCards = $derived(
+		canControlDeclarerHand
+			? validCardsForPlay(
+					declarerOpenHandCards,
+					$currentTrick,
+					$game.state?.trump ?? null,
+					$game.state?.raspassUpcard?.suit ?? null
+				)
+			: null
 	);
 
 	// Pre-compute the open-hand layout so we don't re-filter in the template.
@@ -206,6 +256,25 @@
 		game.send({ type: 'play_card', card });
 	});
 
+	// Auto-play the declarer's open hand when there is exactly one legal card.
+	let lastOpenHandAutoPlayKey: string | null = null;
+	$effect(() => {
+		if (
+			!canControlDeclarerHand ||
+			!declarerOpenHandEligibleCards ||
+			declarerOpenHandEligibleCards.length !== 1
+		) {
+			lastOpenHandAutoPlayKey = null;
+			return;
+		}
+		const card = declarerOpenHandEligibleCards[0];
+		const key = `${card.suit}:${card.rank}`;
+		if (key === lastOpenHandAutoPlayKey) return;
+		lastOpenHandAutoPlayKey = key;
+		selectedOpenHandCard = null;
+		game.send({ type: 'play_card', card });
+	});
+
 	function sameCard(a: Card, b: Card): boolean {
 		return a.suit === b.suit && a.rank === b.rank;
 	}
@@ -242,6 +311,20 @@
 		} else {
 			selectedCard = card;
 		}
+	}
+
+	function handlePlayOpenHandCard(card: Card) {
+		if (!canControlDeclarerHand) return;
+		if (selectedOpenHandCard && sameCard(selectedOpenHandCard, card)) {
+			game.send({ type: 'play_card', card });
+			selectedOpenHandCard = null;
+		} else {
+			selectedOpenHandCard = card;
+		}
+	}
+
+	function declareOpenHand() {
+		game.send({ type: 'declare_open_hand' });
 	}
 
 	function handleBid(bid: Bid) {
@@ -525,7 +608,10 @@
 							<h4>{$t('app.game.openHandOf', { name: openHandLeftPlayer.name })}</h4>
 							<Hand
 								cards={sortedOpenHands[openHandLeftPlayer.id]}
-								playable={false}
+								playable={canControlDeclarerHand && openHandLeftPlayer.id === $game.state?.declarerId}
+								selectedCard={canControlDeclarerHand && openHandLeftPlayer.id === $game.state?.declarerId ? selectedOpenHandCard : null}
+								eligibleCards={canControlDeclarerHand && openHandLeftPlayer.id === $game.state?.declarerId ? declarerOpenHandEligibleCards : null}
+								onPlayCard={handlePlayOpenHandCard}
 								label={openHandLeftPlayer.name}
 							/>
 						</div>
@@ -566,7 +652,10 @@
 							<h4>{$t('app.game.openHandOf', { name: openHandRightPlayer.name })}</h4>
 							<Hand
 								cards={sortedOpenHands[openHandRightPlayer.id]}
-								playable={false}
+								playable={canControlDeclarerHand && openHandRightPlayer.id === $game.state?.declarerId}
+								selectedCard={canControlDeclarerHand && openHandRightPlayer.id === $game.state?.declarerId ? selectedOpenHandCard : null}
+								eligibleCards={canControlDeclarerHand && openHandRightPlayer.id === $game.state?.declarerId ? declarerOpenHandEligibleCards : null}
+								onPlayCard={handlePlayOpenHandCard}
 								label={openHandRightPlayer.name}
 							/>
 						</div>
@@ -575,10 +664,17 @@
 
 				{#if openHandOthers.length > 0}
 					<div class="open-hands-others">
-						{#each openHandOthers as [playerId, cards] (playerId)}
+						{#each openHandOthers as [openPlayerId, cards] (openPlayerId)}
 							<div class="open-hand">
-								<h4>{$t('app.game.openHandOf', { name: playerName(playerId) })}</h4>
-								<Hand {cards} playable={false} label={playerName(playerId)} />
+								<h4>{$t('app.game.openHandOf', { name: playerName(openPlayerId) })}</h4>
+								<Hand
+									{cards}
+									playable={canControlDeclarerHand && openPlayerId === $game.state?.declarerId}
+									selectedCard={canControlDeclarerHand && openPlayerId === $game.state?.declarerId ? selectedOpenHandCard : null}
+									eligibleCards={canControlDeclarerHand && openPlayerId === $game.state?.declarerId ? declarerOpenHandEligibleCards : null}
+									onPlayCard={handlePlayOpenHandCard}
+									label={playerName(openPlayerId)}
+								/>
 							</div>
 						{/each}
 					</div>
@@ -753,7 +849,7 @@
 				<!-- Turn indicator -->
 				{#if !lightDecisionPending}
 					{#if pendingTrick}
-						{#if isMyTrickToConfirm}
+						{#if isMyTrickToConfirm || isDeclarerTrickToConfirm}
 							<button class="confirm-btn confirm-trick-btn" onclick={confirmTrick}>
 								{$t('app.game.confirmTrick')}
 							</button>
@@ -762,6 +858,8 @@
 								{$t('app.game.awaitingTrickConfirm', { name: playerName(pendingTrick.winnerId) })}
 							</div>
 						{/if}
+					{:else if canControlDeclarerHand}
+						<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
 					{:else if $game.state.currentPlayerId && $game.state.currentPlayerId !== data.user?.id}
 						<div class="turn-indicator" role="status">
 							{$t('app.game.turn', { name: playerName($game.state.currentPlayerId) })}
@@ -805,6 +903,11 @@
 						onPlayCard={handlePlayCard}
 						label={$t('app.game.yourCards')}
 					/>
+					{#if isDeclarer && $gamePhase === 'playing' && !isDeclarerHandOpen && $game.state?.whisters && $game.state.whisters.length > 0}
+						<button class="declare-open-btn" onclick={declareOpenHand}>
+							{$t('app.game.declareOpenHand')}
+						</button>
+					{/if}
 					{#if canPlayCard && selectedCard}
 						<p class="play-hint">{$t('app.game.playHint')}</p>
 					{/if}
@@ -1152,6 +1255,21 @@
 	.confirm-btn:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
+	}
+
+	.declare-open-btn {
+		margin-top: 8px;
+		padding: 6px 14px;
+		border-radius: 6px;
+		border: 1px solid #c8a96e;
+		background: transparent;
+		color: #c8a96e;
+		font-size: 13px;
+		cursor: pointer;
+	}
+
+	.declare-open-btn:hover {
+		background: rgba(200, 169, 110, 0.15);
 	}
 
 	.whist-panel {

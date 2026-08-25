@@ -223,6 +223,7 @@ export type ClientMessage =
 	| { type: 'select_widow'; discard: [Card, Card]; contract: Contract }
 	| { type: 'whist'; choice: WhistChoice }
 	| { type: 'choose_open'; open: boolean }
+	| { type: 'declare_open_hand' }
 	| { type: 'play_card'; card: Card }
 	| { type: 'confirm_trick' }
 	| { type: 'start_round' }

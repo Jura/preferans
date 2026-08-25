@@ -183,6 +183,7 @@
 			"tricksTaken": "{{count}} tricks",
 			"nextRound": "Next deal",
 			"openHandOf": "Open cards of {{name}}",
+			"declareOpenHand": "Play with open cards",
 			"finishEarlyModalTitle": "Finish game early?",
 			"finishEarlyModalBody": "{{name}} has proposed to end the game early. All players must agree.",
 			"pauseModalTitle": "Pause the game?",
