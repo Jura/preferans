@@ -37,6 +37,11 @@
 		return trick?.cards.find((c) => c.playerId === playerId)?.card ?? null;
 	}
 
+	// Sort players by their relative position so that position 0 (self/bottom)
+	// is always rendered first, followed by position 1 (left) and 2 (right).
+	// This ensures :nth-child(1/2/3) CSS selectors always map to the correct seat.
+	let sortedPlayers = $derived([...players].sort((a, b) => a.position - b.position));
+
 	function contractSuitClass(contract: Contract | null): string {
 		if (!contract) return '';
 		if (contract.type === 'misere') return '';
@@ -60,7 +65,7 @@
 	{/if}
 
 	<div class="table-center">
-		{#each players as player}
+		{#each sortedPlayers as player}
 			{@const card = getCardForPlayer(player.id)}
 			<div
 				class="player-slot"

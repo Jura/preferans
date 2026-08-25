@@ -689,11 +689,12 @@ export class GameRoom implements DurableObject {
 		const onlinePlayerIds = new Set(
 			Array.from(this.sessions.values(), (session) => session.playerId)
 		);
+		const myIdx = gs.playerIds.indexOf(forPlayerId);
 		const players = gs.playerIds.map((id, idx) => ({
 			id,
 			name: this.playerInfo.get(id)?.name ?? id,
 			avatarUrl: this.playerInfo.get(id)?.avatarUrl ?? null,
-			position: idx as 0 | 1 | 2,
+			position: (myIdx >= 0 ? (idx - myIdx + 3) % 3 : idx) as 0 | 1 | 2,
 			isOnline: onlinePlayerIds.has(id)
 		}));
 
