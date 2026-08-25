@@ -180,6 +180,7 @@
 			"tricksTaken": "взяток: {{count}}",
 			"nextRound": "Наступна роздача",
 			"openHandOf": "Відкриті карти: {{name}}",
+			"declareOpenHand": "Грати з відкритими картами (явка)",
 			"finishEarlyModalTitle": "Завершити гру достроково?",
 			"finishEarlyModalBody": "{{name}} пропонує завершити гру достроково. Всі гравці мають погодитися.",
 			"pauseModalTitle": "Поставити гру на паузу?",

@@ -18,6 +18,7 @@ import {
 	applyWidowSelection,
 	applyWhistChoice,
 	applyLightChoice,
+	applyDeclarerOpenHand,
 	applyPlayCard,
 	applyConfirmTrick,
 	whistOptions,
@@ -52,6 +53,7 @@ type ClientMessage =
 	| { type: 'select_widow'; discard: [Card, Card]; contract: Contract }
 	| { type: 'whist'; choice: WhistChoice }
 	| { type: 'choose_open'; open: boolean }
+	| { type: 'declare_open_hand' }
 	| { type: 'play_card'; card: Card }
 	| { type: 'confirm_trick' }
 	| { type: 'request_finish_early' }
@@ -531,6 +533,14 @@ export class GameRoom implements DurableObject {
 			case 'choose_open': {
 				if (!this.gameState) return;
 				this.gameState = applyLightChoice(this.gameState, playerId, msg.open);
+				await this.persistState();
+				this.broadcastState();
+				return;
+			}
+
+			case 'declare_open_hand': {
+				if (!this.gameState) return;
+				this.gameState = applyDeclarerOpenHand(this.gameState, playerId);
 				await this.persistState();
 				this.broadcastState();
 				return;

@@ -942,6 +942,38 @@ function resolveWhisting(state: GameState): GameState {
 
 // ─── Light/dark decision and card play ───────────────────────────────────────
 
+/**
+ * Returns true when the declarer is playing with an open hand and the given
+ * player is a whister who may control the declarer's cards.
+ */
+export function isControllingDeclarerHand(state: GameState, playerId: PlayerId): boolean {
+	return (
+		state.declarerId !== null &&
+		state.openHands.includes(state.declarerId) &&
+		state.whisters.includes(playerId)
+	);
+}
+
+/**
+ * The declarer reveals their hand and hands control of it to the whisters.
+ * Only allowed during the playing phase, before or during card play.
+ */
+export function applyDeclarerOpenHand(state: GameState, playerId: PlayerId): GameState {
+	if (state.phase !== 'playing') {
+		throw new Error('Can only declare open hand during the playing phase');
+	}
+	if (playerId !== state.declarerId) {
+		throw new Error('Only the declarer can declare an open hand');
+	}
+	if (state.openHands.includes(playerId)) {
+		throw new Error('Hand is already open');
+	}
+	if (state.whisters.length === 0) {
+		throw new Error('Cannot play open hand when there are no whisters');
+	}
+	return { ...state, openHands: [...state.openHands, playerId] };
+}
+
 export function applyLightChoice(state: GameState, playerId: PlayerId, open: boolean): GameState {
 	if (state.phase !== 'playing' || state.lightDecisionBy !== playerId) {
 		throw new Error('No light/dark decision is awaited from you');
@@ -956,7 +988,13 @@ export function applyLightChoice(state: GameState, playerId: PlayerId, open: boo
 }
 
 export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card): GameState {
-	if (state.phase !== 'playing' || state.currentPlayerId !== playerId) {
+	// A whister may play on behalf of the declarer when the declarer's hand is open.
+	const actingForDeclarer =
+		state.currentPlayerId === state.declarerId &&
+		isControllingDeclarerHand(state, playerId);
+	const effectivePlayerId = actingForDeclarer ? state.declarerId! : playerId;
+
+	if (state.phase !== 'playing' || state.currentPlayerId !== effectivePlayerId) {
 		throw new Error('Not your turn to play');
 	}
 	if (state.lightDecisionBy) {
@@ -965,7 +1003,7 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 	if (state.pendingTrick) {
 		throw new Error('Confirm the completed trick before playing the next card');
 	}
-	const hand = state.hands[playerId] ?? [];
+	const hand = state.hands[effectivePlayerId] ?? [];
 	if (!isValidPlay(card, hand, state.currentTrick, state.trump, requiredLeadSuit(state))) {
 		throw new Error('Invalid card play');
 	}
@@ -978,13 +1016,13 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 
 	const newTrick: Trick = {
 		...trick,
-		cards: [...trick.cards, { playerId, card }]
+		cards: [...trick.cards, { playerId: effectivePlayerId, card }]
 	};
 
 	const newHand = hand.filter((c) => !sameCard(c, card));
 	let next: GameState = {
 		...state,
-		hands: { ...state.hands, [playerId]: newHand },
+		hands: { ...state.hands, [effectivePlayerId]: newHand },
 		currentTrick: newTrick
 	};
 
@@ -994,7 +1032,7 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 	if (isFirstCard && !state.raspass) {
 		if (state.contract?.type === 'misere' && state.declarerId) {
 			next = { ...next, openHands: [...new Set([...next.openHands, next.declarerId!])] };
-		} else if (state.whisters.length > 0) {
+		} else if (state.whisters.length > 0 && !state.openHands.includes(state.declarerId!)) {
 			next = { ...next, lightDecisionBy: state.whisters[0] };
 		}
 	}
@@ -1012,7 +1050,7 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 		};
 	}
 
-	return { ...next, currentPlayerId: seatAfter(next, playerId) };
+	return { ...next, currentPlayerId: seatAfter(next, effectivePlayerId) };
 }
 
 /**
@@ -1026,7 +1064,13 @@ export function applyConfirmTrick(state: GameState, playerId: PlayerId): GameSta
 	if (!state.pendingTrick) {
 		throw new Error('No trick pending confirmation');
 	}
-	if (state.pendingTrick.winnerId !== playerId) {
+	// A whister may confirm the trick on behalf of the declarer when the
+	// declarer's hand is open and the declarer won the trick.
+	const actingForDeclarer =
+		state.pendingTrick.winnerId === state.declarerId &&
+		isControllingDeclarerHand(state, playerId);
+	const effectivePlayerId = actingForDeclarer ? state.declarerId! : playerId;
+	if (state.pendingTrick.winnerId !== effectivePlayerId) {
 		throw new Error('Only the trick winner can confirm the trick');
 	}
 
