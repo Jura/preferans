@@ -920,9 +920,12 @@ function resolveWhisting(state: GameState): GameState {
 		decls.length === 3 && decls[0].choice === 'pass' && last(d0) === 'whist' ? d0 : null;
 
 	if (whisters.length > 0) {
+		// The open/closed choice is only offered when there is exactly one whister.
+		// With two whisters the game always plays closed (dark) — no choice is made.
+		const oneWhister = whisters.length === 1;
 		const firstIsNotDeclarer =
-			state.firstHandId !== null && state.firstHandId !== state.declarerId;
-		// If the first hand belongs to a defender, the whisters must decide
+			oneWhister && state.firstHandId !== null && state.firstHandId !== state.declarerId;
+		// If the first hand belongs to a defender, the lone whister must decide
 		// open/closed play *before* the first card (not «втемную»).
 		const lightDecisionBy = firstIsNotDeclarer ? whisters[0] : null;
 		return {
@@ -1041,7 +1044,7 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 		if (state.contract?.type === 'misere' && state.declarerId) {
 			next = { ...next, openHands: [...new Set([...next.openHands, next.declarerId!])] };
 		} else if (
-			state.whisters.length > 0 &&
+			state.whisters.length === 1 &&
 			!state.openHands.includes(state.declarerId!) &&
 			state.firstHandId === state.declarerId
 		) {
