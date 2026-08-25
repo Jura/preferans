@@ -7,6 +7,8 @@ import { presence } from '$lib/stores/presence';
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 const HEARTBEAT_INTERVAL_MS = 15000;
 const ACCESS_REVOKED_CLOSE_CODE = 4401;
+const RECONNECT_BASE_DELAY_MS = 3000;
+const RECONNECT_MAX_DELAY_MS = 30000;
 
 interface GameStore {
 	state: GameState | null;
@@ -25,6 +27,7 @@ function createGameStore() {
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	let currentGameId: string | null = null;
+	let reconnectAttempt = 0;
 
 	/**
 	 * Snapshot of players from the last received game_state, keyed by player id.
@@ -47,6 +50,38 @@ function createGameStore() {
 		}
 	}
 
+	/**
+	 * Schedule a reconnect attempt with exponential backoff.
+	 * The original token is single-use so we fetch a fresh token before each attempt.
+	 */
+	function scheduleReconnect(gameId: string) {
+		clearReconnect();
+		const delay = Math.min(
+			RECONNECT_BASE_DELAY_MS * Math.pow(2, reconnectAttempt),
+			RECONNECT_MAX_DELAY_MS
+		);
+		reconnectAttempt++;
+		reconnectTimer = setTimeout(() => {
+			if (currentGameId !== gameId) return;
+			fetch(`/api/game/${gameId}/ws-token`)
+				.then((res) => (res.ok ? (res.json() as Promise<{ token: string }>) : null))
+				.then((data) => {
+					if (data?.token && currentGameId === gameId) {
+						connect(gameId, data.token);
+					} else if (currentGameId === gameId) {
+						// Token fetch failed (e.g. server returned non-OK) – retry.
+						scheduleReconnect(gameId);
+					}
+				})
+				.catch(() => {
+					if (currentGameId === gameId) {
+						// Network error – retry with backoff.
+						scheduleReconnect(gameId);
+					}
+				});
+		}, delay);
+	}
+
 	function connect(gameId: string, token: string) {
 		currentGameId = gameId;
 		prevPlayers = null;
@@ -66,11 +101,19 @@ function createGameStore() {
 
 		ws.addEventListener('open', () => {
 			clearHeartbeat();
+			// Successful connection – reset backoff counter for future reconnects.
+			reconnectAttempt = 0;
 			// Check access frequently enough to revoke removed users quickly without sending
 			// unnecessary traffic on every animation or UI update.
 			heartbeatTimer = setInterval(() => {
 				send({ type: 'ping' });
 			}, HEARTBEAT_INTERVAL_MS);
+			// Send an immediate ping so the server returns fresh game state right away.
+			// This is especially important after a Durable Object hibernation cycle where
+			// the server-side in-memory state was cleared while the WebSocket stayed open
+			// – the client would otherwise wait up to HEARTBEAT_INTERVAL_MS before seeing
+			// the current game state again.
+			send({ type: 'ping' });
 			// Register this socket as the presence activity sender so the presence store
 			// can route heartbeats here instead of using HTTP PATCH /api/presence.
 			presence.setActivitySender(() => send({ type: 'activity' }));
@@ -99,22 +142,7 @@ function createGameStore() {
 				return;
 			}
 			if (!event.wasClean && currentGameId) {
-				// The original token is single-use (marked used on first connect), so
-				// we must fetch a fresh token before each reconnect attempt.
-				const gameIdAtClose = currentGameId;
-				reconnectTimer = setTimeout(() => {
-					if (!currentGameId) return;
-					fetch(`/api/game/${gameIdAtClose}/ws-token`)
-						.then((res) => (res.ok ? (res.json() as Promise<{ token: string }>) : null))
-						.then((data) => {
-							if (data?.token && currentGameId === gameIdAtClose) {
-								connect(gameIdAtClose, data.token);
-							}
-						})
-						.catch(() => {
-							// Network error – will not reconnect; user can refresh the page.
-						});
-				}, 3000);
+				scheduleReconnect(currentGameId);
 			}
 		});
 
@@ -185,6 +213,7 @@ function createGameStore() {
 		clearHeartbeat();
 		prevPlayers = null;
 		currentGameId = null;
+		reconnectAttempt = 0;
 		ws?.close();
 		ws = null;
 		set({ state: null, status: 'disconnected', error: null });
