@@ -824,8 +824,7 @@ function defendersInOrder(state: GameState): PlayerId[] {
 /**
  * Options for the player whose whist declaration is awaited, or null when the
  * whisting phase is resolved. Implements the convention specifics:
- * half-whist on 6-7, whist return («пас-полвиста-вист») on 6-8,
- * downgrade to half-whist after «вист-пас».
+ * half-whist on 6-7, whist return («пас-полвиста-вист») on 6-8.
  */
 export function whistOptions(
 	state: GameState
@@ -847,10 +846,6 @@ export function whistOptions(
 	}
 	if (decls.length === 2) {
 		const [c0, c1] = [decls[0].choice, decls[1].choice];
-		if (c0 === 'whist' && c1 === 'pass' && level <= 7) {
-			// «уход за полвиста в контрактах 6 и 7»
-			return { playerId: d0, options: ['whist', 'half_whist'] };
-		}
 		if (c0 === 'pass' && c1 === 'half_whist' && level <= 8) {
 			// «возврат виста только на контрактах 6-7-8»
 			return { playerId: d0, options: ['pass', 'whist'] };
