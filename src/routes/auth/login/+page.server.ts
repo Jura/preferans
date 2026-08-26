@@ -9,6 +9,7 @@ import { DUMMY_ACCOUNTS, getDummyAccount, isTestLoginEnabled } from '$lib/server
 const SESSION_COOKIE = 'pref_session';
 const LOCALE_COOKIE = 'pref_locale';
 const SESSION_DURATION_DAYS = 30;
+const textEncoder = new TextEncoder();
 
 const LOGIN_MESSAGES = {
 	en: en.app.login,
@@ -16,14 +17,29 @@ const LOGIN_MESSAGES = {
 	uk: uk.app.login
 } as const;
 
+function timingSafeEquals(left: string, right: string): boolean {
+	const leftBytes = textEncoder.encode(left);
+	const rightBytes = textEncoder.encode(right);
+	const maxLength = Math.max(leftBytes.length, rightBytes.length);
+	let mismatch = leftBytes.length ^ rightBytes.length;
+
+	for (let index = 0; index < maxLength; index += 1) {
+		mismatch |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0);
+	}
+
+	return mismatch >>> 0 === 0;
+}
+
 export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	if (locals.user) {
 		redirect(303, '/');
 	}
 
+	const dummyLoginEnabled = isTestLoginEnabled(url, platform?.env);
+
 	return {
-		dummyAccounts: DUMMY_ACCOUNTS.map(({ id, name }) => ({ id, name })),
-		dummyLoginEnabled: isTestLoginEnabled(url, platform?.env)
+		dummyAccounts: dummyLoginEnabled ? DUMMY_ACCOUNTS.map(({ id, name }) => ({ id, name })) : [],
+		dummyLoginEnabled
 	};
 };
 
@@ -43,7 +59,8 @@ export const actions: Actions = {
 		const messages = LOGIN_MESSAGES[preferredLocale];
 
 		const accessCode = formData.get('accessCode');
-		if (typeof accessCode !== 'string' || accessCode !== platform.env.TEST_LOGIN_SECRET) {
+		const providedAccessCode = typeof accessCode === 'string' ? accessCode : '';
+		if (!timingSafeEquals(providedAccessCode, platform.env.TEST_LOGIN_SECRET)) {
 			return fail(403, { dummyLoginError: messages.dummy.invalidCode });
 		}
 
@@ -58,13 +75,17 @@ export const actions: Actions = {
 		}
 
 		const existingSessionToken = cookies.get(SESSION_COOKIE);
+		const sessionToken = crypto.randomUUID();
+		const expiresAt = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
+		const statements = [];
+
 		if (existingSessionToken) {
-			await platform.env.DB.prepare(`DELETE FROM sessions WHERE token = ?`)
-				.bind(existingSessionToken)
-				.run();
+			statements.push(
+				platform.env.DB.prepare(`DELETE FROM sessions WHERE token = ?`).bind(existingSessionToken)
+			);
 		}
 
-		await platform.env.DB.batch([
+		statements.push(
 			platform.env.DB.prepare(
 				`INSERT INTO user_allowlist (email, created_at)
 				 VALUES (?, datetime('now'))
@@ -78,17 +99,13 @@ export const actions: Actions = {
 				   email = excluded.email,
 				   preferred_locale = excluded.preferred_locale`
 			).bind(dummyAccount.id, dummyAccount.name, dummyAccount.email, preferredLocale),
-			platform.env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(dummyAccount.id)
-		]);
+			platform.env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(dummyAccount.id),
+			platform.env.DB.prepare(
+				`INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`
+			).bind(sessionToken, dummyAccount.id, expiresAt.toISOString().replace('T', ' ').slice(0, 19))
+		);
 
-		const sessionToken = crypto.randomUUID();
-		const expiresAt = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
-
-		await platform.env.DB.prepare(
-			`INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`
-		)
-			.bind(sessionToken, dummyAccount.id, expiresAt.toISOString().replace('T', ' ').slice(0, 19))
-			.run();
+		await platform.env.DB.batch(statements);
 
 		cookies.set(SESSION_COOKIE, sessionToken, {
 			path: '/',

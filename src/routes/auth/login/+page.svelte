@@ -169,7 +169,7 @@
 		color: #c0b090;
 	}
 
-	input {
+	.dummy-form input {
 		width: 100%;
 		box-sizing: border-box;
 		background: rgba(255, 255, 255, 0.08);
