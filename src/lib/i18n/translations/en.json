@@ -200,7 +200,9 @@
 			"awaitingTrickConfirm": "{{name}} is reviewing the trick…",
 			"showLastTrick": "Show last trick",
 			"lastTrickTitle": "Last trick",
-			"closeModal": "Close"
+			"closeModal": "Close",
+			"scoreButton": "Score",
+			"gameEndButton": "Game End"
 		},
 		"scoreboard": {
 			"aria": "Score",

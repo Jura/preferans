@@ -200,7 +200,9 @@
 			"awaitingTrickConfirm": "{{name}} забирає хід…",
 			"showLastTrick": "Показати останній хід",
 			"lastTrickTitle": "Останній хід",
-			"closeModal": "Закрити"
+			"closeModal": "Закрити",
+			"scoreButton": "Рахунок",
+			"gameEndButton": "Завершення"
 		},
 		"scoreboard": {
 			"aria": "Рахунок",

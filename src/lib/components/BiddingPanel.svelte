@@ -181,6 +181,18 @@
 
 	.suit-btn.black {
 		color: #111;
+		background: rgba(255, 255, 255, 0.88);
+		border-color: rgba(200, 169, 110, 0.7);
+	}
+
+	.suit-btn.black:disabled {
+		background: rgba(255, 255, 255, 0.2);
+	}
+
+	.suit-btn.black.active {
+		background: rgba(255, 255, 255, 0.95);
+		color: #111;
+		border-color: #ffd700;
 	}
 
 	.suit-btn.red {
