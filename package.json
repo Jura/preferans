@@ -1,20 +1,22 @@
 {
 	"name": "Preferans",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"private": true,
 	"scripts": {
 		"dev": "vite dev",
 		"build": "svelte-kit sync && vite build",
-		"build:ci": "npm run worker:deploy && npm run build",
+		"build:ci": "if [ \"$CF_PAGES_BRANCH\" = \"main\" ]; then npm run worker:deploy; else npm run worker:deploy:preview; fi && npm run build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
-		"pages:deploy": "npm run worker:deploy && npm run build && wrangler pages deploy .svelte-kit/cloudflare",
+		"pages:deploy": "BRANCH=\"${CF_PAGES_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}\"; if [ \"$BRANCH\" = \"main\" ]; then npm run worker:deploy; else npm run worker:deploy:preview; fi && npm run build && wrangler pages deploy .svelte-kit/cloudflare --branch \"$BRANCH\"",
 		"worker:dev": "wrangler dev worker/src/index.ts --config worker/wrangler.toml",
 		"worker:deploy": "wrangler deploy worker/src/index.ts --config worker/wrangler.toml",
+		"worker:deploy:preview": "wrangler deploy worker/src/index.ts --config worker/wrangler.toml --env preview",
 		"db:migrate": "wrangler d1 migrations apply preferans-db --remote --config worker/wrangler.toml",
+		"db:migrate:preview": "wrangler d1 migrations apply preferans-db-preview --remote --config worker/wrangler.toml --env preview",
 		"db:migrate:local": "wrangler d1 migrations apply preferans-db --local --config worker/wrangler.toml"
 	},
 	"devDependencies": {
