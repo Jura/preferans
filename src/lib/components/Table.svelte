@@ -12,6 +12,7 @@
 		currentPlayerId?: string | null;
 		currentContract?: Contract | null;
 		declarerId?: string | null;
+		bulletTarget?: number | null;
 		bids?: { playerId: string; bid: Bid }[];
 		whistDeclarations?: { playerId: string; choice: WhistChoice }[];
 		phase?: string;
@@ -25,6 +26,7 @@
 		currentPlayerId = null,
 		currentContract = null,
 		declarerId = null,
+		bulletTarget = null,
 		bids = [],
 		whistDeclarations = [],
 		phase = ''
@@ -97,6 +99,15 @@
 </script>
 
 <div class="table" aria-label={$t('app.table.aria')}>
+	{#if bulletTarget !== null}
+		<div
+			class="bullet-target-indicator"
+			aria-label={`${$t('app.game.bulletTarget')}: ${bulletTarget}`}
+		>
+			<span class="bullet-target-value">{bulletTarget}</span>
+		</div>
+	{/if}
+
 	{#if trump}
 		<div class="trump-indicator" title={$t('app.game.trump')}>
 			<span
@@ -189,6 +200,29 @@
 		align-items: center;
 		justify-content: center;
 		margin: 0 auto;
+	}
+
+	.bullet-target-indicator {
+		position: absolute;
+		top: -18px;
+		left: 50%;
+		transform: translateX(-50%);
+		display: flex;
+		align-items: center;
+		padding: 6px 12px;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.7);
+		border: 1px solid rgba(200, 169, 110, 0.45);
+		color: #f0e6d3;
+		white-space: nowrap;
+		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+	}
+
+	.bullet-target-value {
+		font-size: 18px;
+		font-weight: 800;
+		color: #ffd700;
+		line-height: 1;
 	}
 
 	.center-contract-display {

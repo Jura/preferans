@@ -8,6 +8,7 @@ import {
 	parseBulletTarget
 } from '$lib/server/games';
 import { normalizeEmail } from '$lib/server/user-access';
+import { isTestLoginEnabled } from '$lib/utils/test-login';
 
 type PresenceStatus = 'online' | 'away' | 'offline';
 // Presence windows from issue #9: online <=10 minutes, away <=30 minutes, otherwise offline.
@@ -22,7 +23,7 @@ const AUTHORIZED_USERS_FILTER = `(
 	)
 )`;
 
-export const load: PageServerLoad = async ({ locals, platform }) => {
+export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	if (!platform?.env?.DB) {
 		// Dev fallback: return empty lobby
 		return {
@@ -54,6 +55,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 	if (locals.user) {
 		const shouldFilterToUserActiveGame = Boolean(activeGame && locals.user.role !== 'admin');
+		const showDummySessions = isTestLoginEnabled(url);
 		const visibleTablesFilter = getLobbyTablePhasesSql();
 		const visibleTablePhaseBindings = getLobbyTablePhaseBindings();
 		const gamesQuery = await platform.env.DB.prepare(
@@ -61,6 +63,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 			        strftime('%Y-%m-%dT%H:%M:%SZ', g.created_at) AS created_at,
 			        u.name AS host_name,
 			        g.bullet_target,
+			        COALESCE(g.host_id LIKE 'dummy_%', 0) AS is_dummy,
 			        COALESCE(g.is_pinned, 0) AS is_pinned,
 			        g.paused_until,
 			        COALESCE(COUNT(gp.player_id), 0) AS player_count
@@ -68,6 +71,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 			 JOIN users u ON u.id = g.host_id
 			 LEFT JOIN game_players gp ON gp.game_id = g.id
 			 WHERE g.phase IN (${visibleTablesFilter})
+			   ${showDummySessions ? '' : `AND g.host_id NOT LIKE 'dummy_%'`}
 			   ${shouldFilterToUserActiveGame ? 'AND g.id = ?' : ''}
 			 GROUP BY g.id
 			 ORDER BY g.created_at DESC
@@ -85,6 +89,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 				host_name: string;
 				player_count: number;
 				bullet_target: number;
+				is_dummy: number;
 				is_pinned: number;
 				paused_until: string | null;
 			}>();

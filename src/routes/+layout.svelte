@@ -6,6 +6,7 @@
 	import { lobby } from '$lib/stores/lobby';
 	import Toast from '$lib/components/Toast.svelte';
 	import { t } from '$lib/i18n';
+	import packageJson from '../../package.json';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
@@ -64,6 +65,8 @@
 		const first = Array.from(trimmed)[0];
 		return /\p{L}/u.test(first) ? first.toUpperCase() : '?';
 	}
+
+	const appVersion = packageJson.version;
 </script>
 
 <svelte:head>
@@ -146,7 +149,7 @@
 	</main>
 
 	<footer>
-		<p>{$t('app.footerTagline')}</p>
+		<p>{$t('app.footerTagline')} · v{appVersion}</p>
 	</footer>
 </div>
 

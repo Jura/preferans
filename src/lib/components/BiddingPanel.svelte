@@ -153,61 +153,65 @@
 
 	.level-btn,
 	.suit-btn {
-		width: 48px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 48px;
 		height: 48px;
-		border: 1px solid #c8a96e;
-		border-radius: 6px;
-		background: rgba(255, 255, 255, 0.05);
-		color: #f0e6d3;
-		font-size: 22px;
+		padding: 0 10px;
+		border: 1px solid rgba(200, 169, 110, 0.7);
+		border-radius: 10px;
+		background: rgba(255, 255, 255, 0.94);
+		color: #1a1a2e;
+		font-size: 20px;
+		font-weight: 700;
 		cursor: pointer;
 		transition:
 			background 0.15s,
-			border-color 0.15s;
+			border-color 0.15s,
+			box-shadow 0.15s,
+			transform 0.15s,
+			color 0.15s;
 	}
 
 	.level-btn.active,
 	.suit-btn.active {
-		background: rgba(200, 169, 110, 0.3);
+		background: #fff7d6;
 		border-color: #ffd700;
-		color: #ffd700;
+		box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.28);
+		transform: translateY(-1px);
 	}
 
 	.level-btn:disabled,
 	.suit-btn:disabled {
-		opacity: 0.3;
+		opacity: 0.4;
+		filter: grayscale(0.2);
+		background: rgba(255, 255, 255, 0.5);
 		cursor: not-allowed;
+	}
+
+	.level-btn {
+		font-variant-numeric: tabular-nums;
+	}
+
+	.suit-btn.black,
+	.suit-btn.red,
+	.suit-btn.nt {
+		background: rgba(255, 255, 255, 0.96);
 	}
 
 	.suit-btn.black {
 		color: #111;
-		background: rgba(255, 255, 255, 0.88);
-		border-color: rgba(200, 169, 110, 0.7);
-	}
-
-	.suit-btn.black:disabled {
-		background: rgba(255, 255, 255, 0.2);
-	}
-
-	.suit-btn.black.active {
-		background: rgba(255, 255, 255, 0.95);
-		color: #111;
-		border-color: #ffd700;
 	}
 
 	.suit-btn.red {
 		color: #e74c3c;
 	}
 
-	.suit-btn.red.active {
-		color: #ff6b6b;
-	}
-
 	.suit-btn.nt {
-		width: auto;
-		padding: 0 8px;
-		font-size: 12px;
-		color: #ffd700;
+		font-size: 14px;
+		color: #6c5200;
+		letter-spacing: 0.04em;
 	}
 
 	.bid-btn,
