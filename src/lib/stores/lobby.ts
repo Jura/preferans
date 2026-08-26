@@ -4,6 +4,7 @@ import { toasts } from '$lib/stores/toasts';
 import { get } from 'svelte/store';
 import { t } from '$lib/i18n';
 import { presence } from '$lib/stores/presence';
+import { isTestLoginHost } from '$lib/utils/test-login';
 
 const HEARTBEAT_INTERVAL_MS = 20_000;
 
@@ -27,6 +28,14 @@ function createLobbyStore() {
 
 	/** Track previous game player counts so we can detect join/leave in lobby */
 	let prevGameCounts: Map<string, number> = new Map();
+
+	function visibleGames(games: LobbyGame[]): LobbyGame[] {
+		if (typeof window === 'undefined' || isTestLoginHost(window.location.hostname)) {
+			return games;
+		}
+
+		return games.filter((game) => game.is_dummy !== 1);
+	}
 
 	function clearTimers() {
 		if (heartbeatTimer) {
@@ -94,12 +103,13 @@ function createLobbyStore() {
 		switch (msg.type) {
 			case 'lobby_state': {
 				const translate = get(t);
-				const newCounts = new Map<string, number>(msg.games.map((g) => [g.id, g.player_count]));
+				const games = visibleGames(msg.games);
+				const newCounts = new Map<string, number>(games.map((g) => [g.id, g.player_count]));
 
 				// Detect player join/leave in waiting games and show lobby toast
 				for (const [gameId, newCount] of newCounts) {
 					const prevCount = prevGameCounts.get(gameId);
-					const game = msg.games.find((g) => g.id === gameId);
+					const game = games.find((g) => g.id === gameId);
 					if (prevCount !== undefined && game && game.phase === 'waiting') {
 						if (newCount > prevCount) {
 							toasts.add({
@@ -120,7 +130,7 @@ function createLobbyStore() {
 				}
 
 				prevGameCounts = newCounts;
-				set({ games: msg.games, users: msg.users, connected: true });
+				set({ games, users: msg.users, connected: true });
 				break;
 			}
 			case 'game_event':

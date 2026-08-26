@@ -1,16 +1,11 @@
-const TEST_LOGIN_HOST_SUFFIX = 'preferans-6bq.pages.dev';
+import { TEST_LOGIN_HOST_SUFFIX, isTestLoginEnabled, isTestLoginHost } from '$lib/utils/test-login';
+
 const DUMMY_USER_ID_PREFIX = 'dummy_';
 const DUMMY_SESSION_TOKEN_PREFIX = 'dummy-session_';
 
 type Database = App.Platform['env']['DB'];
 
-export function isTestLoginHost(hostname: string): boolean {
-	return hostname === TEST_LOGIN_HOST_SUFFIX || hostname.endsWith(`.${TEST_LOGIN_HOST_SUFFIX}`);
-}
-
-export function isTestLoginEnabled(url: URL): boolean {
-	return isTestLoginHost(url.hostname);
-}
+export { TEST_LOGIN_HOST_SUFFIX, isTestLoginEnabled, isTestLoginHost };
 
 export function isTestLoginConfigured(env?: App.Platform['env']): boolean {
 	return Boolean(env?.TEST_LOGIN_SECRET);

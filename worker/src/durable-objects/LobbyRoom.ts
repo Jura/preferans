@@ -37,6 +37,7 @@ interface LobbyGame {
 	host_name: string;
 	player_count: number;
 	bullet_target: number;
+	is_dummy: number;
 	is_pinned: number;
 	paused_until: string | null;
 }
@@ -237,6 +238,7 @@ export class LobbyRoom implements DurableObject {
 				        strftime('%Y-%m-%dT%H:%M:%SZ', g.created_at) AS created_at,
 				        u.name AS host_name,
 				        g.bullet_target,
+				        COALESCE(g.host_id LIKE 'dummy_%', 0) AS is_dummy,
 				        COALESCE(g.is_pinned, 0) AS is_pinned,
 				        g.paused_until,
 				        COALESCE(COUNT(gp.player_id), 0) AS player_count

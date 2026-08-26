@@ -61,7 +61,7 @@
 		flex-wrap: nowrap;
 		gap: -8px;
 		justify-content: center;
-		padding: 8px 0;
+		padding: 18px 0 8px;
 		overflow-x: auto;
 		-webkit-overflow-scrolling: touch;
 	}

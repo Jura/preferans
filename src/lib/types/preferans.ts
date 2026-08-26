@@ -296,6 +296,7 @@ export type LobbyGame = {
 	host_name: string;
 	player_count: number;
 	bullet_target: number;
+	is_dummy: number;
 	is_pinned: number;
 	paused_until: string | null;
 };

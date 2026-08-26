@@ -34,6 +34,7 @@
 
 	/** Delay (ms) before redirecting to lobby after an approved early-finish vote. */
 	const REDIRECT_DELAY_MS = 3000;
+	const TITLE_BLINK_INTERVAL_MS = 1000;
 
 	const SUIT_SYMBOLS: Record<string, string> = {
 		spades: '♠',
@@ -394,6 +395,70 @@
 	function confirmTrick() {
 		game.send({ type: 'confirm_trick' });
 	}
+
+	function attentionTitle(): string | null {
+		if (!data.isPlayer) return null;
+
+		if ($gamePhase === 'waiting' && ($game.state?.players.length ?? 0) < 3) {
+			return $t('app.game.waitingPlayers', { count: $game.state?.players.length ?? 0 });
+		}
+
+		if (hasPendingVote && !isProposalProposer) {
+			if (finishProposal) return $t('app.game.finishEarlyModalTitle');
+			if (pauseProposal) return $t('app.game.pauseModalTitle');
+			if (agreementProposal) return $t('app.game.agreementModalTitle');
+		}
+
+		if ($gamePhase === 'widow' && isDeclarer) {
+			return widowTakenByDeclarer ? $t('app.game.widowTitle') : $t('app.game.takeWidow');
+		}
+
+		if (lightDecisionPending === myPlayerId) {
+			return $t('app.game.lightChoiceTitle');
+		}
+
+		if ($gamePhase === 'bidding' && isMyTurn) {
+			return $t('app.bidding.title');
+		}
+
+		if (pendingTrick && (isMyTrickToConfirm || isDeclarerTrickToConfirm)) {
+			return $t('app.game.confirmTrick');
+		}
+
+		if ($gamePhase === 'scoring' && $game.state?.roundSummary) {
+			return $t('app.game.nextRound');
+		}
+
+		if (canControlDeclarerHand || (isMyTurn && $gamePhase === 'playing')) {
+			return $t('app.game.yourTurn');
+		}
+
+		return null;
+	}
+
+	$effect(() => {
+		if (typeof document === 'undefined') return;
+
+		const baseTitle = $t('app.game.title');
+		const promptTitle = attentionTitle();
+		document.title = baseTitle;
+
+		if (!promptTitle) {
+			return;
+		}
+
+		let showPrompt = false;
+		document.title = `${promptTitle} — Preferans`;
+		const interval = window.setInterval(() => {
+			showPrompt = !showPrompt;
+			document.title = showPrompt ? `${promptTitle} — Preferans` : baseTitle;
+		}, TITLE_BLINK_INTERVAL_MS);
+
+		return () => {
+			window.clearInterval(interval);
+			document.title = baseTitle;
+		};
+	});
 </script>
 
 <svelte:head>
@@ -749,6 +814,7 @@
 						currentPlayerId={$game.state.currentPlayerId}
 						{currentContract}
 						declarerId={$game.state.declarerId}
+						bulletTarget={$game.state.bulletTarget}
 						bids={$game.state.bids}
 						whistDeclarations={$game.state.whistDeclarations}
 						phase={$gamePhase}
@@ -1436,20 +1502,32 @@
 	}
 
 	.mini-btn {
-		min-width: 32px;
-		height: 32px;
-		border: 1px solid #c8a96e;
-		border-radius: 6px;
-		background: rgba(255, 255, 255, 0.05);
-		color: #f0e6d3;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 40px;
+		height: 40px;
+		padding: 0 10px;
+		border: 1px solid rgba(200, 169, 110, 0.7);
+		border-radius: 10px;
+		background: rgba(255, 255, 255, 0.94);
+		color: #1a1a2e;
 		font-size: 14px;
+		font-weight: 700;
 		cursor: pointer;
+		transition:
+			background 0.15s,
+			border-color 0.15s,
+			box-shadow 0.15s,
+			transform 0.15s,
+			color 0.15s;
 	}
 
 	.mini-btn.active {
-		background: rgba(200, 169, 110, 0.3);
+		background: #fff7d6;
 		border-color: #ffd700;
-		color: #ffd700;
+		box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.28);
+		transform: translateY(-1px);
 	}
 
 	.mini-btn.red {
@@ -1766,11 +1844,11 @@
 
 	.mini-btn.black {
 		color: #111;
-		background: rgba(255, 255, 255, 0.92);
 	}
 
 	.mini-btn.nt {
-		color: #ffd700;
+		color: #6c5200;
+		letter-spacing: 0.04em;
 	}
 
 	.modal-actions {
