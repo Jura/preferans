@@ -142,8 +142,8 @@ Note: migration commands are intentionally bound to `worker/wrangler.toml`.
 
 ### Test-only dummy sign-in
 
-- Set `TEST_LOGIN_SECRET` only for secured Pages test deployments under `*.preferans-6bq.pages.dev`.
-- The login page will then offer three fixed dummy players protected by that shared code.
+- The login page exposes the dummy sign-in section on Pages preview deployments under `*.preferans-6bq.pages.dev`.
+- Set `TEST_LOGIN_SECRET` on those secured test deployments to enable the three fixed dummy players.
 - Dummy sign-in is disabled on the production domain `pref.khrapunov.com`.
 
 ## Preferans Rules (Game Summary)

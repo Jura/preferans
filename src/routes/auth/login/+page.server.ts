@@ -4,7 +4,12 @@ import { DEFAULT_LOCALE, isSupportedLocale } from '$lib/i18n/locales';
 import en from '$lib/i18n/translations/en.json';
 import ru from '$lib/i18n/translations/ru.json';
 import uk from '$lib/i18n/translations/uk.json';
-import { DUMMY_ACCOUNTS, getDummyAccount, isTestLoginEnabled } from '$lib/server/test-login';
+import {
+	DUMMY_ACCOUNTS,
+	getDummyAccount,
+	isTestLoginConfigured,
+	isTestLoginEnabled
+} from '$lib/server/test-login';
 
 const SESSION_COOKIE = 'pref_session';
 const LOCALE_COOKIE = 'pref_locale';
@@ -35,29 +40,30 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		redirect(303, '/');
 	}
 
-	const dummyLoginEnabled = isTestLoginEnabled(url, platform?.env);
+	const dummyLoginEnabled = isTestLoginEnabled(url);
 
 	return {
 		dummyAccounts: dummyLoginEnabled ? DUMMY_ACCOUNTS.map(({ id, name }) => ({ id, name })) : [],
+		dummyLoginConfigured: isTestLoginConfigured(platform?.env),
 		dummyLoginEnabled
 	};
 };
 
 export const actions: Actions = {
 	dummyLogin: async ({ cookies, platform, request, url }) => {
-		if (!isTestLoginEnabled(url, platform?.env)) {
+		if (!isTestLoginEnabled(url)) {
 			error(404, 'Not found');
 		}
 
-		if (!platform?.env?.DB || !platform.env.TEST_LOGIN_SECRET) {
-			error(500, 'Server configuration error');
-		}
-
-		const formData = await request.formData();
 		const localeCookie = cookies.get(LOCALE_COOKIE);
 		const preferredLocale = isSupportedLocale(localeCookie) ? localeCookie : DEFAULT_LOCALE;
 		const messages = LOGIN_MESSAGES[preferredLocale];
 
+		if (!platform?.env?.DB || !platform.env.TEST_LOGIN_SECRET) {
+			return fail(503, { dummyLoginError: messages.dummy.unavailable });
+		}
+
+		const formData = await request.formData();
 		const accessCode = formData.get('accessCode');
 		const providedAccessCode = typeof accessCode === 'string' ? accessCode : '';
 		if (!timingSafeEquals(providedAccessCode, platform.env.TEST_LOGIN_SECRET)) {

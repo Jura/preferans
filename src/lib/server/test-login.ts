@@ -22,8 +22,12 @@ export function isTestLoginHost(hostname: string): boolean {
 	return hostname === TEST_LOGIN_HOST_SUFFIX || hostname.endsWith(`.${TEST_LOGIN_HOST_SUFFIX}`);
 }
 
-export function isTestLoginEnabled(url: URL, env?: App.Platform['env']): boolean {
-	return Boolean(env?.TEST_LOGIN_SECRET) && isTestLoginHost(url.hostname);
+export function isTestLoginEnabled(url: URL): boolean {
+	return isTestLoginHost(url.hostname);
+}
+
+export function isTestLoginConfigured(env?: App.Platform['env']): boolean {
+	return Boolean(env?.TEST_LOGIN_SECRET);
 }
 
 export function getDummyAccount(dummyId: string) {

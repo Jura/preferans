@@ -50,13 +50,20 @@
 					name="accessCode"
 					type="password"
 					required
+					disabled={!data.dummyLoginConfigured}
 					autocomplete="current-password"
 					placeholder={$t('app.login.dummy.codePlaceholder')}
 				/>
 
 				<div class="dummy-buttons">
 					{#each data.dummyAccounts as account}
-						<button type="submit" class="btn-dummy" name="dummyId" value={account.id}>
+						<button
+							type="submit"
+							class="btn-dummy"
+							name="dummyId"
+							value={account.id}
+							disabled={!data.dummyLoginConfigured}
+						>
 							{$t('app.login.dummy.signInAs', { values: { name: account.name } })}
 						</button>
 					{/each}
@@ -67,7 +74,9 @@
 				<p class="dummy-error">{form.dummyLoginError}</p>
 			{/if}
 
-			<p class="dummy-note">{$t('app.login.dummy.note')}</p>
+			<p class="dummy-note">
+				{data.dummyLoginConfigured ? $t('app.login.dummy.note') : $t('app.login.dummy.unavailable')}
+			</p>
 		{/if}
 	</div>
 </div>
@@ -199,6 +208,12 @@
 
 	.btn-dummy:hover {
 		background: rgba(255, 255, 255, 0.14);
+	}
+
+	.btn-dummy:disabled,
+	.dummy-form input:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	.dummy-error {
