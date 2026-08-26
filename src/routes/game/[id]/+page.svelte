@@ -1085,6 +1085,9 @@
 	{#if showScoreModal && $game.state}
 		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="score-modal-title">
 			<div class="modal-card modal-card-wide">
+				<h2 id="score-modal-title" class="modal-title">
+					{$t('app.game.scoreButton')}
+				</h2>
 				<Scoreboard
 					pool={$game.state.pool}
 					mountain={$game.state.mountain}
