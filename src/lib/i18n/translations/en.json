@@ -103,7 +103,16 @@
 			"heading": "🃏 Sign in",
 			"subtitle": "This is a private game — access is by invitation only.",
 			"inviteNote": "Only approved accounts can sign in.",
-			"google": "Sign in with Google"
+			"google": "Sign in with Google",
+			"dummy": {
+				"or": "Test access",
+				"codeLabel": "Dummy access code",
+				"codePlaceholder": "Enter shared test code",
+				"signInAs": "Sign in as {{name}}",
+				"note": "Dummy sign-in is available only on secured test deployments and is disabled on production.",
+				"invalidCode": "The dummy access code is invalid.",
+				"invalidPlayer": "Select one of the available dummy players."
+			}
 		},
 		"denied": {
 			"title": "Access Denied — Preferans",

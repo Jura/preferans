@@ -1,5 +1,9 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { t } from '$lib/i18n';
+	import type { ActionData, PageData } from './$types';
+
+	let { data, form }: { data: PageData; form: ActionData | null } = $props();
 </script>
 
 <svelte:head>
@@ -33,6 +37,38 @@
 			</svg>
 			{$t('app.login.google')}
 		</a>
+
+		{#if data.dummyLoginEnabled}
+			<div class="divider">
+				<span>{$t('app.login.dummy.or')}</span>
+			</div>
+
+			<form method="POST" action="?/dummyLogin" use:enhance class="dummy-form">
+				<label class="dummy-label" for="dummy-access-code">{$t('app.login.dummy.codeLabel')}</label>
+				<input
+					id="dummy-access-code"
+					name="accessCode"
+					type="password"
+					required
+					autocomplete="current-password"
+					placeholder={$t('app.login.dummy.codePlaceholder')}
+				/>
+
+				<div class="dummy-buttons">
+					{#each data.dummyAccounts as account}
+						<button type="submit" class="btn-dummy" name="dummyId" value={account.id}>
+							{$t('app.login.dummy.signInAs', { values: { name: account.name } })}
+						</button>
+					{/each}
+				</div>
+			</form>
+
+			{#if form?.dummyLoginError}
+				<p class="dummy-error">{form.dummyLoginError}</p>
+			{/if}
+
+			<p class="dummy-note">{$t('app.login.dummy.note')}</p>
+		{/if}
 	</div>
 </div>
 
@@ -96,5 +132,82 @@
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 		transform: translateY(-1px);
 		text-decoration: none;
+	}
+
+	.divider {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin: 24px 0 16px;
+		color: #a09060;
+		font-size: 12px;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.divider::before,
+	.divider::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: rgba(200, 169, 110, 0.2);
+	}
+
+	.dummy-form {
+		display: grid;
+		gap: 12px;
+		text-align: left;
+	}
+
+	.dummy-label,
+	.dummy-note,
+	.dummy-error {
+		font-size: 13px;
+	}
+
+	.dummy-label {
+		color: #c0b090;
+	}
+
+	input {
+		width: 100%;
+		box-sizing: border-box;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(200, 169, 110, 0.35);
+		border-radius: 8px;
+		color: #f0e6d3;
+		padding: 10px 12px;
+		font: inherit;
+	}
+
+	.dummy-buttons {
+		display: grid;
+		gap: 10px;
+	}
+
+	.btn-dummy {
+		border: 1px solid rgba(200, 169, 110, 0.45);
+		background: rgba(255, 255, 255, 0.08);
+		color: #f0e6d3;
+		padding: 10px 14px;
+		border-radius: 8px;
+		font: inherit;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background 0.15s;
+	}
+
+	.btn-dummy:hover {
+		background: rgba(255, 255, 255, 0.14);
+	}
+
+	.dummy-error {
+		color: #ffb3b3;
+		margin: 12px 0 0;
+	}
+
+	.dummy-note {
+		color: #a09060;
+		margin: 12px 0 0;
 	}
 </style>
