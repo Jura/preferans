@@ -64,3 +64,12 @@ When making code changes, run relevant checks:
 - Do not commit secrets or sample real credentials.
 - Do not move business logic into UI components.
 - Do not rewrite large sections when a targeted fix is enough.
+
+## Versioning
+- Follow semantic versioning for the project: `MAJOR.MINOR.PATCH`.
+- Increment the:
+  - MAJOR version when you make incompatible API changes,
+  - MINOR version when you add functionality in a backwards-compatible manner, and
+  - PATCH version when you make backwards-compatible bug fixes.
+
+- Update the version in `package.json` accordingly with each release.
