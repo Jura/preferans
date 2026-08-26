@@ -68,15 +68,21 @@ SESSION_SECRET=a_random_secret_at_least_32_chars
 TEST_LOGIN_SECRET=shared_code_for_dummy_test_logins
 ```
 
-### 3. Create D1 database
+### 3. Create D1 databases (production + preview)
 
 ```bash
-# Create database
+# Create production database
 npx wrangler d1 create preferans-db
 
-# Copy the returned database_id into:
-# - wrangler.toml (root)
-# - worker/wrangler.toml (only needed for worker:dev / worker:deploy flows)
+# Create preview database (used for non-main branches)
+npx wrangler d1 create preferans-db-preview
+
+# Copy database IDs into both files:
+# - wrangler.toml
+# - worker/wrangler.toml
+#
+# Replace REPLACE_WITH_PREFERANS_DB_PREVIEW_ID with
+# the preview database_id from the command output.
 ```
 
 ### 4. Apply migrations
@@ -116,6 +122,11 @@ If your real Pages project name is not `preferans`, update `name` in `wrangler.t
 npm run pages:deploy
 ```
 
+`npm run pages:deploy` is branch-aware:
+
+- `main` branch deploys production worker + production Pages deployment.
+- Any other branch deploys preview worker (`preferans-preview`) + preview Pages deployment.
+
 Alternative: connect the Git repository in Cloudflare Pages with:
 
 - Build command: `npm run build`
@@ -130,15 +141,38 @@ npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name <your-pages-projec
 npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name <your-pages-project-name>
 npx wrangler pages secret put SESSION_SECRET --project-name <your-pages-project-name>
 npx wrangler pages secret put TEST_LOGIN_SECRET --project-name <your-pages-project-name>
+
+# Preview environment secrets (non-main branches)
+npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name <your-pages-project-name> --env preview
+npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name <your-pages-project-name> --env preview
+npx wrangler pages secret put SESSION_SECRET --project-name <your-pages-project-name> --env preview
+npx wrangler pages secret put TEST_LOGIN_SECRET --project-name <your-pages-project-name> --env preview
 ```
 
-### 3. Run production migrations
+### 3. Run migrations
 
 ```bash
+# Production (main)
 npm run db:migrate
+
+# Preview (non-main)
+npm run db:migrate:preview
 ```
 
 Note: migration commands are intentionally bound to `worker/wrangler.toml`.
+
+### Upgrade existing installations
+
+If you already have a single-environment setup:
+
+1. Create the preview D1 database:
+   ```bash
+   npx wrangler d1 create preferans-db-preview
+   ```
+2. Set `database_id` for `env.preview` in both `wrangler.toml` files.
+3. Add preview secrets with `wrangler pages secret put ... --env preview`.
+4. Deploy once from a non-`main` branch (`npm run pages:deploy`) to create the preview Durable Object layer.
+5. Apply preview migrations (`npm run db:migrate:preview`).
 
 ### Test-only dummy sign-in
 
@@ -180,5 +214,6 @@ npm run check        # TypeScript + Svelte checks
 npm run lint         # ESLint + Prettier checks
 npm run format       # Format code
 npm run db:migrate   # Apply D1 migrations to remote DB
+npm run db:migrate:preview  # Apply D1 migrations to preview remote DB
 npm run db:migrate:local  # Apply D1 migrations to local DB
 ```
