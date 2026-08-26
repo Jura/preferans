@@ -100,8 +100,10 @@
 
 <div class="table" aria-label={$t('app.table.aria')}>
 	{#if bulletTarget !== null}
-		<div class="bullet-target-indicator" aria-label={$t('app.game.bulletTarget')}>
-			<span class="bullet-target-label">{$t('app.game.bulletTarget')}</span>
+		<div
+			class="bullet-target-indicator"
+			aria-label={`${$t('app.game.bulletTarget')}: ${bulletTarget}`}
+		>
 			<span class="bullet-target-value">{bulletTarget}</span>
 		</div>
 	{/if}
@@ -207,7 +209,6 @@
 		transform: translateX(-50%);
 		display: flex;
 		align-items: center;
-		gap: 8px;
 		padding: 6px 12px;
 		border-radius: 999px;
 		background: rgba(0, 0, 0, 0.7);
@@ -215,13 +216,6 @@
 		color: #f0e6d3;
 		white-space: nowrap;
 		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-	}
-
-	.bullet-target-label {
-		font-size: 12px;
-		color: #c0b090;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
 	}
 
 	.bullet-target-value {
