@@ -55,19 +55,9 @@
 					placeholder={$t('app.login.dummy.codePlaceholder')}
 				/>
 
-				<div class="dummy-buttons">
-					{#each data.dummyAccounts as account}
-						<button
-							type="submit"
-							class="btn-dummy"
-							name="dummyId"
-							value={account.id}
-							disabled={!data.dummyLoginConfigured}
-						>
-							{$t('app.login.dummy.signInAs', { values: { name: account.name } })}
-						</button>
-					{/each}
-				</div>
+				<button type="submit" class="btn-dummy" disabled={!data.dummyLoginConfigured}>
+					{$t('app.login.dummy.signIn')}
+				</button>
 			</form>
 
 			{#if form?.dummyLoginError}
@@ -189,12 +179,8 @@
 		font: inherit;
 	}
 
-	.dummy-buttons {
-		display: grid;
-		gap: 10px;
-	}
-
 	.btn-dummy {
+		width: 100%;
 		border: 1px solid rgba(200, 169, 110, 0.45);
 		background: rgba(255, 255, 255, 0.08);
 		color: #f0e6d3;

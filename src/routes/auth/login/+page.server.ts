@@ -5,8 +5,8 @@ import en from '$lib/i18n/translations/en.json';
 import ru from '$lib/i18n/translations/ru.json';
 import uk from '$lib/i18n/translations/uk.json';
 import {
-	DUMMY_ACCOUNTS,
-	getDummyAccount,
+	createDummyIdentity,
+	createDummySessionToken,
 	isTestLoginConfigured,
 	isTestLoginEnabled
 } from '$lib/server/test-login';
@@ -43,7 +43,6 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const dummyLoginEnabled = isTestLoginEnabled(url);
 
 	return {
-		dummyAccounts: dummyLoginEnabled ? DUMMY_ACCOUNTS.map(({ id, name }) => ({ id, name })) : [],
 		dummyLoginConfigured: isTestLoginConfigured(platform?.env),
 		dummyLoginEnabled
 	};
@@ -70,19 +69,10 @@ export const actions: Actions = {
 			return fail(403, { dummyLoginError: messages.dummy.invalidCode });
 		}
 
-		const dummyId = formData.get('dummyId');
-		if (typeof dummyId !== 'string') {
-			return fail(400, { dummyLoginError: messages.dummy.invalidPlayer });
-		}
-
-		const dummyAccount = getDummyAccount(dummyId);
-		if (!dummyAccount) {
-			return fail(400, { dummyLoginError: messages.dummy.invalidPlayer });
-		}
-
 		const existingSessionToken = cookies.get(SESSION_COOKIE);
-		const sessionToken = crypto.randomUUID();
+		const sessionToken = createDummySessionToken();
 		const expiresAt = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
+		const dummyIdentity = await createDummyIdentity(platform.env.DB);
 		const statements = [];
 
 		if (existingSessionToken) {
@@ -93,22 +83,16 @@ export const actions: Actions = {
 
 		statements.push(
 			platform.env.DB.prepare(
-				`INSERT INTO user_allowlist (email, created_at)
-				 VALUES (?, datetime('now'))
-				 ON CONFLICT(email) DO NOTHING`
-			).bind(dummyAccount.email),
-			platform.env.DB.prepare(
 				`INSERT INTO users (id, name, email, avatar_url, preferred_locale, created_at)
 				 VALUES (?, ?, ?, NULL, ?, datetime('now'))
 				 ON CONFLICT(id) DO UPDATE SET
 				   name = excluded.name,
 				   email = excluded.email,
 				   preferred_locale = excluded.preferred_locale`
-			).bind(dummyAccount.id, dummyAccount.name, dummyAccount.email, preferredLocale),
-			platform.env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(dummyAccount.id),
+			).bind(dummyIdentity.id, dummyIdentity.name, dummyIdentity.email, preferredLocale),
 			platform.env.DB.prepare(
 				`INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`
-			).bind(sessionToken, dummyAccount.id, expiresAt.toISOString().replace('T', ' ').slice(0, 19))
+			).bind(sessionToken, dummyIdentity.id, expiresAt.toISOString().replace('T', ' ').slice(0, 19))
 		);
 
 		await platform.env.DB.batch(statements);

@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { cleanupInactiveDummyUsers, isDummyUserId } from '$lib/server/test-login';
 import type { RequestHandler } from './$types';
 
 const SESSION_COOKIE = 'pref_session';
@@ -30,6 +31,10 @@ export const POST: RequestHandler = async ({ cookies, platform }) => {
 				} catch {
 					// Notification failed – lobby clients will see the update on the next poll interval
 				}
+			}
+
+			if (isDummyUserId(session.user_id)) {
+				await cleanupInactiveDummyUsers(platform.env.DB);
 			}
 		}
 	}

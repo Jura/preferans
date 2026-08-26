@@ -108,11 +108,10 @@
 				"or": "Test access",
 				"codeLabel": "Dummy access code",
 				"codePlaceholder": "Enter shared test code",
-				"signInAs": "Sign in as {{name}}",
-				"note": "Dummy sign-in is available only on secured test deployments and is disabled on production.",
+				"signIn": "Start dummy session",
+				"note": "Each dummy sign-in creates the next numbered temporary player for this preview deployment.",
 				"unavailable": "Dummy sign-in is visible on preview deployments, but this deployment is missing TEST_LOGIN_SECRET.",
-				"invalidCode": "The dummy access code is invalid.",
-				"invalidPlayer": "Select one of the available dummy players."
+				"invalidCode": "The dummy access code is invalid."
 			}
 		},
 		"denied": {

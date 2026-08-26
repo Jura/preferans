@@ -1,5 +1,11 @@
 import { type Handle } from '@sveltejs/kit';
 import { DEFAULT_LOCALE, isSupportedLocale } from '$lib/i18n/locales';
+import {
+	cleanupInactiveDummyUsers,
+	isDummySessionToken,
+	isDummyUserId,
+	isTestLoginEnabled
+} from '$lib/server/test-login';
 import { getUserRole } from '$lib/server/user-access';
 
 const SESSION_COOKIE = 'pref_session';
@@ -40,10 +46,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 			if (result) {
 				const role = getUserRole(result.email, event.platform.env.ADMIN_EMAIL);
-				if (role !== 'admin' && !result.is_allowed) {
+				const isDummyUser = isDummyUserId(result.id);
+				if (
+					(isDummyUser && !isTestLoginEnabled(event.url)) ||
+					(role !== 'admin' && !isDummyUser && !result.is_allowed)
+				) {
 					await event.platform.env.DB.prepare(`DELETE FROM sessions WHERE token = ?`)
 						.bind(sessionToken)
 						.run();
+					if (isDummyUser) {
+						await cleanupInactiveDummyUsers(event.platform.env.DB);
+					}
 					event.cookies.delete(SESSION_COOKIE, { path: '/' });
 					event.locals.user = null;
 					return resolve(event);
@@ -86,6 +99,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 				}
 			} else {
 				// Expired or invalid session - clear cookie
+				if (isDummySessionToken(sessionToken)) {
+					const expiredSession = await event.platform.env.DB.prepare(
+						`SELECT user_id FROM sessions WHERE token = ?`
+					)
+						.bind(sessionToken)
+						.first<{ user_id: string }>();
+					if (expiredSession?.user_id && isDummyUserId(expiredSession.user_id)) {
+						await cleanupInactiveDummyUsers(event.platform.env.DB);
+					}
+				}
 				event.cookies.delete(SESSION_COOKIE, { path: '/' });
 				event.locals.user = null;
 			}
