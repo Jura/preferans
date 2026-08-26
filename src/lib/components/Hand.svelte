@@ -7,6 +7,7 @@
 		cards: Card[];
 		playable?: boolean;
 		selectedCard?: Card | null;
+		selectedCards?: Card[];
 		eligibleCards?: Card[] | null;
 		onPlayCard?: (card: Card) => void;
 		label?: string;
@@ -16,13 +17,15 @@
 		cards,
 		playable = false,
 		selectedCard = null,
+		selectedCards = [],
 		eligibleCards = null,
 		onPlayCard,
 		label
 	}: Props = $props();
 
 	function isSelected(card: Card): boolean {
-		return selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;
+		if (selectedCard?.suit === card.suit && selectedCard?.rank === card.rank) return true;
+		return selectedCards.some((c) => c.suit === card.suit && c.rank === card.rank);
 	}
 
 	function isEligible(card: Card): boolean {

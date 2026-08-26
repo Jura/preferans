@@ -27,8 +27,6 @@
 
 	let selectedCard: Card | null = $state(null);
 	let selectedOpenHandCard: Card | null = $state(null);
-	let tableAgeSeconds = $state(0);
-	let tableTimer: ReturnType<typeof setInterval> | null = null;
 	/** Track whether a finishProposal was active so we can redirect on approval. */
 	let hadFinishProposal = $state(false);
 	/** Show the lobby-redirect countdown message after approved finish. */
@@ -54,32 +52,11 @@
 		return `${contract.level} ${suitSymbol(contract.suit)}`;
 	}
 
-	function updateTableAge() {
-		const createdAt = Date.parse(data.createdAt);
-		const hasValidCreatedAt = !Number.isNaN(createdAt) && createdAt > 0 && createdAt <= Date.now();
-		tableAgeSeconds = hasValidCreatedAt
-			? Math.max(0, Math.floor((Date.now() - createdAt) / 1000))
-			: 0;
-	}
-
-	function formatElapsed(seconds: number) {
-		const hours = Math.floor(seconds / 3600);
-		const minutes = Math.floor((seconds % 3600) / 60);
-		const secs = seconds % 60;
-
-		return [hours, minutes, secs].map((value) => value.toString().padStart(2, '0')).join(':');
-	}
-
 	onMount(() => {
 		game.connect(data.gameId, data.sessionToken);
-		updateTableAge();
-		tableTimer = setInterval(updateTableAge, 1000);
 	});
 
 	onDestroy(() => {
-		if (tableTimer) {
-			clearInterval(tableTimer);
-		}
 		game.disconnect();
 	});
 
@@ -115,6 +92,10 @@
 	let showAgreementForm = $state(false);
 	let agreementTermSelected = $state<AgreementTerm>('fulfill');
 	let agreementTricksInput = $state(6);
+	/** Scoreboard modal */
+	let showScoreModal = $state(false);
+	/** Game End dropdown menu */
+	let showGameEndMenu = $state(false);
 	/** Open-hand control (whister controls declarer's open hand) */
 	let canControlDeclarerHand = $derived(
 		$gamePhase === 'playing' &&
@@ -420,122 +401,165 @@
 </svelte:head>
 
 <div class="game-page">
-	<!-- Status bar -->
-	<div class="status-bar">
-		<span class="connection-status">{$t(`app.game.status.${$game.status}`)}</span>
-		<span class="table-stat">{$t('app.game.tableAge')}: {formatElapsed(tableAgeSeconds)}</span>
-		<span class="table-stat">{$t('app.game.bulletTarget')}: {data.bulletTarget}</span>
-		{#if $game.state}
-			<span class="phase-label">{$t(`app.phase.${$gamePhase}`)}</span>
-			{#if $game.state.trump}
-				<span class="trump-label suit-symbol {`suit-${$game.state.trump}`}">
-					{$t('app.game.trump')}: {$game.state.trump === 'spades'
-						? '♠'
-						: $game.state.trump === 'clubs'
-							? '♣'
-							: $game.state.trump === 'diamonds'
-								? '♦'
-								: '♥'}
-				</span>
+	<!-- Toolbar: combined status + action buttons -->
+	<div class="toolbar">
+		<div class="toolbar-left">
+			<span class="connection-status">{$t(`app.game.status.${$game.status}`)}</span>
+			{#if $game.state}
+				<span class="phase-label">{$t(`app.phase.${$gamePhase}`)}</span>
+				{#if $game.state.trump}
+					<span class="trump-label suit-symbol {`suit-${$game.state.trump}`}">
+						{$game.state.trump === 'spades'
+							? '♠'
+							: $game.state.trump === 'clubs'
+								? '♣'
+								: $game.state.trump === 'diamonds'
+									? '♦'
+									: '♥'}
+					</span>
+				{/if}
 			{/if}
-		{/if}
-		{#if $game.error}
-			<span class="error-msg" role="alert">{$game.error}</span>
-		{/if}
-	</div>
-
-	{#if $game.state && $gamePhase !== 'waiting' && $gamePhase !== 'finished'}
-		<div class="governance-actions">
-			<button
-				type="button"
-				class="governance-btn"
-				onclick={proposeFinishEarly}
-				disabled={Boolean(activeProposal)}
-				aria-disabled={Boolean(activeProposal)}
-			>
-				{$t('app.game.suggestFinishEarly')}
-			</button>
-			{#if canProposeAgreement}
-				<button
-					type="button"
-					class="governance-btn"
-					onclick={() => (showAgreementForm = !showAgreementForm)}
-					disabled={Boolean(activeProposal)}
-					aria-disabled={Boolean(activeProposal)}
-				>
-					{$t('app.game.suggestEndByAgreement')}
-				</button>
-			{/if}
-			{#if $gamePhase !== 'paused'}
-				<button
-					type="button"
-					class="governance-btn"
-					onclick={() => proposePause(60)}
-					disabled={Boolean(activeProposal)}
-					aria-disabled={Boolean(activeProposal)}
-				>
-					{$t('app.game.suggestPauseHour')}
-				</button>
-				<button
-					type="button"
-					class="governance-btn"
-					onclick={() => proposePause(null)}
-					disabled={Boolean(activeProposal)}
-					aria-disabled={Boolean(activeProposal)}
-				>
-					{$t('app.game.suggestPauseIndefinite')}
-				</button>
+			{#if $game.error}
+				<span class="error-msg" role="alert">{$game.error}</span>
 			{/if}
 		</div>
-		{#if showAgreementForm && canProposeAgreement && !activeProposal}
-			<div class="agreement-form">
-				<p class="agreement-form-label">{$t('app.game.agreementLabel')}</p>
-				<label class="agreement-radio">
-					<input
-						type="radio"
-						name="agreement-term"
-						value="fulfill"
-						bind:group={agreementTermSelected}
-					/>
-					{$t('app.game.agreementTermFulfill')}
-				</label>
-				<label class="agreement-radio">
-					<input
-						type="radio"
-						name="agreement-term"
-						value="rest_are_mine"
-						bind:group={agreementTermSelected}
-					/>
-					{$t('app.game.agreementTermRestAreMine')}
-				</label>
-				<label class="agreement-radio">
-					<input
-						type="radio"
-						name="agreement-term"
-						value={agreementTricksInput}
-						bind:group={agreementTermSelected}
-					/>
-					<input
-						type="number"
-						min="0"
-						max="10"
-						class="tricks-input"
-						bind:value={agreementTricksInput}
-						onclick={() => (agreementTermSelected = agreementTricksInput)}
-						oninput={() => (agreementTermSelected = agreementTricksInput)}
-					/>
-					{$t('app.game.agreementTermTricks', { count: agreementTricksInput })}
-				</label>
-				<div class="agreement-form-actions">
-					<button type="button" class="vote-btn yes" onclick={proposeEndByAgreement}>
-						{$t('app.game.voteYes')}
-					</button>
-					<button type="button" class="vote-btn no" onclick={() => (showAgreementForm = false)}>
-						{$t('app.game.voteNo')}
-					</button>
-				</div>
+		<div class="toolbar-right">
+			{#if $game.state}
+				<button
+					type="button"
+					class="toolbar-btn"
+					onclick={() => (showScoreModal = true)}
+					aria-label={$t('app.game.scoreButton')}
+				>
+					📊 {$t('app.game.scoreButton')}
+				</button>
+				{#if $gamePhase !== 'waiting' && $gamePhase !== 'finished'}
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						class="toolbar-menu-wrapper"
+						onfocusout={(e) => {
+							if (!e.currentTarget.contains(e.relatedTarget as Node)) showGameEndMenu = false;
+						}}
+					>
+						<button
+							type="button"
+							class="toolbar-btn toolbar-btn-end"
+							onclick={() => (showGameEndMenu = !showGameEndMenu)}
+							aria-expanded={showGameEndMenu}
+							aria-haspopup="menu"
+						>
+							{$t('app.game.gameEndButton')} ▾
+						</button>
+						{#if showGameEndMenu}
+							<div class="toolbar-menu" role="menu">
+								<button
+									type="button"
+									class="toolbar-menu-item"
+									onclick={() => {
+										proposeFinishEarly();
+										showGameEndMenu = false;
+									}}
+									disabled={Boolean(activeProposal)}
+									role="menuitem"
+								>
+									{$t('app.game.suggestFinishEarly')}
+								</button>
+								{#if canProposeAgreement}
+									<button
+										type="button"
+										class="toolbar-menu-item"
+										onclick={() => {
+											showAgreementForm = !showAgreementForm;
+											showGameEndMenu = false;
+										}}
+										disabled={Boolean(activeProposal)}
+										role="menuitem"
+									>
+										{$t('app.game.suggestEndByAgreement')}
+									</button>
+								{/if}
+								{#if $gamePhase !== 'paused'}
+									<button
+										type="button"
+										class="toolbar-menu-item"
+										onclick={() => {
+											proposePause(60);
+											showGameEndMenu = false;
+										}}
+										disabled={Boolean(activeProposal)}
+										role="menuitem"
+									>
+										{$t('app.game.suggestPauseHour')}
+									</button>
+									<button
+										type="button"
+										class="toolbar-menu-item"
+										onclick={() => {
+											proposePause(null);
+											showGameEndMenu = false;
+										}}
+										disabled={Boolean(activeProposal)}
+										role="menuitem"
+									>
+										{$t('app.game.suggestPauseIndefinite')}
+									</button>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				{/if}
+			{/if}
+		</div>
+	</div>
+
+	{#if showAgreementForm && canProposeAgreement && !activeProposal}
+		<div class="agreement-form">
+			<p class="agreement-form-label">{$t('app.game.agreementLabel')}</p>
+			<label class="agreement-radio">
+				<input
+					type="radio"
+					name="agreement-term"
+					value="fulfill"
+					bind:group={agreementTermSelected}
+				/>
+				{$t('app.game.agreementTermFulfill')}
+			</label>
+			<label class="agreement-radio">
+				<input
+					type="radio"
+					name="agreement-term"
+					value="rest_are_mine"
+					bind:group={agreementTermSelected}
+				/>
+				{$t('app.game.agreementTermRestAreMine')}
+			</label>
+			<label class="agreement-radio">
+				<input
+					type="radio"
+					name="agreement-term"
+					value={agreementTricksInput}
+					bind:group={agreementTermSelected}
+				/>
+				<input
+					type="number"
+					min="0"
+					max="10"
+					class="tricks-input"
+					bind:value={agreementTricksInput}
+					onclick={() => (agreementTermSelected = agreementTricksInput)}
+					oninput={() => (agreementTermSelected = agreementTricksInput)}
+				/>
+				{$t('app.game.agreementTermTricks', { count: agreementTricksInput })}
+			</label>
+			<div class="agreement-form-actions">
+				<button type="button" class="vote-btn yes" onclick={proposeEndByAgreement}>
+					{$t('app.game.voteYes')}
+				</button>
+				<button type="button" class="vote-btn no" onclick={() => (showAgreementForm = false)}>
+					{$t('app.game.voteNo')}
+				</button>
 			</div>
-		{/if}
+		</div>
 	{/if}
 
 	<!-- Finish-early modal – blocks the table until all players vote -->
@@ -674,413 +698,351 @@
 		</div>
 	{/if}
 
-	<!-- Main game area -->
-	<div class="game-area">
-		<!-- Sidebar: scoreboard -->
-		<aside class="sidebar">
-			{#if $game.state}
-				<Scoreboard
-					pool={$game.state.pool}
-					mountain={$game.state.mountain}
-					whists={$game.state.whists}
-					scores={$game.state.scores}
-					players={$game.state.players}
-					roundNumber={$game.state.roundNumber}
-					bulletTarget={$game.state.bulletTarget}
-				/>
-
-				<!-- Contract info -->
-				{#if $game.state.raspass}
-					<div class="contract-info">
-						<h4>{$t('app.game.contract')}</h4>
-						<p>{$t('app.game.raspass')}</p>
-						<p class="declarer">
-							{$t('app.game.raspassPrice', { price: $game.state.raspassPrice })}
-						</p>
-					</div>
-				{:else if $game.state.contract}
-					<div class="contract-info">
-						<h4>{$t('app.game.contract')}</h4>
-						<p>{formatContract($game.state.contract)}</p>
-						{#if $game.state.declarerId}
-							<p class="declarer">
-								{$t('app.game.declarer', { name: playerName($game.state.declarerId) })}
-							</p>
-						{/if}
-						{#if $game.state.whisters.length > 0}
-							<p>
-								{$t('app.game.whisters', {
-									names: $game.state.whisters.map((id) => playerName(id)).join(', ')
-								})}
-								{#if $game.state.playedOpen}
-									· {$t('app.game.openPlay')}
-								{/if}
-							</p>
-						{/if}
-					</div>
-				{:else if $game.state.wonBid && $game.state.declarerId}
-					<div class="contract-info">
-						<h4>{$t('app.game.contract')}</h4>
-						<p>{formatContract($game.state.wonBid)}</p>
-						<p class="declarer">
-							{$t('app.game.declarer', { name: playerName($game.state.declarerId) })}
-						</p>
+	<!-- Main game area (full width) -->
+	<div class="content-area">
+		{#if $game.status === 'connecting'}
+			<div class="connecting-msg">
+				<div class="spinner" aria-label={$t('app.game.loadingAria')}></div>
+				<p>{$t('app.game.connecting')}</p>
+			</div>
+		{:else if !$game.state || $gamePhase === 'waiting'}
+			<div class="waiting-shell">
+				{#if data.isPlayer}
+					<form method="POST" action="?/leaveTable" class="leave-table-form">
+						<button type="submit" class="leave-table-btn">{$t('app.game.leaveTable')}</button>
+					</form>
+				{/if}
+				<div class="waiting-msg">
+					<span class="waiting-icon">⏳</span>
+					<p>{$t('app.game.waitingPlayers', { count: $game.state?.players.length ?? 0 })}</p>
+				</div>
+			</div>
+		{:else}
+			<!-- Playing table and side open hands -->
+			<div class="table-layout">
+				{#if openHandLeftPlayer && sortedOpenHands[openHandLeftPlayer.id]}
+					<div class="open-hand open-hand-side open-hand-left">
+						<h4>{$t('app.game.openHandOf', { name: openHandLeftPlayer.name })}</h4>
+						<Hand
+							cards={sortedOpenHands[openHandLeftPlayer.id]}
+							playable={canControlDeclarerHand && openHandLeftPlayer.id === $game.state?.declarerId}
+							selectedCard={canControlDeclarerHand &&
+							openHandLeftPlayer.id === $game.state?.declarerId
+								? selectedOpenHandCard
+								: null}
+							eligibleCards={canControlDeclarerHand &&
+							openHandLeftPlayer.id === $game.state?.declarerId
+								? declarerOpenHandEligibleCards
+								: null}
+							onPlayCard={handlePlayOpenHandCard}
+							label={openHandLeftPlayer.name}
+						/>
 					</div>
 				{/if}
-			{/if}
-		</aside>
 
-		<!-- Center: table + hand -->
-		<div class="center-area">
-			{#if $game.status === 'connecting'}
-				<div class="connecting-msg">
-					<div class="spinner" aria-label={$t('app.game.loadingAria')}></div>
-					<p>{$t('app.game.connecting')}</p>
-				</div>
-			{:else if !$game.state || $gamePhase === 'waiting'}
-				<div class="waiting-shell">
-					{#if data.isPlayer}
-						<form method="POST" action="?/leaveTable" class="leave-table-form">
-							<button type="submit" class="leave-table-btn">{$t('app.game.leaveTable')}</button>
-						</form>
-					{/if}
-					<div class="waiting-msg">
-						<span class="waiting-icon">⏳</span>
-						<p>{$t('app.game.waitingPlayers', { count: $game.state?.players.length ?? 0 })}</p>
-					</div>
-				</div>
-			{:else}
-				<!-- Playing table and side open hands -->
-				<div class="table-layout">
-					{#if openHandLeftPlayer && sortedOpenHands[openHandLeftPlayer.id]}
-						<div class="open-hand open-hand-side open-hand-left">
-							<h4>{$t('app.game.openHandOf', { name: openHandLeftPlayer.name })}</h4>
+				<div class="table-center-column">
+					<Table
+						trick={$currentTrick}
+						players={$game.state.players}
+						myPlayerId={data.user?.id ?? ''}
+						trump={$game.state.trump}
+						currentPlayerId={$game.state.currentPlayerId}
+						{currentContract}
+						declarerId={$game.state.declarerId}
+						bids={$game.state.bids}
+						whistDeclarations={$game.state.whistDeclarations}
+						phase={$gamePhase}
+					/>
+
+					{#if $game.state.raspass && $game.state.raspassUpcard}
+						<div class="raspass-banner" role="status">
+							<span>
+								{$t('app.game.raspassLead', {
+									suit: SUIT_SYMBOLS[$game.state.raspassUpcard.suit]
+								})}
+							</span>
 							<Hand
-								cards={sortedOpenHands[openHandLeftPlayer.id]}
-								playable={canControlDeclarerHand &&
-									openHandLeftPlayer.id === $game.state?.declarerId}
-								selectedCard={canControlDeclarerHand &&
-								openHandLeftPlayer.id === $game.state?.declarerId
-									? selectedOpenHandCard
-									: null}
-								eligibleCards={canControlDeclarerHand &&
-								openHandLeftPlayer.id === $game.state?.declarerId
-									? declarerOpenHandEligibleCards
-									: null}
-								onPlayCard={handlePlayOpenHandCard}
-								label={openHandLeftPlayer.name}
+								cards={[$game.state.raspassUpcard]}
+								playable={false}
+								label={$t('app.game.widow')}
 							/>
 						</div>
 					{/if}
+				</div>
 
-					<div class="table-center-column">
-						<Table
-							trick={$currentTrick}
-							players={$game.state.players}
-							myPlayerId={data.user?.id ?? ''}
-							trump={$game.state.trump}
-							currentPlayerId={$game.state.currentPlayerId}
-							{currentContract}
-							declarerId={$game.state.declarerId}
-							bids={$game.state.bids}
-							whistDeclarations={$game.state.whistDeclarations}
-							phase={$gamePhase}
+				{#if openHandRightPlayer && sortedOpenHands[openHandRightPlayer.id]}
+					<div class="open-hand open-hand-side open-hand-right">
+						<h4>{$t('app.game.openHandOf', { name: openHandRightPlayer.name })}</h4>
+						<Hand
+							cards={sortedOpenHands[openHandRightPlayer.id]}
+							playable={canControlDeclarerHand &&
+								openHandRightPlayer.id === $game.state?.declarerId}
+							selectedCard={canControlDeclarerHand &&
+							openHandRightPlayer.id === $game.state?.declarerId
+								? selectedOpenHandCard
+								: null}
+							eligibleCards={canControlDeclarerHand &&
+							openHandRightPlayer.id === $game.state?.declarerId
+								? declarerOpenHandEligibleCards
+								: null}
+							onPlayCard={handlePlayOpenHandCard}
+							label={openHandRightPlayer.name}
 						/>
-
-						{#if $game.state.raspass && $game.state.raspassUpcard}
-							<div class="raspass-banner" role="status">
-								<span>
-									{$t('app.game.raspassLead', {
-										suit: SUIT_SYMBOLS[$game.state.raspassUpcard.suit]
-									})}
-								</span>
-								<Hand
-									cards={[$game.state.raspassUpcard]}
-									playable={false}
-									label={$t('app.game.widow')}
-								/>
-							</div>
-						{/if}
 					</div>
+				{/if}
+			</div>
 
-					{#if openHandRightPlayer && sortedOpenHands[openHandRightPlayer.id]}
-						<div class="open-hand open-hand-side open-hand-right">
-							<h4>{$t('app.game.openHandOf', { name: openHandRightPlayer.name })}</h4>
+			{#if openHandOthers.length > 0}
+				<div class="open-hands-others">
+					{#each openHandOthers as [openPlayerId, cards] (openPlayerId)}
+						<div class="open-hand">
+							<h4>{$t('app.game.openHandOf', { name: playerName(openPlayerId) })}</h4>
 							<Hand
-								cards={sortedOpenHands[openHandRightPlayer.id]}
-								playable={canControlDeclarerHand &&
-									openHandRightPlayer.id === $game.state?.declarerId}
-								selectedCard={canControlDeclarerHand &&
-								openHandRightPlayer.id === $game.state?.declarerId
+								{cards}
+								playable={canControlDeclarerHand && openPlayerId === $game.state?.declarerId}
+								selectedCard={canControlDeclarerHand && openPlayerId === $game.state?.declarerId
 									? selectedOpenHandCard
 									: null}
-								eligibleCards={canControlDeclarerHand &&
-								openHandRightPlayer.id === $game.state?.declarerId
+								eligibleCards={canControlDeclarerHand && openPlayerId === $game.state?.declarerId
 									? declarerOpenHandEligibleCards
 									: null}
 								onPlayCard={handlePlayOpenHandCard}
-								label={openHandRightPlayer.name}
+								label={playerName(openPlayerId)}
 							/>
 						</div>
+					{/each}
+				</div>
+			{/if}
+
+			<!-- Widow reveal: visible to all players while declarer hasn't taken it yet -->
+			{#if $gamePhase === 'widow' && !widowTakenByDeclarer && $game.state.widow.length > 0}
+				<div class="widow-area widow-reveal">
+					<h3>{$t('app.game.widowRevealTitle')}</h3>
+					<p class="widow-hint">
+						{$t('app.game.widowRevealHint', { name: playerName($game.state.declarerId) })}
+					</p>
+					<Hand cards={$game.state.widow} playable={false} label={$t('app.game.widow')} />
+					{#if isDeclarer}
+						<button class="confirm-btn" onclick={takeWidow}>
+							{$t('app.game.takeWidow')}
+						</button>
 					{/if}
 				</div>
+			{/if}
 
-				{#if openHandOthers.length > 0}
-					<div class="open-hands-others">
-						{#each openHandOthers as [openPlayerId, cards] (openPlayerId)}
-							<div class="open-hand">
-								<h4>{$t('app.game.openHandOf', { name: playerName(openPlayerId) })}</h4>
-								<Hand
-									{cards}
-									playable={canControlDeclarerHand && openPlayerId === $game.state?.declarerId}
-									selectedCard={canControlDeclarerHand && openPlayerId === $game.state?.declarerId
-										? selectedOpenHandCard
-										: null}
-									eligibleCards={canControlDeclarerHand && openPlayerId === $game.state?.declarerId
-										? declarerOpenHandEligibleCards
-										: null}
-									onPlayCard={handlePlayOpenHandCard}
-									label={playerName(openPlayerId)}
-								/>
-							</div>
+			<!-- Widow: declarer discards two cards and announces the contract -->
+			{#if $gamePhase === 'widow' && isDeclarer && widowTakenByDeclarer}
+				<div class="widow-area">
+					<h3>{$t('app.game.widowTitle')}</h3>
+					<p class="widow-hint">{$t('app.game.widowHint')}</p>
+					{#if !misereBid}
+						<div class="declare-row">
+							<span>{$t('app.game.announceContract')}</span>
+							{#each [6, 7, 8, 9, 10] as level}
+								<button
+									class="mini-btn"
+									class:active={declaredLevel === level}
+									onclick={() => (declaredLevel = level as ContractLevel)}
+								>
+									{level}
+								</button>
+							{/each}
+							{#each ['spades', 'clubs', 'diamonds', 'hearts', 'no_trump'] as suit}
+								<button
+									class="mini-btn"
+									class:black={suit === 'spades' || suit === 'clubs'}
+									class:red={suit === 'diamonds' || suit === 'hearts'}
+									class:nt={suit === 'no_trump'}
+									class:active={declaredSuit === suit}
+									onclick={() => (declaredSuit = suit as ContractSuit)}
+								>
+									{suitSymbol(suit as ContractSuit)}
+								</button>
+							{/each}
+						</div>
+						{#if !declarationValid}
+							<p class="widow-warning">
+								{$t('app.game.contractTooLow', { bid: formatContract(wonBid) })}
+							</p>
+						{/if}
+					{:else}
+						<p>{$t('app.game.misereStays')}</p>
+					{/if}
+					<button
+						class="confirm-btn"
+						disabled={discardSelection.length !== 2 || !declarationValid}
+						onclick={confirmWidow}
+					>
+						{$t('app.game.confirmDiscard', { count: discardSelection.length })}
+					</button>
+				</div>
+			{/if}
+
+			<!-- Whisting panel -->
+			{#if $gamePhase === 'whisting' && $game.state.whistOptions}
+				<div class="whist-panel">
+					<h3>{$t('app.game.whistTitle', { contract: formatContract($game.state.contract) })}</h3>
+					<div class="whist-actions">
+						{#each $game.state.whistOptions as choice}
+							<button class="whist-btn {choice}" onclick={() => handleWhist(choice)}>
+								{$t(`app.game.whistChoice.${choice}`)}
+							</button>
 						{/each}
 					</div>
-				{/if}
+				</div>
+			{/if}
 
-				<!-- Widow reveal: visible to all players while declarer hasn't taken it yet -->
-				{#if $gamePhase === 'widow' && !widowTakenByDeclarer && $game.state.widow.length > 0}
-					<div class="widow-area widow-reveal">
-						<h3>{$t('app.game.widowRevealTitle')}</h3>
-						<p class="widow-hint">
-							{$t('app.game.widowRevealHint', { name: playerName($game.state.declarerId) })}
-						</p>
-						<Hand cards={$game.state.widow} playable={false} label={$t('app.game.widow')} />
-						{#if isDeclarer}
-							<button class="confirm-btn" onclick={takeWidow}>
-								{$t('app.game.takeWidow')}
-							</button>
-						{/if}
-					</div>
-				{/if}
-
-				<!-- Widow: declarer discards two cards and announces the contract -->
-				{#if $gamePhase === 'widow' && isDeclarer && widowTakenByDeclarer}
-					<div class="widow-area">
-						<h3>{$t('app.game.widowTitle')}</h3>
-						<p class="widow-hint">{$t('app.game.widowHint')}</p>
-						{#if !misereBid}
-							<div class="declare-row">
-								<span>{$t('app.game.announceContract')}</span>
-								{#each [6, 7, 8, 9, 10] as level}
-									<button
-										class="mini-btn"
-										class:active={declaredLevel === level}
-										onclick={() => (declaredLevel = level as ContractLevel)}
-									>
-										{level}
-									</button>
-								{/each}
-								{#each ['spades', 'clubs', 'diamonds', 'hearts', 'no_trump'] as suit}
-									<button
-										class="mini-btn"
-										class:black={suit === 'spades' || suit === 'clubs'}
-										class:red={suit === 'diamonds' || suit === 'hearts'}
-										class:nt={suit === 'no_trump'}
-										class:active={declaredSuit === suit}
-										onclick={() => (declaredSuit = suit as ContractSuit)}
-									>
-										{suitSymbol(suit as ContractSuit)}
-									</button>
-								{/each}
-							</div>
-							{#if !declarationValid}
-								<p class="widow-warning">
-									{$t('app.game.contractTooLow', { bid: formatContract(wonBid) })}
-								</p>
-							{/if}
-						{:else}
-							<p>{$t('app.game.misereStays')}</p>
-						{/if}
-						<button
-							class="confirm-btn"
-							disabled={discardSelection.length !== 2 || !declarationValid}
-							onclick={confirmWidow}
-						>
-							{$t('app.game.confirmDiscard', { count: discardSelection.length })}
-						</button>
-					</div>
-				{/if}
-
-				<!-- Whisting panel -->
-				{#if $gamePhase === 'whisting' && $game.state.whistOptions}
+			<!-- Light/dark decision («первый ход втемную») -->
+			{#if lightDecisionPending}
+				{#if lightDecisionPending === myPlayerId}
 					<div class="whist-panel">
-						<h3>{$t('app.game.whistTitle', { contract: formatContract($game.state.contract) })}</h3>
+						<h3>{$t('app.game.lightChoiceTitle')}</h3>
 						<div class="whist-actions">
-							{#each $game.state.whistOptions as choice}
-								<button class="whist-btn {choice}" onclick={() => handleWhist(choice)}>
-									{$t(`app.game.whistChoice.${choice}`)}
-								</button>
-							{/each}
+							<button class="whist-btn whist" onclick={() => chooseOpen(true)}>
+								{$t('app.game.playLight')}
+							</button>
+							<button class="whist-btn pass" onclick={() => chooseOpen(false)}>
+								{$t('app.game.playDark')}
+							</button>
 						</div>
 					</div>
+				{:else}
+					<div class="turn-indicator" role="status">
+						{$t('app.game.awaitingLightChoice', { name: playerName(lightDecisionPending) })}
+					</div>
 				{/if}
+			{/if}
 
-				<!-- Light/dark decision («первый ход втемную») -->
-				{#if lightDecisionPending}
-					{#if lightDecisionPending === myPlayerId}
-						<div class="whist-panel">
-							<h3>{$t('app.game.lightChoiceTitle')}</h3>
-							<div class="whist-actions">
-								<button class="whist-btn whist" onclick={() => chooseOpen(true)}>
-									{$t('app.game.playLight')}
-								</button>
-								<button class="whist-btn pass" onclick={() => chooseOpen(false)}>
-									{$t('app.game.playDark')}
-								</button>
-							</div>
-						</div>
+			<!-- Bidding panel -->
+			{#if $gamePhase === 'bidding' && isMyTurn}
+				{@const nonPassBids = $game.state.bids.filter((b) => b.bid !== 'pass')}
+				{@const highBid = nonPassBids.reduce<Contract | null>(
+					(best, b) =>
+						!best || contractValue(b.bid as Contract) > contractValue(best)
+							? (b.bid as Contract)
+							: best,
+					null
+				)}
+				{@const canMisere = !$game.state.bids.some(
+					(b) => b.playerId === myPlayerId && b.bid !== 'pass'
+				)}
+				<div class="bidding-area">
+					<BiddingPanel currentHighBid={highBid} myTurn={isMyTurn} {canMisere} onBid={handleBid} />
+				</div>
+			{/if}
+
+			<!-- Round summary -->
+			{#if ($gamePhase === 'scoring' || $gamePhase === 'finished') && $game.state.roundSummary}
+				{@const summary = $game.state.roundSummary}
+				<div class="round-summary" role="status">
+					<h3>
+						{$gamePhase === 'finished'
+							? $t('app.game.gameOver')
+							: $t('app.game.roundOver', { roundNumber: summary.roundNumber })}
+					</h3>
+					{#if summary.raspass}
+						<p>{$t('app.game.raspassResult')}</p>
+					{:else if !summary.played}
+						<p>
+							{$t('app.game.thrownIn', {
+								name: playerName(summary.declarerId),
+								contract: formatContract(summary.contract)
+							})}
+						</p>
+					{:else}
+						<p>
+							{$t(summary.success ? 'app.game.contractMade' : 'app.game.contractFailed', {
+								name: playerName(summary.declarerId),
+								contract: formatContract(summary.contract),
+								tricks: summary.declarerId ? (summary.tricksTaken[summary.declarerId] ?? 0) : 0
+							})}
+						</p>
+					{/if}
+					<ul class="summary-tricks">
+						{#each $game.state.players as player}
+							<li>
+								{player.name}: {$t('app.game.tricksTaken', {
+									count: summary.tricksTaken[player.id] ?? 0
+								})}
+							</li>
+						{/each}
+					</ul>
+					{#if $gamePhase === 'scoring'}
+						<button class="confirm-btn" onclick={startNextRound}>
+							{$t('app.game.nextRound')}
+						</button>
+					{/if}
+				</div>
+			{/if}
+
+			<!-- Turn indicator -->
+			{#if !lightDecisionPending}
+				{#if pendingTrick}
+					{#if isMyTrickToConfirm || isDeclarerTrickToConfirm}
+						<button class="confirm-btn confirm-trick-btn" onclick={confirmTrick}>
+							{$t('app.game.confirmTrick')}
+						</button>
 					{:else}
 						<div class="turn-indicator" role="status">
-							{$t('app.game.awaitingLightChoice', { name: playerName(lightDecisionPending) })}
+							{$t('app.game.awaitingTrickConfirm', { name: playerName(pendingTrick.winnerId) })}
 						</div>
 					{/if}
-				{/if}
-
-				<!-- Bidding panel -->
-				{#if $gamePhase === 'bidding' && isMyTurn}
-					{@const nonPassBids = $game.state.bids.filter((b) => b.bid !== 'pass')}
-					{@const highBid = nonPassBids.reduce<Contract | null>(
-						(best, b) =>
-							!best || contractValue(b.bid as Contract) > contractValue(best)
-								? (b.bid as Contract)
-								: best,
-						null
-					)}
-					{@const canMisere = !$game.state.bids.some(
-						(b) => b.playerId === myPlayerId && b.bid !== 'pass'
-					)}
-					<div class="bidding-area">
-						<BiddingPanel
-							currentHighBid={highBid}
-							myTurn={isMyTurn}
-							{canMisere}
-							onBid={handleBid}
-						/>
+				{:else if canControlDeclarerHand}
+					<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
+				{:else if $game.state.currentPlayerId && $game.state.currentPlayerId !== data.user?.id}
+					<div class="turn-indicator" role="status">
+						{$t('app.game.turn', { name: playerName($game.state.currentPlayerId) })}
 					</div>
+				{:else if isMyTurn && $gamePhase === 'playing'}
+					<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
 				{/if}
+			{/if}
 
-				<!-- Round summary -->
-				{#if ($gamePhase === 'scoring' || $gamePhase === 'finished') && $game.state.roundSummary}
-					{@const summary = $game.state.roundSummary}
-					<div class="round-summary" role="status">
-						<h3>
-							{$gamePhase === 'finished'
-								? $t('app.game.gameOver')
-								: $t('app.game.roundOver', { roundNumber: summary.roundNumber })}
-						</h3>
-						{#if summary.raspass}
-							<p>{$t('app.game.raspassResult')}</p>
-						{:else if !summary.played}
-							<p>
-								{$t('app.game.thrownIn', {
-									name: playerName(summary.declarerId),
-									contract: formatContract(summary.contract)
-								})}
-							</p>
-						{:else}
-							<p>
-								{$t(summary.success ? 'app.game.contractMade' : 'app.game.contractFailed', {
-									name: playerName(summary.declarerId),
-									contract: formatContract(summary.contract),
-									tricks: summary.declarerId ? (summary.tricksTaken[summary.declarerId] ?? 0) : 0
-								})}
-							</p>
-						{/if}
-						<ul class="summary-tricks">
-							{#each $game.state.players as player}
-								<li>
-									{player.name}: {$t('app.game.tricksTaken', {
-										count: summary.tricksTaken[player.id] ?? 0
-									})}
-								</li>
-							{/each}
-						</ul>
-						{#if $gamePhase === 'scoring'}
-							<button class="confirm-btn" onclick={startNextRound}>
-								{$t('app.game.nextRound')}
-							</button>
-						{/if}
-					</div>
-				{/if}
+			<!-- Show last trick button -->
+			{#if $gamePhase === 'playing' && lastCompletedTrick}
+				<button class="last-trick-btn" onclick={() => (showLastTrickModal = true)}>
+					{$t('app.game.showLastTrick')}
+				</button>
+			{/if}
+		{/if}
 
-				<!-- Turn indicator -->
-				{#if !lightDecisionPending}
-					{#if pendingTrick}
-						{#if isMyTrickToConfirm || isDeclarerTrickToConfirm}
-							<button class="confirm-btn confirm-trick-btn" onclick={confirmTrick}>
-								{$t('app.game.confirmTrick')}
-							</button>
-						{:else}
-							<div class="turn-indicator" role="status">
-								{$t('app.game.awaitingTrickConfirm', { name: playerName(pendingTrick.winnerId) })}
-							</div>
-						{/if}
-					{:else if canControlDeclarerHand}
-						<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
-					{:else if $game.state.currentPlayerId && $game.state.currentPlayerId !== data.user?.id}
-						<div class="turn-indicator" role="status">
-							{$t('app.game.turn', { name: playerName($game.state.currentPlayerId) })}
-						</div>
-					{:else if isMyTurn && $gamePhase === 'playing'}
-						<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
-					{/if}
-				{/if}
-
-				<!-- Show last trick button -->
-				{#if $gamePhase === 'playing' && lastCompletedTrick}
-					<button class="last-trick-btn" onclick={() => (showLastTrickModal = true)}>
-						{$t('app.game.showLastTrick')}
+		<!-- Player hand -->
+		{#if $gamePhase === 'widow' && isDeclarer && widowTakenByDeclarer}
+			<div class="my-hand">
+				<Hand
+					cards={combinedWidowHand}
+					playable={true}
+					selectedCard={null}
+					selectedCards={discardSelection}
+					onPlayCard={handlePlayCard}
+					label={$t('app.game.yourCards')}
+				/>
+				<p class="play-hint">
+					{$t('app.game.discardSelected', {
+						cards: discardSelection.map((c) => `${c.rank}${SUIT_SYMBOLS[c.suit]}`).join(', ')
+					})}
+				</p>
+			</div>
+		{:else if sortedHand.length > 0}
+			<div class="my-hand">
+				<Hand
+					cards={sortedHand}
+					playable={canPlayCard}
+					{selectedCard}
+					{eligibleCards}
+					onPlayCard={handlePlayCard}
+					label={$t('app.game.yourCards')}
+				/>
+				{#if isDeclarer && $gamePhase === 'playing' && !isDeclarerHandOpen && $game.state?.whisters && $game.state.whisters.length > 0}
+					<button class="declare-open-btn" onclick={declareOpenHand}>
+						{$t('app.game.declareOpenHand')}
 					</button>
 				{/if}
-			{/if}
-
-			<!-- Player hand -->
-			{#if $gamePhase === 'widow' && isDeclarer && widowTakenByDeclarer}
-				<div class="my-hand">
-					<Hand
-						cards={combinedWidowHand}
-						playable={true}
-						selectedCard={null}
-						onPlayCard={handlePlayCard}
-						label={$t('app.game.yourCards')}
-					/>
-					<p class="play-hint">
-						{$t('app.game.discardSelected', {
-							cards: discardSelection.map((c) => `${c.rank}${SUIT_SYMBOLS[c.suit]}`).join(', ')
-						})}
-					</p>
-				</div>
-			{:else if sortedHand.length > 0}
-				<div class="my-hand">
-					<Hand
-						cards={sortedHand}
-						playable={canPlayCard}
-						{selectedCard}
-						{eligibleCards}
-						onPlayCard={handlePlayCard}
-						label={$t('app.game.yourCards')}
-					/>
-					{#if isDeclarer && $gamePhase === 'playing' && !isDeclarerHandOpen && $game.state?.whisters && $game.state.whisters.length > 0}
-						<button class="declare-open-btn" onclick={declareOpenHand}>
-							{$t('app.game.declareOpenHand')}
-						</button>
-					{/if}
-					{#if canPlayCard && selectedCard}
-						<p class="play-hint">{$t('app.game.playHint')}</p>
-					{/if}
-				</div>
-			{/if}
-		</div>
+				{#if canPlayCard && selectedCard}
+					<p class="play-hint">{$t('app.game.playHint')}</p>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<!-- Last trick modal -->
@@ -1119,6 +1081,28 @@
 		</div>
 	{/if}
 
+	<!-- Scoreboard modal -->
+	{#if showScoreModal && $game.state}
+		<div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="score-modal-title">
+			<div class="modal-card modal-card-wide">
+				<Scoreboard
+					pool={$game.state.pool}
+					mountain={$game.state.mountain}
+					whists={$game.state.whists}
+					scores={$game.state.scores}
+					players={$game.state.players}
+					roundNumber={$game.state.roundNumber}
+					bulletTarget={$game.state.bulletTarget}
+				/>
+				<div class="modal-actions" style="margin-top: 16px;">
+					<button type="button" class="vote-btn yes" onclick={() => (showScoreModal = false)}>
+						{$t('app.game.closeModal')}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Lobby redirect notice after early finish -->
 	{#if redirectingToLobby}
 		<div class="redirect-notice" role="status">
@@ -1129,49 +1113,111 @@
 
 <style>
 	.game-page {
-		--layout-chrome-height: 170px;
+		--layout-chrome-height: 120px;
 		--open-hand-side-width: 140px;
 		--open-hand-side-width-viewport: 22vw;
 		--open-hand-overlap: 46px;
 		--open-hand-overlap-mobile: 38px;
 
-		max-width: 1200px;
-		margin: 0 auto;
+		width: 100%;
+		padding: 0 8px;
+		box-sizing: border-box;
 		display: flex;
 		flex-direction: column;
-		gap: 16px;
+		gap: 12px;
 		min-height: min(100%, calc(100dvh - var(--layout-chrome-height)));
 	}
 
-	.status-bar {
+	/* ── Combined toolbar ── */
+	.toolbar {
 		display: flex;
 		align-items: center;
-		gap: 16px;
-		padding: 8px 16px;
-		background: rgba(0, 0, 0, 0.4);
+		gap: 12px;
+		padding: 6px 12px;
+		background: rgba(0, 0, 0, 0.5);
 		border-radius: 8px;
 		font-size: 13px;
 		flex-wrap: wrap;
 	}
 
-	.governance-actions {
+	.toolbar-left {
 		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex: 1;
 		flex-wrap: wrap;
-		gap: 8px;
 	}
 
-	.governance-btn {
-		border: 1px solid rgba(200, 169, 110, 0.35);
-		background: rgba(200, 169, 110, 0.12);
+	.toolbar-right {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-shrink: 0;
+	}
+
+	.toolbar-btn {
+		border: 1px solid rgba(200, 169, 110, 0.45);
+		background: rgba(200, 169, 110, 0.14);
 		color: #f0e6d3;
 		border-radius: 999px;
-		padding: 8px 14px;
-		font-size: 13px;
+		padding: 5px 12px;
+		font-size: 12px;
 		cursor: pointer;
+		white-space: nowrap;
+		transition: background 0.15s;
 	}
 
-	.governance-btn:disabled {
-		opacity: 0.55;
+	.toolbar-btn:hover {
+		background: rgba(200, 169, 110, 0.25);
+	}
+
+	.toolbar-btn-end {
+		border-color: rgba(255, 107, 107, 0.45);
+		background: rgba(255, 107, 107, 0.1);
+		color: #ffd2d2;
+	}
+
+	.toolbar-btn-end:hover {
+		background: rgba(255, 107, 107, 0.2);
+	}
+
+	/* Dropdown menu */
+	.toolbar-menu-wrapper {
+		position: relative;
+	}
+
+	.toolbar-menu {
+		position: absolute;
+		right: 0;
+		top: calc(100% + 6px);
+		min-width: 200px;
+		background: #1a1a2e;
+		border: 1px solid rgba(200, 169, 110, 0.5);
+		border-radius: 10px;
+		padding: 6px 0;
+		z-index: 200;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+	}
+
+	.toolbar-menu-item {
+		display: block;
+		width: 100%;
+		padding: 9px 16px;
+		text-align: left;
+		background: transparent;
+		border: none;
+		color: #f0e6d3;
+		font-size: 13px;
+		cursor: pointer;
+		transition: background 0.12s;
+	}
+
+	.toolbar-menu-item:hover:not(:disabled) {
+		background: rgba(200, 169, 110, 0.15);
+	}
+
+	.toolbar-menu-item:disabled {
+		opacity: 0.4;
 		cursor: not-allowed;
 	}
 
@@ -1290,59 +1336,12 @@
 		margin-left: auto;
 	}
 
-	.game-area {
-		display: flex;
-		gap: 24px;
-		align-items: flex-start;
-		justify-content: center;
-	}
-
-	.sidebar {
-		flex-shrink: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-	}
-
-	.contract-info {
-		background: rgba(0, 0, 0, 0.5);
-		border: 1px solid rgba(200, 169, 110, 0.3);
-		border-radius: 8px;
-		padding: 12px;
-		color: #f0e6d3;
-		font-size: 14px;
-	}
-
-	.contract-info h4 {
-		margin: 0 0 8px;
-		color: #c8a96e;
-		font-size: 12px;
-		text-transform: uppercase;
-		letter-spacing: 1px;
-	}
-
-	.contract-info p {
-		margin: 4px 0;
-	}
-
-	.declarer {
-		color: #ffd700;
-		font-style: italic;
-	}
-
-	.center-area {
-		flex: 1;
+	.content-area {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 20px;
+		gap: 16px;
 		width: 100%;
-		max-height: calc(100dvh - 220px);
-		overflow-y: auto;
-	}
-
-	.table-stat {
-		color: #c0b090;
 	}
 
 	.connecting-msg,
@@ -1700,6 +1699,10 @@
 		animation: slideUp 0.2s ease;
 	}
 
+	.modal-card-wide {
+		max-width: 600px;
+	}
+
 	@keyframes slideUp {
 		from {
 			opacity: 0;
@@ -1806,17 +1809,6 @@
 	}
 
 	@media (max-width: 768px) {
-		.game-area {
-			flex-direction: column;
-			align-items: center;
-		}
-
-		.sidebar {
-			width: 100%;
-			flex-direction: row;
-			flex-wrap: wrap;
-		}
-
 		.waiting-shell,
 		.leave-table-btn {
 			width: 100%;
@@ -1830,21 +1822,18 @@
 	@media (max-width: 480px) {
 		.game-page {
 			gap: 8px;
+			padding: 0 4px;
 		}
 
-		.status-bar {
+		.toolbar {
 			font-size: 11px;
-			gap: 8px;
-			padding: 6px 10px;
+			gap: 6px;
+			padding: 5px 8px;
 		}
 
-		.governance-actions {
-			gap: 4px;
-		}
-
-		.governance-btn {
+		.toolbar-btn {
 			font-size: 11px;
-			padding: 6px 10px;
+			padding: 4px 9px;
 		}
 
 		.modal-card {

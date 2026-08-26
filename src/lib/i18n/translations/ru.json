@@ -200,7 +200,9 @@
 			"awaitingTrickConfirm": "{{name}} забирает взятку…",
 			"showLastTrick": "Показать последнюю взятку",
 			"lastTrickTitle": "Последняя взятка",
-			"closeModal": "Закрыть"
+			"closeModal": "Закрыть",
+			"scoreButton": "Счёт",
+			"gameEndButton": "Завершение"
 		},
 		"scoreboard": {
 			"aria": "Счёт",

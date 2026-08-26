@@ -80,6 +80,12 @@
 		return '';
 	}
 
+	function formatCenterContract(contract: Contract | null): string {
+		if (!contract) return '';
+		if (contract.type === 'misere') return $t('app.game.misere');
+		return `${contract.level}${contract.suit === 'no_trump' ? $t('app.game.noTrumpShort') : SUIT_SYMBOLS[contract.suit]}`;
+	}
+
 	function bidSuitClass(bid: Bid): string {
 		if (bid === 'pass') return 'bid-pass';
 		if (bid.type === 'misere') return 'bid-misere';
@@ -99,6 +105,13 @@
 				{SUIT_SYMBOLS[trump]}
 			</span>
 			<span class="trump-label">{$t('app.game.trump')}</span>
+		</div>
+	{/if}
+
+	{#if currentContract && phase !== 'bidding'}
+		{@const centerContractClass = contractSuitClass(currentContract)}
+		<div class="center-contract-display {centerContractClass}" aria-label={$t('app.game.contract')}>
+			{formatCenterContract(currentContract)}
 		</div>
 	{/if}
 
@@ -176,6 +189,41 @@
 		align-items: center;
 		justify-content: center;
 		margin: 0 auto;
+	}
+
+	.center-contract-display {
+		position: absolute;
+		top: 14%;
+		left: 50%;
+		transform: translateX(-50%);
+		font-size: 18px;
+		font-weight: 800;
+		line-height: 1;
+		padding: 4px 10px;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.55);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		color: #f0e6d3;
+		white-space: nowrap;
+		pointer-events: none;
+		z-index: 1;
+	}
+
+	.center-contract-display.suit-black {
+		color: #111;
+		background: rgba(255, 255, 255, 0.92);
+		border-color: rgba(0, 0, 0, 0.2);
+	}
+
+	.center-contract-display.suit-red {
+		color: #c0392b;
+		background: rgba(255, 255, 255, 0.92);
+		border-color: rgba(192, 57, 43, 0.3);
+	}
+
+	.center-contract-display.suit-nt {
+		color: #ffd700;
+		border-color: rgba(255, 215, 0, 0.5);
 	}
 
 	.trump-indicator {
