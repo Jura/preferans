@@ -65,6 +65,7 @@ Create `.dev.vars` in the project root:
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 SESSION_SECRET=a_random_secret_at_least_32_chars
+TEST_LOGIN_SECRET=shared_code_for_dummy_test_logins
 ```
 
 ### 3. Create D1 database
@@ -128,6 +129,7 @@ Use Pages-specific secret commands:
 npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name <your-pages-project-name>
 npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name <your-pages-project-name>
 npx wrangler pages secret put SESSION_SECRET --project-name <your-pages-project-name>
+npx wrangler pages secret put TEST_LOGIN_SECRET --project-name <your-pages-project-name>
 ```
 
 ### 3. Run production migrations
@@ -137,6 +139,12 @@ npm run db:migrate
 ```
 
 Note: migration commands are intentionally bound to `worker/wrangler.toml`.
+
+### Test-only dummy sign-in
+
+- The login page exposes the dummy sign-in section on Pages preview deployments under `*.preferans-6bq.pages.dev`.
+- Set `TEST_LOGIN_SECRET` on those secured test deployments to enable one-click creation of numbered temporary dummy players.
+- Dummy sign-in is disabled on the production domain `pref.khrapunov.com`.
 
 ## Preferans Rules (Game Summary)
 

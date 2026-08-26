@@ -48,6 +48,8 @@ interface AccessStatusCacheEntry {
 }
 
 const MS_PER_MINUTE = 60 * 1000;
+// Keep in sync with src/lib/server/test-login.ts.
+const DUMMY_USER_ID_PREFIX = 'dummy_';
 
 type ClientMessage =
 	| { type: 'join'; token: string }
@@ -335,6 +337,10 @@ export class GameRoom implements DurableObject {
 
 	/** Re-check allowlist access so banned users are disconnected from active games promptly. */
 	private async hasActiveAccess(userId: PlayerId) {
+		if (userId.startsWith(DUMMY_USER_ID_PREFIX)) {
+			return true;
+		}
+
 		const cached = this.accessStatusCache.get(userId);
 		if (cached && cached.expiresAt > Date.now()) {
 			return cached.allowed;
