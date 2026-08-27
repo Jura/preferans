@@ -77,6 +77,14 @@
 <div class="app">
 	<header>
 		<a href="/" class="logo" aria-label={$t('app.homeAria')}>
+			<img
+				src="/logo-badge.svg"
+				alt=""
+				class="logo-badge"
+				aria-hidden="true"
+				width="32"
+				height="32"
+			/>
 			<span class="logo-text">{$t('app.name')}</span>
 		</a>
 
@@ -189,6 +197,10 @@
 		text-decoration: none;
 	}
 
+	.logo-badge {
+		flex-shrink: 0;
+	}
+
 	.logo:hover {
 		color: var(--gold-300);
 		text-decoration: none;
@@ -207,7 +219,7 @@
 	}
 
 	select {
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--surface-menu);
 		border: 1px solid var(--border-gold-soft);
 		border-radius: var(--radius-sm);
 		color: var(--cream-200);

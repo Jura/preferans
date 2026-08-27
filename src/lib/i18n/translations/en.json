@@ -51,7 +51,7 @@
 		},
 		"lobby": {
 			"title": "Lobby — Preferans",
-			"heroTitle": "🃏 Preferans online",
+			"heroTitle": "Preferans online",
 			"heroSubtitle": "Classic card game for three players",
 			"createGame": "Create game",
 			"bulletTargetLabel": "Target bullet amount",
@@ -87,7 +87,7 @@
 			"rules": "Game rules",
 			"ruleGoalTitle": "🎯 Goal",
 			"ruleGoalText": "Fulfill your contract and take enough tricks.",
-			"ruleDeckTitle": "🃏 Deck",
+			"ruleDeckTitle": "Deck",
 			"ruleDeckText": "32 cards (7 to ace), 3 players, 10 cards each, plus 2 widow cards.",
 			"ruleBiddingTitle": "📣 Bidding",
 			"ruleBiddingText": "Players announce contracts in turn. Winner takes widow and selects trump.",
@@ -100,7 +100,7 @@
 		},
 		"login": {
 			"title": "Sign in — Preferans",
-			"heading": "🃏 Sign in",
+			"heading": "Sign in",
 			"subtitle": "This is a private game — access is by invitation only.",
 			"inviteNote": "Only approved accounts can sign in.",
 			"google": "Sign in with Google",
