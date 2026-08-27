@@ -620,6 +620,16 @@
 				>
 					📊 {$t('app.game.scoreButton')}
 				</button>
+				{#if canProposeAgreement}
+					<button
+						type="button"
+						class="toolbar-btn toolbar-btn-agreement"
+						onclick={() => (showAgreementForm = !showAgreementForm)}
+						disabled={Boolean(activeProposal)}
+					>
+						{$t('app.game.suggestEndByAgreement')}
+					</button>
+				{/if}
 				{#if $gamePhase !== 'waiting' && $gamePhase !== 'finished'}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
@@ -651,20 +661,6 @@
 								>
 									{$t('app.game.suggestFinishEarly')}
 								</button>
-								{#if canProposeAgreement}
-									<button
-										type="button"
-										class="toolbar-menu-item"
-										onclick={() => {
-											showAgreementForm = !showAgreementForm;
-											showGameEndMenu = false;
-										}}
-										disabled={Boolean(activeProposal)}
-										role="menuitem"
-									>
-										{$t('app.game.suggestEndByAgreement')}
-									</button>
-								{/if}
 								{#if $gamePhase !== 'paused'}
 									<button
 										type="button"
@@ -1387,6 +1383,16 @@
 
 	.toolbar-btn-end:hover {
 		background: rgba(255, 107, 107, 0.2);
+	}
+
+	.toolbar-btn-agreement {
+		border-color: rgba(255, 200, 80, 0.45);
+		background: rgba(255, 200, 80, 0.1);
+		color: #ffe8a0;
+	}
+
+	.toolbar-btn-agreement:hover {
+		background: rgba(255, 200, 80, 0.22);
 	}
 
 	/* Dropdown menu */
