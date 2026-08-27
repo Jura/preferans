@@ -398,7 +398,7 @@
 		height: 10px;
 		border-radius: 50%;
 		background: var(--success);
-		box-shadow: 0 0 8px rgba(102, 217, 140, 0.6);
+		box-shadow: 0 0 8px color-mix(in srgb, var(--success) 60%, transparent);
 	}
 
 	.login-prompt {

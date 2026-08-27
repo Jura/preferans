@@ -538,10 +538,10 @@
 		);
 		border: 1px solid var(--gold-500);
 		flex-shrink: 0;
-		animation: deal-in var(--dur-med) var(--ease-out);
+		animation: tile-in var(--dur-med) var(--ease-out);
 	}
 
-	@keyframes deal-in {
+	@keyframes tile-in {
 		from {
 			opacity: 0;
 			transform: scale(0.6);
