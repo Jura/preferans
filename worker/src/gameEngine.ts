@@ -855,8 +855,12 @@ export function applyWidowSelection(
 	};
 
 	if (contract.type === 'misere') {
-		// No whisting on misère — defenders simply try to catch the declarer
-		return { ...next, phase: 'playing', currentPlayerId: next.firstHandId };
+		// No whisting on misère — defenders simply try to catch the declarer.
+		// If the first lead belongs to a defender, all hands are opened immediately;
+		// otherwise the declarer makes the first move "in the dark".
+		const firstLeadByDeclarer = next.firstHandId === next.declarerId;
+		const openHands = firstLeadByDeclarer ? [] : [...next.playerIds];
+		return { ...next, phase: 'playing', currentPlayerId: next.firstHandId, openHands };
 	}
 
 	const firstDefender = seatAfter(next, playerId);
@@ -1049,14 +1053,13 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 		currentTrick: newTrick
 	};
 
-	// The very first card of the deal is played «втемную» (when declarer leads);
-	// right after it the declarer's hand opens on misère, and whisters choose
-	// light/dark play. When a defender leads first, the choice was already made
-	// before the first card (in resolveWhisting).
+	// The very first card of the deal is played «втемную» when declarer leads:
+	// on misère all hands open right after that first card. For suit contracts
+	// with one whister, the light/dark choice is then requested.
 	const isFirstCard = state.completedTricks.length === 0 && trick.cards.length === 0;
 	if (isFirstCard && !state.raspass) {
 		if (state.contract?.type === 'misere' && state.declarerId) {
-			next = { ...next, openHands: [...new Set([...next.openHands, next.declarerId!])] };
+			next = { ...next, openHands: [...new Set([...next.openHands, ...next.playerIds])] };
 		} else if (
 			state.whisters.length === 1 &&
 			!state.openHands.includes(state.declarerId!) &&
