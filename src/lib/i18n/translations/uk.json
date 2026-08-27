@@ -231,7 +231,9 @@
 			"aria": "Стіл",
 			"emptySlot": "Карту ще не зіграно",
 			"winner": "{{name}} бере хабар!",
-			"bidPass": "Пас"
+			"bidPass": "Пас",
+			"leadsNext": "Ходить наступним",
+			"tricksTaken": "Взяв {{count}} хід(ів)"
 		},
 		"card": {
 			"faceDown": "Карта сорочкою вниз",

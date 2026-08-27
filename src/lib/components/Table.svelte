@@ -16,6 +16,9 @@
 		bids?: { playerId: string; bid: Bid }[];
 		whistDeclarations?: { playerId: string; choice: WhistChoice }[];
 		phase?: string;
+		completedTricks?: Trick[];
+		/** Player who leads next round (shown with a special marker) */
+		nextRoundLeaderId?: string | null;
 	}
 
 	let {
@@ -29,7 +32,9 @@
 		bulletTarget = null,
 		bids = [],
 		whistDeclarations = [],
-		phase = ''
+		phase = '',
+		completedTricks = [],
+		nextRoundLeaderId = null
 	}: Props = $props();
 
 	const SUIT_SYMBOLS: Record<string, string> = {
@@ -56,6 +61,11 @@
 	/** Whist declaration made by this player */
 	function getWhistDeclaration(playerId: string): WhistChoice | null {
 		return whistDeclarations.find((d) => d.playerId === playerId)?.choice ?? null;
+	}
+
+	/** How many tricks this player has taken in the current round */
+	function getTrickCount(playerId: string): number {
+		return completedTricks.filter((t) => t.winnerId === playerId).length;
 	}
 
 	function formatBidLabel(bid: Bid): string {
@@ -130,11 +140,14 @@
 		{#each sortedPlayers as player}
 			{@const card = getCardForPlayer(player.id)}
 			{@const lastBid = phase === 'bidding' ? getLastBid(player.id) : null}
-			{@const whistDecl = phase === 'whisting' ? getWhistDeclaration(player.id) : null}
+			{@const whistDecl =
+				phase === 'whisting' || phase === 'playing' ? getWhistDeclaration(player.id) : null}
+			{@const trickCount = getTrickCount(player.id)}
 			<div
 				class="player-slot"
 				class:self={player.id === myPlayerId}
 				class:current-turn={player.id === currentPlayerId}
+				class:next-round-leader={player.id === nextRoundLeaderId && player.id !== currentPlayerId}
 				style="--pos: {player.position}"
 			>
 				<div class="player-name">
@@ -143,6 +156,9 @@
 						name={player.name}
 						offline={player.isOnline === false}
 					/>
+					{#if player.id === nextRoundLeaderId}
+						<span class="next-lead-marker" title={$t('app.table.leadsNext')}>▶</span>
+					{/if}
 					{#if player.id === declarerId && currentContract && phase !== 'bidding'}
 						<span class={`current-contract ${contractSuitClass(currentContract)}`}>
 							{#if currentContract.type === 'misere'}
@@ -166,6 +182,13 @@
 						</span>
 					{/if}
 				</div>
+				{#if trickCount > 0}
+					<div class="tricks-taken" aria-label={$t('app.table.tricksTaken', { count: trickCount })}>
+						{#each Array(trickCount) as _, i (i)}
+							<div class="trick-tile"></div>
+						{/each}
+					</div>
+				{/if}
 				<div class="played-card">
 					{#if card}
 						<CardComponent {card} playable={false} />
@@ -186,6 +209,7 @@
 
 <style>
 	.table {
+		/* Portrait defaults: wider relative to height for a landscape-leaning table */
 		--table-width: 420px;
 		--table-height: 280px;
 		--table-max-height: 60dvh;
@@ -194,12 +218,28 @@
 		width: min(var(--table-width), 100%);
 		height: min(var(--table-height), var(--table-max-height));
 		background: radial-gradient(ellipse at center, #2d6a4f 0%, #1b4332 100%);
-		border-radius: 50%;
+		border-radius: 16px;
 		border: 4px solid #c8a96e;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		margin: 0 auto;
+	}
+
+	/* Landscape: use more available horizontal space */
+	@media (orientation: landscape) {
+		.table {
+			--table-width: min(55vw, 560px);
+			--table-height: min(40vh, 340px);
+		}
+	}
+
+	/* Portrait: narrower viewport – keep width bounded */
+	@media (orientation: portrait) {
+		.table {
+			--table-width: min(98vw, 420px);
+			--table-height: min(45vw, 300px);
+		}
 	}
 
 	.bullet-target-indicator {
@@ -436,34 +476,64 @@
 
 	.trick-winner {
 		position: absolute;
-		bottom: -48px;
+		top: 50%;
 		left: 50%;
-		transform: translateX(-50%);
-		background: rgba(255, 215, 0, 0.9);
+		transform: translate(-50%, -50%);
+		background: rgba(255, 215, 0, 0.92);
 		color: #1a1a2e;
 		padding: 4px 12px;
 		border-radius: 20px;
 		font-weight: bold;
-		font-size: 14px;
+		font-size: 13px;
 		white-space: nowrap;
 		animation: fadeIn 0.3s ease;
+		z-index: 10;
+		pointer-events: none;
+	}
+
+	.tricks-taken {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: 2px;
+		max-width: 64px;
+		justify-content: center;
+	}
+
+	.trick-tile {
+		width: 14px;
+		height: 20px;
+		border-radius: 3px;
+		background: linear-gradient(135deg, #1a3c5e 25%, #2563a8 50%, #1a3c5e 75%);
+		border: 1px solid #c8a96e;
+		flex-shrink: 0;
+	}
+
+	.next-lead-marker {
+		font-size: 10px;
+		color: #ffd700;
+		line-height: 1;
+	}
+
+	.player-slot.next-round-leader .player-name {
+		border: 1px solid rgba(255, 215, 0, 0.5);
+		background: rgba(255, 215, 0, 0.08);
+		color: #ffd700;
 	}
 
 	@keyframes fadeIn {
 		from {
 			opacity: 0;
-			transform: translateX(-50%) translateY(8px);
+			transform: translate(-50%, calc(-50% + 8px));
 		}
 		to {
 			opacity: 1;
-			transform: translateX(-50%) translateY(0);
+			transform: translate(-50%, -50%);
 		}
 	}
 
 	@media (max-width: 480px) {
 		.table {
-			width: 280px;
-			height: 200px;
 			border-width: 3px;
 		}
 

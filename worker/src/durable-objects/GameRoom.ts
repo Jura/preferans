@@ -163,8 +163,7 @@ export class GameRoom implements DurableObject {
 				return new Response('Need exactly 3 players', { status: 409 });
 			}
 			this.gameState = startRound({
-				...this.gameState,
-				playerIds: this.shufflePlayerIds(this.gameState.playerIds)
+				...this.gameState
 			});
 			await this.persistState();
 			this.broadcastState();
@@ -514,8 +513,7 @@ export class GameRoom implements DurableObject {
 					throw new Error('Need exactly 3 players to start');
 				}
 				this.gameState = startRound({
-					...this.gameState,
-					playerIds: this.shufflePlayerIds(this.gameState.playerIds)
+					...this.gameState
 				});
 				await this.persistState();
 				this.broadcastState();
