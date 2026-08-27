@@ -231,7 +231,9 @@
 			"aria": "Стол",
 			"emptySlot": "Карта ещё не сыграна",
 			"winner": "{{name}} берёт взятку!",
-			"bidPass": "Пас"
+			"bidPass": "Пас",
+			"leadsNext": "Ход следующим",
+			"tricksTaken": "Взял {{count}} взяток"
 		},
 		"card": {
 			"faceDown": "Карта рубашкой",

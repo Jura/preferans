@@ -164,7 +164,10 @@ export class GameRoom implements DurableObject {
 			}
 			this.gameState = startRound({
 				...this.gameState,
-				playerIds: this.shufflePlayerIds(this.gameState.playerIds)
+				playerIds:
+					this.gameState.roundNumber === 0
+						? this.shufflePlayerIds(this.gameState.playerIds)
+						: this.gameState.playerIds
 			});
 			await this.persistState();
 			this.broadcastState();
@@ -515,7 +518,10 @@ export class GameRoom implements DurableObject {
 				}
 				this.gameState = startRound({
 					...this.gameState,
-					playerIds: this.shufflePlayerIds(this.gameState.playerIds)
+					playerIds:
+						this.gameState.roundNumber === 0
+							? this.shufflePlayerIds(this.gameState.playerIds)
+							: this.gameState.playerIds
 				});
 				await this.persistState();
 				this.broadcastState();

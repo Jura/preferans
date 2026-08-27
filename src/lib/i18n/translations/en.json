@@ -231,7 +231,9 @@
 			"aria": "Table",
 			"emptySlot": "Card not played yet",
 			"winner": "{{name}} takes the trick!",
-			"bidPass": "Pass"
+			"bidPass": "Pass",
+			"leadsNext": "Leads next",
+			"tricksTaken": "{{count}} tricks taken"
 		},
 		"card": {
 			"faceDown": "Face-down card",

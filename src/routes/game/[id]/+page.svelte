@@ -133,6 +133,22 @@
 		$game.state?.completedTricks?.[$game.state.completedTricks.length - 1] ?? null
 	);
 
+	// ── Next-round leader: who will lead the next trick ──
+	// Used to visually mark the expected first player each trick/round.
+	let nextRoundLeaderId = $derived(() => {
+		if ($gamePhase !== 'playing') return null as string | null;
+		// Trick in progress: show who led the current trick
+		if ($currentTrick?.cards && $currentTrick.cards.length > 0) {
+			return $currentTrick.cards[0].playerId;
+		}
+		// Trick complete but awaiting confirmation: show the winner
+		if (pendingTrick?.winnerId) return pendingTrick.winnerId;
+		// Between tricks: show winner of last completed trick (they lead next)
+		if (lastCompletedTrick?.winnerId) return lastCompletedTrick.winnerId;
+		// First trick of round, no cards yet – show who plays first
+		return $game.state?.currentPlayerId ?? null;
+	});
+
 	// ── Sorted hand derived state ──
 	let sortedHand = $derived(sortHand($myHand));
 
@@ -151,10 +167,39 @@
 	);
 
 	// ── Open hands organised by relative position ──
-	// Key = playerId, value = sorted cards. We sort each open hand too.
+	// Key = playerId, value = sorted cards.
+	// Order is frozen the first time a hand appears (no reshuffling after first reveal).
+	let frozenOpenHandCards = $state<Record<string, Card[]>>({});
+
+	$effect(() => {
+		const openHands = $game.state?.openHands ?? {};
+
+		// Clear frozen hands when open hands become empty (between rounds / after game)
+		if (Object.keys(openHands).length === 0) {
+			if (Object.keys(frozenOpenHandCards).length > 0) {
+				frozenOpenHandCards = {};
+			}
+			return;
+		}
+
+		// Freeze new hands as they appear for the first time
+		let changed = false;
+		const next: Record<string, Card[]> = { ...frozenOpenHandCards };
+		for (const [pid, cards] of Object.entries(openHands)) {
+			if (!(pid in next)) {
+				next[pid] = sortHand(cards);
+				changed = true;
+			}
+		}
+		if (changed) frozenOpenHandCards = next;
+	});
+
 	let sortedOpenHands = $derived(
 		Object.fromEntries(
-			Object.entries($game.state?.openHands ?? {}).map(([pid, cards]) => [pid, sortHand(cards)])
+			Object.entries($game.state?.openHands ?? {}).map(([pid, cards]) => [
+				pid,
+				frozenOpenHandCards[pid] ?? sortHand(cards)
+			])
 		)
 	);
 
@@ -801,6 +846,7 @@
 								: null}
 							onPlayCard={handlePlayOpenHandCard}
 							label={openHandLeftPlayer.name}
+							groupBySuit={true}
 						/>
 					</div>
 				{/if}
@@ -818,6 +864,8 @@
 						bids={$game.state.bids}
 						whistDeclarations={$game.state.whistDeclarations}
 						phase={$gamePhase}
+						completedTricks={$game.state.completedTricks}
+						nextRoundLeaderId={nextRoundLeaderId()}
 					/>
 
 					{#if $game.state.raspass && $game.state.raspassUpcard}
@@ -853,6 +901,7 @@
 								: null}
 							onPlayCard={handlePlayOpenHandCard}
 							label={openHandRightPlayer.name}
+							groupBySuit={true}
 						/>
 					</div>
 				{/if}
@@ -1183,8 +1232,8 @@
 <style>
 	.game-page {
 		--layout-chrome-height: 120px;
-		--open-hand-side-width: 140px;
-		--open-hand-side-width-viewport: 22vw;
+		--open-hand-side-width: 200px;
+		--open-hand-side-width-viewport: 28vw;
 		--open-hand-overlap: 46px;
 		--open-hand-overlap-mobile: 38px;
 
@@ -1668,22 +1717,6 @@
 		width: min(var(--open-hand-side-width), var(--open-hand-side-width-viewport));
 	}
 
-	.open-hand-side :global(.hand) {
-		flex-direction: column;
-		align-items: center;
-		overflow: visible;
-		padding: 6px 0;
-	}
-
-	.open-hand-side :global(.card) {
-		margin-right: 0;
-		margin-bottom: calc(-1 * var(--open-hand-overlap));
-	}
-
-	.open-hand-side :global(.card:last-child) {
-		margin-bottom: 0;
-	}
-
 	.round-summary {
 		background: rgba(0, 0, 0, 0.6);
 		border: 1px solid #c8a96e;
@@ -1926,17 +1959,13 @@
 		}
 
 		.open-hand-side {
-			width: 78px;
+			width: min(120px, 26vw);
 			padding: 4px 6px;
 		}
 
 		.open-hand-side h4 {
 			font-size: 10px;
 			letter-spacing: 0.4px;
-		}
-
-		.open-hand-side :global(.card) {
-			margin-bottom: calc(-1 * var(--open-hand-overlap-mobile));
 		}
 	}
 
