@@ -136,6 +136,10 @@
 	// ── Next-round leader: who will lead the next trick ──
 	// Used to visually mark the expected first player each trick/round.
 	let nextRoundLeaderId = $derived(() => {
+		// During bidding/widow/whisting: show who is currently acting (first bidder = round opener)
+		if ($gamePhase === 'bidding' || $gamePhase === 'widow' || $gamePhase === 'whisting') {
+			return $game.state?.currentPlayerId ?? null;
+		}
 		if ($gamePhase !== 'playing') return null as string | null;
 		// Trick in progress: show who led the current trick
 		if ($currentTrick?.cards && $currentTrick.cards.length > 0) {
@@ -1673,6 +1677,12 @@
 		font-size: 14px;
 	}
 
+	.raspass-banner :global(.hand) {
+		overflow: visible;
+		padding: 4px 0;
+		flex-shrink: 0;
+	}
+
 	.table-layout {
 		display: flex;
 		align-items: center;
@@ -2002,6 +2012,11 @@
 		justify-content: center;
 		flex-wrap: wrap;
 		margin: 16px 0;
+	}
+
+	.last-trick-cards :global(.hand) {
+		overflow: visible;
+		padding: 4px 0;
 	}
 
 	.last-trick-card-slot {
