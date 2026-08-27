@@ -696,55 +696,64 @@
 	</div>
 
 	{#if showAgreementForm && canProposeAgreement && !activeProposal}
-		<div class="agreement-form">
-			<p class="agreement-form-label">{$t('app.game.agreementLabel')}</p>
-			{#if !$game.state?.raspass}
-				<label class="agreement-radio">
-					<input
-						type="radio"
-						name="agreement-term"
-						value="fulfill"
-						bind:group={agreementTermSelected}
-					/>
-					{$t('app.game.agreementTermFulfill')}
-				</label>
-			{/if}
-			<label class="agreement-radio">
-				<input
-					type="radio"
-					name="agreement-term"
-					value="rest_are_mine"
-					bind:group={agreementTermSelected}
-				/>
-				{$t('app.game.agreementTermRestAreMine')}
-			</label>
-			{#if !$game.state?.raspass}
-				<label class="agreement-radio">
-					<input
-						type="radio"
-						name="agreement-term"
-						value={agreementTricksInput}
-						bind:group={agreementTermSelected}
-					/>
-					<input
-						type="number"
-						min="0"
-						max="10"
-						class="tricks-input"
-						bind:value={agreementTricksInput}
-						onclick={() => (agreementTermSelected = agreementTricksInput)}
-						oninput={() => (agreementTermSelected = agreementTricksInput)}
-					/>
-					{$t('app.game.agreementTermTricks', { count: agreementTricksInput })}
-				</label>
-			{/if}
-			<div class="agreement-form-actions">
-				<button type="button" class="vote-btn yes" onclick={proposeEndByAgreement}>
-					{$t('app.game.voteYes')}
-				</button>
-				<button type="button" class="vote-btn no" onclick={() => (showAgreementForm = false)}>
-					{$t('app.game.voteNo')}
-				</button>
+		<div
+			class="modal-backdrop"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="agreement-form-title"
+		>
+			<div class="modal-card">
+				<h2 id="agreement-form-title" class="modal-title">{$t('app.game.agreementLabel')}</h2>
+				<div class="agreement-form">
+					{#if !$game.state?.raspass}
+						<label class="agreement-radio">
+							<input
+								type="radio"
+								name="agreement-term"
+								value="fulfill"
+								bind:group={agreementTermSelected}
+							/>
+							{$t('app.game.agreementTermFulfill')}
+						</label>
+					{/if}
+					<label class="agreement-radio">
+						<input
+							type="radio"
+							name="agreement-term"
+							value="rest_are_mine"
+							bind:group={agreementTermSelected}
+						/>
+						{$t('app.game.agreementTermRestAreMine')}
+					</label>
+					{#if !$game.state?.raspass}
+						<label class="agreement-radio">
+							<input
+								type="radio"
+								name="agreement-term"
+								value={agreementTricksInput}
+								bind:group={agreementTermSelected}
+							/>
+							<input
+								type="number"
+								min="0"
+								max="10"
+								class="tricks-input"
+								bind:value={agreementTricksInput}
+								onclick={() => (agreementTermSelected = agreementTricksInput)}
+								oninput={() => (agreementTermSelected = agreementTricksInput)}
+							/>
+							{$t('app.game.agreementTermTricks', { count: agreementTricksInput })}
+						</label>
+					{/if}
+				</div>
+				<div class="modal-actions">
+					<button type="button" class="vote-btn yes" onclick={proposeEndByAgreement}>
+						{$t('app.game.voteYes')}
+					</button>
+					<button type="button" class="vote-btn no" onclick={() => (showAgreementForm = false)}>
+						{$t('app.game.voteNo')}
+					</button>
+				</div>
 			</div>
 		</div>
 	{/if}
@@ -1436,13 +1445,9 @@
 	}
 
 	.agreement-form {
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(200, 169, 110, 0.3);
-		border-radius: 12px;
-		padding: 12px 16px;
-		color: #f0e6d3;
 		display: grid;
-		gap: 8px;
+		gap: 10px;
+		margin-bottom: 4px;
 	}
 
 	.agreement-form-label {
