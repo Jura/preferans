@@ -66,7 +66,9 @@
 	let currentContract = $derived($game.state?.contract ?? $game.state?.wonBid ?? null);
 	let finishProposal = $derived($game.state?.finishProposal ?? null);
 	let pauseProposal = $derived($game.state?.pauseProposal ?? null);
-	let agreementProposal = $derived($game.state?.agreementProposal ?? null);
+	let agreementProposal = $derived(
+		$gamePhase === 'playing' ? ($game.state?.agreementProposal ?? null) : null
+	);
 	// Backend enforces mutual exclusion (only one proposal can be active at a time).
 	let activeProposal = $derived(finishProposal ?? pauseProposal ?? agreementProposal);
 	let isProposalProposer = $derived(activeProposal?.proposedBy === myPlayerId);
