@@ -1387,7 +1387,7 @@
 	.toolbar-btn {
 		border: 1px solid rgba(200, 169, 110, 0.45);
 		background: rgba(200, 169, 110, 0.14);
-		color: #f0e6d3;
+		color: var(--cream-200);
 		border-radius: 999px;
 		padding: 5px 12px;
 		font-size: 12px;
@@ -1430,7 +1430,7 @@
 		right: 0;
 		top: calc(100% + 6px);
 		min-width: 200px;
-		background: #1a1a2e;
+		background: var(--surface-menu);
 		border: 1px solid rgba(200, 169, 110, 0.5);
 		border-radius: 10px;
 		padding: 6px 0;
@@ -1445,7 +1445,7 @@
 		text-align: left;
 		background: transparent;
 		border: none;
-		color: #f0e6d3;
+		color: var(--cream-200);
 		font-size: 13px;
 		cursor: pointer;
 		transition: background 0.12s;
@@ -1470,7 +1470,7 @@
 		margin: 0;
 		font-size: 13px;
 		font-weight: 600;
-		color: #c8a96e;
+		color: var(--gold-400);
 	}
 
 	.agreement-radio {
@@ -1486,7 +1486,7 @@
 		background: rgba(0, 0, 0, 0.35);
 		border: 1px solid rgba(200, 169, 110, 0.4);
 		border-radius: 6px;
-		color: #f0e6d3;
+		color: var(--cream-200);
 		padding: 2px 6px;
 		font-size: 13px;
 	}
@@ -1507,7 +1507,7 @@
 		border: 1px solid rgba(200, 169, 110, 0.3);
 		border-radius: 12px;
 		padding: 10px 14px;
-		color: #f0e6d3;
+		color: var(--cream-200);
 		display: grid;
 		gap: 8px;
 	}
@@ -1542,17 +1542,17 @@
 	}
 
 	.phase-label {
-		color: #ffd700;
+		color: var(--highlight);
 		font-weight: bold;
 	}
 
 	.trump-label {
-		color: #c8a96e;
+		color: var(--gold-400);
 	}
 
 	.suit-symbol.suit-spades,
 	.suit-symbol.suit-clubs {
-		color: #111;
+		color: var(--suit-black);
 		background: rgba(255, 255, 255, 0.9);
 		border-radius: 999px;
 		padding: 2px 8px;
@@ -1560,7 +1560,7 @@
 
 	.suit-symbol.suit-diamonds,
 	.suit-symbol.suit-hearts {
-		color: #c0392b;
+		color: var(--suit-red);
 		background: rgba(255, 255, 255, 0.9);
 		border-radius: 999px;
 		padding: 2px 8px;
@@ -1583,7 +1583,7 @@
 	.waiting-msg {
 		text-align: center;
 		padding: 48px;
-		color: #c0b090;
+		color: var(--cream-500);
 	}
 
 	.waiting-shell {
@@ -1619,7 +1619,7 @@
 		width: 40px;
 		height: 40px;
 		border: 3px solid rgba(200, 169, 110, 0.2);
-		border-top-color: #c8a96e;
+		border-top-color: var(--gold-500);
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 		margin: 0 auto 16px;
@@ -1637,17 +1637,17 @@
 		border: 1px solid rgba(200, 169, 110, 0.3);
 		border-radius: 10px;
 		padding: 12px 16px;
-		color: #f0e6d3;
+		color: var(--cream-200);
 	}
 
 	.widow-area h3 {
-		color: #c8a96e;
+		color: var(--gold-400);
 		margin: 0 0 8px;
 	}
 
 	.widow-hint {
 		font-size: 13px;
-		color: #c0b090;
+		color: var(--cream-500);
 		margin: 0 0 8px;
 	}
 
@@ -1677,7 +1677,7 @@
 		border: 1px solid rgba(200, 169, 110, 0.7);
 		border-radius: 10px;
 		background: rgba(255, 255, 255, 0.94);
-		color: #1a1a2e;
+		color: var(--ink-800);
 		font-size: 14px;
 		font-weight: 700;
 		cursor: pointer;
@@ -1691,21 +1691,21 @@
 
 	.mini-btn.active {
 		background: #fff7d6;
-		border-color: #ffd700;
+		border-color: var(--highlight);
 		box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.28);
 		transform: translateY(-1px);
 	}
 
 	.mini-btn.red {
-		color: #e74c3c;
+		color: var(--suit-red);
 	}
 
 	.confirm-btn {
 		padding: 8px 18px;
 		border-radius: 6px;
 		border: none;
-		background: #c8a96e;
-		color: #1a1a2e;
+		background: linear-gradient(180deg, var(--gold-400), var(--gold-500));
+		color: var(--ink-800);
 		font-weight: bold;
 		font-size: 14px;
 		cursor: pointer;
@@ -1720,9 +1720,9 @@
 		margin-top: 8px;
 		padding: 6px 14px;
 		border-radius: 6px;
-		border: 1px solid #c8a96e;
+		border: 1px solid var(--border-gold);
 		background: transparent;
-		color: #c8a96e;
+		color: var(--gold-400);
 		font-size: 13px;
 		cursor: pointer;
 	}
@@ -1733,17 +1733,17 @@
 
 	.whist-panel {
 		background: rgba(0, 0, 0, 0.7);
-		border: 1px solid #c8a96e;
+		border: 1px solid var(--border-gold);
 		border-radius: 10px;
 		padding: 14px 20px;
-		color: #f0e6d3;
+		color: var(--cream-200);
 		text-align: center;
 	}
 
 	.whist-panel h3 {
 		margin: 0 0 12px;
 		font-size: 14px;
-		color: #ffd700;
+		color: var(--highlight);
 	}
 
 	.whist-actions {
@@ -1762,14 +1762,14 @@
 	}
 
 	.whist-btn.whist {
-		background: #c8a96e;
-		color: #1a1a2e;
+		background: linear-gradient(180deg, var(--gold-400), var(--gold-500));
+		color: var(--ink-800);
 		font-weight: bold;
 	}
 
 	.whist-btn.pass {
 		background: rgba(255, 255, 255, 0.1);
-		color: #f0e6d3;
+		color: var(--cream-200);
 		border: 1px solid rgba(255, 255, 255, 0.2);
 	}
 
@@ -1824,7 +1824,7 @@
 	.open-hand h4 {
 		margin: 0;
 		font-size: 12px;
-		color: #c8a96e;
+		color: var(--gold-400);
 		text-transform: uppercase;
 		letter-spacing: 1px;
 	}
@@ -1843,16 +1843,16 @@
 
 	.round-summary {
 		background: rgba(0, 0, 0, 0.6);
-		border: 1px solid #c8a96e;
+		border: 1px solid var(--border-gold);
 		border-radius: 10px;
 		padding: 14px 20px;
-		color: #f0e6d3;
+		color: var(--cream-200);
 		text-align: center;
 	}
 
 	.round-summary h3 {
 		margin: 0 0 8px;
-		color: #ffd700;
+		color: var(--highlight);
 		font-size: 15px;
 	}
 
@@ -1866,7 +1866,7 @@
 		padding: 0;
 		margin: 8px 0 12px;
 		font-size: 13px;
-		color: #c0b090;
+		color: var(--cream-500);
 	}
 
 	.bidding-area {
@@ -1881,13 +1881,13 @@
 		border-radius: 20px;
 		padding: 6px 18px;
 		font-size: 14px;
-		color: #c0b090;
+		color: var(--cream-500);
 	}
 
 	.turn-indicator.my-turn {
 		background: rgba(255, 215, 0, 0.15);
-		border-color: #ffd700;
-		color: #ffd700;
+		border-color: var(--highlight);
+		color: var(--highlight);
 		font-weight: bold;
 		animation: pulse 1.5s ease-in-out infinite;
 	}
@@ -1909,7 +1909,7 @@
 
 	.play-hint {
 		font-size: 12px;
-		color: #888;
+		color: var(--muted);
 		margin: 4px 0 0;
 	}
 
@@ -1926,13 +1926,13 @@
 	}
 
 	.modal-card {
-		background: #1a1a2e;
+		background: var(--surface-menu);
 		border: 1px solid rgba(200, 169, 110, 0.6);
 		border-radius: 16px;
 		padding: 24px 28px;
 		max-width: 440px;
 		width: 100%;
-		color: #f0e6d3;
+		color: var(--cream-200);
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
 		animation: slideUp 0.2s ease;
 	}
@@ -1955,13 +1955,13 @@
 	.modal-title {
 		margin: 0 0 10px;
 		font-size: 18px;
-		color: #ffd700;
+		color: var(--highlight);
 		text-align: center;
 	}
 
 	.modal-body {
 		font-size: 14px;
-		color: #c0b090;
+		color: var(--cream-500);
 		text-align: center;
 		margin: 0 0 16px;
 	}
@@ -1988,19 +1988,19 @@
 	.vote-badge {
 		font-size: 16px;
 		font-weight: bold;
-		color: #888;
+		color: var(--muted);
 	}
 
 	.vote-item.vote-yes .vote-badge {
-		color: #2ecc71;
+		color: var(--success);
 	}
 
 	.vote-item.vote-no .vote-badge {
-		color: #e74c3c;
+		color: var(--danger);
 	}
 
 	.mini-btn.black {
-		color: #111;
+		color: var(--suit-black);
 	}
 
 	.mini-btn.nt {
@@ -2017,7 +2017,7 @@
 	.modal-waiting {
 		text-align: center;
 		font-size: 13px;
-		color: #c0b090;
+		color: var(--cream-500);
 		margin: 0;
 	}
 
@@ -2101,9 +2101,9 @@
 	.confirm-trick-btn {
 		padding: 10px 28px;
 		border-radius: 8px;
-		border: 2px solid #ffd700;
+		border: 2px solid var(--highlight);
 		background: rgba(255, 215, 0, 0.18);
-		color: #ffd700;
+		color: var(--highlight);
 		font-weight: bold;
 		font-size: 15px;
 		cursor: pointer;
@@ -2113,7 +2113,7 @@
 	.last-trick-btn {
 		border: 1px solid rgba(200, 169, 110, 0.4);
 		background: rgba(200, 169, 110, 0.1);
-		color: #c8a96e;
+		color: var(--gold-400);
 		border-radius: 999px;
 		padding: 6px 14px;
 		font-size: 13px;
@@ -2151,11 +2151,11 @@
 
 	.last-trick-player {
 		font-size: 12px;
-		color: #c0b090;
+		color: var(--cream-500);
 	}
 
 	.last-trick-winner-badge {
 		font-size: 16px;
-		color: #ffd700;
+		color: var(--highlight);
 	}
 </style>

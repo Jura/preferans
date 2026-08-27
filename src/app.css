@@ -1,0 +1,167 @@
+/*
+ * Preferans design system — global tokens and base styles.
+ *
+ * All colors, typography, spacing, radii, shadows and motion values used across
+ * the app should reference these custom properties so the theme stays coherent
+ * and can be tuned in one place.
+ */
+
+:root {
+	/* ── Color palette ─────────────────────────────────────────────── */
+	/* Felt greens (table & app background) */
+	--felt-900: #0b1c10;
+	--felt-800: #12291a;
+	--felt-700: #1b4332;
+	--felt-600: #245c42;
+	--felt-500: #2d6a4f;
+
+	/* Gold accent (brand) */
+	--gold-300: #e8cf9a;
+	--gold-400: #d9b877;
+	--gold-500: #c8a96e;
+	--gold-600: #a98c52;
+
+	/* Bright gold used for highlights (selected cards, active turn) */
+	--highlight: #ffd700;
+	--highlight-soft: rgba(255, 215, 0, 0.14);
+
+	/* Cream / ink (text on dark, text on light) */
+	--cream-100: #f6efdf;
+	--cream-200: #f0e6d3;
+	--cream-400: #d8ccb2;
+	--cream-500: #c5b795;
+	--ink-900: #14141f;
+	--ink-800: #1a1a2e;
+
+	/* Surfaces (panels layered above the felt) */
+	--surface-1: rgba(0, 0, 0, 0.35);
+	--surface-2: rgba(0, 0, 0, 0.55);
+	--surface-3: rgba(10, 14, 12, 0.92);
+	--surface-menu: rgba(12, 20, 15, 0.97);
+
+	/* Borders */
+	--border-gold-soft: rgba(200, 169, 110, 0.3);
+	--border-gold: rgba(200, 169, 110, 0.5);
+	--border-gold-strong: var(--gold-500);
+	--border-subtle: rgba(255, 255, 255, 0.14);
+
+	/* Card faces & suits */
+	--card-face: #fdfbf5;
+	--card-face-muted: #efece2;
+	--suit-red: #c62f2a;
+	--suit-black: #22222e;
+	--card-back-1: #1a3c5e;
+	--card-back-2: #2563a8;
+
+	/* Semantic colors (AA-contrast on dark surfaces) */
+	--success: #66d98c;
+	--warning: #ffc65c;
+	--danger: #ff8080;
+	--danger-strong: #8b1a1a;
+	--info: #7fb8e8;
+	--muted: #9aa79e;
+
+	/* ── Typography ────────────────────────────────────────────────── */
+	--font-body: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+	--font-display: Georgia, 'Times New Roman', serif;
+	--font-numeric: 'Segoe UI', system-ui, sans-serif;
+
+	/* Fluid type scale */
+	--text-xs: clamp(10px, 0.55rem + 0.2vw, 11px);
+	--text-sm: clamp(12px, 0.68rem + 0.25vw, 13px);
+	--text-base: clamp(13px, 0.75rem + 0.3vw, 15px);
+	--text-md: clamp(15px, 0.85rem + 0.35vw, 17px);
+	--text-lg: clamp(17px, 0.95rem + 0.5vw, 20px);
+	--text-xl: clamp(20px, 1.05rem + 0.8vw, 26px);
+	--text-2xl: clamp(24px, 1.2rem + 1.2vw, 34px);
+
+	/* ── Card sizing (fluid, scales with viewport) ─────────────────── */
+	--card-w: clamp(52px, 7.2vw + 30px, 72px);
+	--card-h: calc(var(--card-w) * 1.5);
+	--card-radius: calc(var(--card-w) * 0.11);
+
+	/* ── Spacing scale ─────────────────────────────────────────────── */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 24px;
+	--space-6: 32px;
+
+	/* ── Radii ─────────────────────────────────────────────────────── */
+	--radius-sm: 6px;
+	--radius-md: 10px;
+	--radius-lg: 16px;
+	--radius-pill: 999px;
+
+	/* ── Shadows ───────────────────────────────────────────────────── */
+	--shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+	--shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+	--shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.45);
+	--glow-gold: 0 0 14px rgba(255, 215, 0, 0.45);
+
+	/* ── Motion ────────────────────────────────────────────────────── */
+	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+	--dur-fast: 150ms;
+	--dur-med: 250ms;
+	--dur-slow: 400ms;
+
+	/* ── Focus ring ────────────────────────────────────────────────── */
+	--focus-ring: 2px solid var(--highlight);
+	--focus-offset: 2px;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+	font-family: var(--font-body);
+	font-size: var(--text-base);
+	background:
+		radial-gradient(ellipse 120% 80% at 50% -10%, rgba(45, 106, 79, 0.35) 0%, transparent 60%),
+		var(--felt-900);
+	color: var(--cream-200);
+	min-height: 100vh;
+	-webkit-font-smoothing: antialiased;
+}
+
+a {
+	color: var(--gold-400);
+	text-decoration: none;
+	transition: color var(--dur-fast) var(--ease-out);
+}
+
+a:hover {
+	color: var(--gold-300);
+	text-decoration: underline;
+}
+
+button {
+	font-family: inherit;
+}
+
+/* Consistent, clearly visible keyboard focus indicator everywhere */
+:focus-visible {
+	outline: var(--focus-ring);
+	outline-offset: var(--focus-offset);
+	border-radius: var(--radius-sm);
+}
+
+::selection {
+	background: rgba(200, 169, 110, 0.35);
+}
+
+/* Respect users who prefer reduced motion: collapse all animations */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}

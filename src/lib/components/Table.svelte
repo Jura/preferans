@@ -217,9 +217,17 @@
 		position: relative;
 		width: min(var(--table-width), 100%);
 		height: min(var(--table-height), var(--table-max-height));
-		background: radial-gradient(ellipse at center, #2d6a4f 0%, #1b4332 100%);
-		border-radius: 16px;
-		border: 4px solid #c8a96e;
+		background: radial-gradient(
+			ellipse at center,
+			var(--felt-500) 0%,
+			var(--felt-700) 78%,
+			var(--felt-800) 100%
+		);
+		border-radius: var(--radius-lg);
+		border: 4px solid var(--gold-500);
+		box-shadow:
+			inset 0 0 40px rgba(0, 0, 0, 0.35),
+			var(--shadow-md);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -251,17 +259,17 @@
 		align-items: center;
 		padding: 6px 12px;
 		border-radius: 999px;
-		background: rgba(0, 0, 0, 0.7);
-		border: 1px solid rgba(200, 169, 110, 0.45);
-		color: #f0e6d3;
+		background: var(--surface-3);
+		border: 1px solid var(--border-gold);
+		color: var(--cream-200);
 		white-space: nowrap;
-		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+		box-shadow: var(--shadow-md);
 	}
 
 	.bullet-target-value {
 		font-size: 18px;
 		font-weight: 800;
-		color: #ffd700;
+		color: var(--highlight);
 		line-height: 1;
 	}
 
@@ -275,28 +283,28 @@
 		line-height: 1;
 		padding: 4px 10px;
 		border-radius: 999px;
-		background: rgba(0, 0, 0, 0.55);
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		color: #f0e6d3;
+		background: var(--surface-2);
+		border: 1px solid var(--border-subtle);
+		color: var(--cream-200);
 		white-space: nowrap;
 		pointer-events: none;
 		z-index: 1;
 	}
 
 	.center-contract-display.suit-black {
-		color: #111;
-		background: rgba(255, 255, 255, 0.92);
+		color: var(--suit-black);
+		background: var(--card-face);
 		border-color: rgba(0, 0, 0, 0.2);
 	}
 
 	.center-contract-display.suit-red {
-		color: #c0392b;
-		background: rgba(255, 255, 255, 0.92);
-		border-color: rgba(192, 57, 43, 0.3);
+		color: var(--suit-red);
+		background: var(--card-face);
+		border-color: rgba(198, 47, 42, 0.3);
 	}
 
 	.center-contract-display.suit-nt {
-		color: #ffd700;
+		color: var(--highlight);
 		border-color: rgba(255, 215, 0, 0.5);
 	}
 
@@ -307,8 +315,9 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		background: rgba(0, 0, 0, 0.4);
-		border-radius: 8px;
+		background: var(--surface-2);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-sm);
 		padding: 4px 8px;
 	}
 
@@ -321,7 +330,7 @@
 		font-size: 10px;
 		text-transform: uppercase;
 		letter-spacing: 1px;
-		color: #ffd700;
+		color: var(--highlight);
 	}
 
 	.table-center {
@@ -356,12 +365,17 @@
 	}
 
 	.player-name {
-		font-size: 12px;
-		color: #d4e9d1;
+		font-size: var(--text-sm);
+		color: var(--cream-200);
 		white-space: nowrap;
-		background: rgba(0, 0, 0, 0.3);
-		border-radius: 4px;
+		background: var(--surface-2);
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
 		padding: 2px 6px;
+		transition:
+			border-color var(--dur-med) var(--ease-out),
+			background var(--dur-med) var(--ease-out),
+			color var(--dur-med) var(--ease-out);
 		display: flex;
 		align-items: center;
 		gap: 6px;
@@ -373,14 +387,25 @@
 	}
 
 	.player-slot.self .player-name {
-		color: #ffd700;
+		color: var(--highlight);
 		font-weight: bold;
 	}
 
 	.player-slot.current-turn .player-name {
-		border: 1px solid rgba(255, 215, 0, 0.8);
-		background: rgba(255, 215, 0, 0.14);
-		color: #ffd700;
+		border-color: rgba(255, 215, 0, 0.8);
+		background: var(--highlight-soft);
+		color: var(--highlight);
+		animation: turn-pulse 1.8s ease-in-out infinite;
+	}
+
+	@keyframes turn-pulse {
+		0%,
+		100% {
+			box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.45);
+		}
+		50% {
+			box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.35);
+		}
 	}
 
 	.player-slot.current-turn .played-card {
@@ -393,22 +418,22 @@
 		line-height: 1;
 		padding: 2px 5px;
 		border-radius: 999px;
-		background: rgba(0, 0, 0, 0.5);
-		border: 1px solid rgba(255, 255, 255, 0.2);
+		background: var(--surface-2);
+		border: 1px solid var(--border-subtle);
 	}
 
 	.suit-black {
-		color: #111;
-		background: rgba(255, 255, 255, 0.9);
+		color: var(--suit-black);
+		background: var(--card-face);
 	}
 
 	.suit-red {
-		color: #c0392b;
-		background: rgba(255, 255, 255, 0.92);
+		color: var(--suit-red);
+		background: var(--card-face);
 	}
 
 	.suit-nt {
-		color: #ffd700;
+		color: var(--highlight);
 		border-color: rgba(255, 215, 0, 0.5);
 	}
 
@@ -418,20 +443,20 @@
 		line-height: 1;
 		padding: 2px 5px;
 		border-radius: 999px;
-		background: rgba(0, 0, 0, 0.5);
-		border: 1px solid rgba(200, 169, 110, 0.5);
-		color: #c8a96e;
+		background: var(--surface-2);
+		border: 1px solid var(--border-gold);
+		color: var(--gold-300);
 	}
 
 	.bid-label.bid-pass {
-		color: #aaa;
-		border-color: rgba(170, 170, 170, 0.4);
+		color: var(--cream-500);
+		border-color: rgba(197, 183, 149, 0.4);
 	}
 
 	.bid-label.bid-misere {
-		color: #ff6b6b;
-		border-color: rgba(255, 107, 107, 0.5);
-		background: rgba(139, 0, 0, 0.3);
+		color: var(--danger);
+		border-color: rgba(255, 128, 128, 0.5);
+		background: rgba(139, 26, 26, 0.35);
 	}
 
 	.whist-label {
@@ -440,38 +465,38 @@
 		line-height: 1;
 		padding: 2px 5px;
 		border-radius: 999px;
-		background: rgba(0, 0, 0, 0.5);
-		border: 1px solid rgba(255, 255, 255, 0.2);
+		background: var(--surface-2);
+		border: 1px solid var(--border-subtle);
 	}
 
 	.whist-label.whist-whist {
-		color: #c8a96e;
-		border-color: rgba(200, 169, 110, 0.5);
+		color: var(--gold-300);
+		border-color: var(--border-gold);
 	}
 
 	.whist-label.whist-pass {
-		color: #aaa;
-		border-color: rgba(170, 170, 170, 0.4);
+		color: var(--cream-500);
+		border-color: rgba(197, 183, 149, 0.4);
 	}
 
 	.whist-label.whist-half_whist {
-		color: #ffb347;
-		border-color: rgba(255, 179, 71, 0.5);
+		color: var(--warning);
+		border-color: rgba(255, 198, 92, 0.5);
 	}
 
 	.played-card {
-		min-width: 64px;
-		min-height: 96px;
+		min-width: var(--card-w);
+		min-height: var(--card-h);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 	}
 
 	.empty-slot {
-		width: 64px;
-		height: 96px;
-		border: 2px dashed rgba(255, 255, 255, 0.2);
-		border-radius: 8px;
+		width: var(--card-w);
+		height: var(--card-h);
+		border: 2px dashed rgba(255, 255, 255, 0.25);
+		border-radius: var(--card-radius);
 	}
 
 	.trick-winner {
@@ -479,14 +504,15 @@
 		top: 50%;
 		left: 50%;
 		transform: translate(-50%, -50%);
-		background: rgba(255, 215, 0, 0.92);
-		color: #1a1a2e;
-		padding: 4px 12px;
-		border-radius: 20px;
+		background: rgba(255, 215, 0, 0.94);
+		color: var(--ink-800);
+		padding: 5px 14px;
+		border-radius: var(--radius-pill);
 		font-weight: bold;
-		font-size: 13px;
+		font-size: var(--text-sm);
 		white-space: nowrap;
-		animation: fadeIn 0.3s ease;
+		box-shadow: var(--glow-gold), var(--shadow-md);
+		animation: winner-pop var(--dur-slow) var(--ease-out);
 		z-index: 10;
 		pointer-events: none;
 	}
@@ -504,31 +530,51 @@
 		width: 14px;
 		height: 20px;
 		border-radius: 3px;
-		background: linear-gradient(135deg, #1a3c5e 25%, #2563a8 50%, #1a3c5e 75%);
-		border: 1px solid #c8a96e;
+		background: linear-gradient(
+			135deg,
+			var(--card-back-1) 25%,
+			var(--card-back-2) 50%,
+			var(--card-back-1) 75%
+		);
+		border: 1px solid var(--gold-500);
 		flex-shrink: 0;
+		animation: deal-in var(--dur-med) var(--ease-out);
+	}
+
+	@keyframes deal-in {
+		from {
+			opacity: 0;
+			transform: scale(0.6);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
 	}
 
 	.next-lead-marker {
 		font-size: 10px;
-		color: #ffd700;
+		color: var(--highlight);
 		line-height: 1;
 	}
 
 	.player-slot.next-round-leader .player-name {
-		border: 1px solid rgba(255, 215, 0, 0.5);
+		border-color: rgba(255, 215, 0, 0.5);
 		background: rgba(255, 215, 0, 0.08);
-		color: #ffd700;
+		color: var(--highlight);
 	}
 
-	@keyframes fadeIn {
-		from {
+	@keyframes winner-pop {
+		0% {
 			opacity: 0;
-			transform: translate(-50%, calc(-50% + 8px));
+			transform: translate(-50%, calc(-50% + 10px)) scale(0.85);
 		}
-		to {
+		60% {
+			transform: translate(-50%, -50%) scale(1.06);
+		}
+		100% {
 			opacity: 1;
-			transform: translate(-50%, -50%);
+			transform: translate(-50%, -50%) scale(1);
 		}
 	}
 

@@ -163,7 +163,7 @@
 	}
 
 	.status-chip.offline {
-		color: #d9d9d9;
+		color: var(--cream-400);
 		background: rgba(130, 130, 130, 0.3);
 		border: 1px solid rgba(170, 170, 170, 0.45);
 	}
@@ -175,14 +175,14 @@
 		transform: translateX(-50%);
 		min-width: 200px;
 		max-width: 260px;
-		background: rgba(15, 15, 30, 0.97);
-		border: 1px solid rgba(200, 169, 110, 0.5);
-		border-radius: 8px;
+		background: var(--surface-menu);
+		border: 1px solid var(--border-gold);
+		border-radius: var(--radius-md);
 		padding: 10px 12px;
 		z-index: 1000;
 		pointer-events: none;
-		animation: fadeIn 0.15s ease;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+		animation: fadeIn var(--dur-fast) var(--ease-out);
+		box-shadow: var(--shadow-lg);
 	}
 
 	@keyframes fadeIn {
@@ -197,22 +197,22 @@
 	}
 
 	.tooltip-loading {
-		color: #c0b090;
-		font-size: 13px;
+		color: var(--cream-500);
+		font-size: var(--text-sm);
 	}
 
 	.tooltip-name {
 		font-weight: bold;
-		font-size: 14px;
-		color: #ffd700;
+		font-size: var(--text-base);
+		color: var(--highlight);
 		margin-bottom: 2px;
 	}
 
 	.tooltip-email {
-		font-size: 12px;
-		color: #c0b090;
+		font-size: var(--text-sm);
+		color: var(--cream-500);
 		margin-bottom: 6px;
-		border-bottom: 1px solid rgba(200, 169, 110, 0.2);
+		border-bottom: 1px solid var(--border-gold-soft);
 		padding-bottom: 6px;
 	}
 
@@ -220,18 +220,18 @@
 		display: flex;
 		justify-content: space-between;
 		gap: 8px;
-		font-size: 12px;
-		color: #d8ccb2;
+		font-size: var(--text-sm);
+		color: var(--cream-400);
 		line-height: 1.6;
 	}
 
 	.tooltip-label {
-		color: #c8a96e;
+		color: var(--gold-400);
 		white-space: nowrap;
 	}
 
 	.tooltip-value {
-		color: #f0e6d3;
+		color: var(--cream-200);
 		font-weight: 600;
 	}
 </style>

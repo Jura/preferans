@@ -48,7 +48,7 @@
 		: $t('app.card.cardAria', { rank: card.rank, suit: SUIT_SYMBOLS[card.suit] })}
 >
 	{#if faceDown}
-		<span class="back-pattern">🂠</span>
+		<span class="back-inner" aria-hidden="true"></span>
 	{:else}
 		<span class="corner top-left">
 			<span class="rank">{card.rank}</span>
@@ -64,153 +64,136 @@
 
 <style>
 	.card {
-		--card-mobile-width: 56px;
-		--card-mobile-height: 84px;
-
 		position: relative;
-		width: 64px;
-		height: 96px;
-		border: 2px solid #c8a96e;
-		border-radius: 8px;
-		background: #fff;
+		width: var(--card-w);
+		height: var(--card-h);
+		border: 1px solid rgba(20, 20, 31, 0.25);
+		border-radius: var(--card-radius);
+		background: linear-gradient(160deg, var(--card-face) 0%, var(--card-face-muted) 100%);
+		box-shadow: var(--shadow-sm);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		transition:
-			transform 0.15s ease,
-			box-shadow 0.15s ease,
-			border-color 0.15s ease;
-		font-family: Georgia, serif;
+			transform var(--dur-fast) var(--ease-out),
+			box-shadow var(--dur-fast) var(--ease-out),
+			border-color var(--dur-fast) var(--ease-out),
+			opacity var(--dur-fast) var(--ease-out);
+		font-family: var(--font-display);
 		padding: 4px;
 		user-select: none;
 		flex-shrink: 0;
+		animation: deal-in var(--dur-med) var(--ease-out);
+	}
+
+	@keyframes deal-in {
+		from {
+			opacity: 0;
+			transform: translateY(10px) scale(0.96);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
 	}
 
 	.card:hover.playable {
-		transform: translateY(-12px);
-		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+		transform: translateY(calc(var(--card-h) * -0.12));
+		box-shadow: var(--shadow-lg);
+		border-color: var(--gold-500);
 	}
 
 	.card.selected {
-		transform: translateY(-16px);
-		border-color: #ffd700;
-		box-shadow: 0 8px 20px rgba(255, 215, 0, 0.5);
+		transform: translateY(calc(var(--card-h) * -0.16));
+		border-color: var(--highlight);
+		box-shadow:
+			0 0 0 2px var(--highlight),
+			var(--glow-gold),
+			var(--shadow-md);
+	}
+
+	.card:focus-visible {
+		outline: var(--focus-ring);
+		outline-offset: var(--focus-offset);
+		z-index: 20;
 	}
 
 	.card:not(.playable) {
 		cursor: default;
-		opacity: 0.85;
+		opacity: 0.92;
 	}
 
 	.card.ineligible {
-		opacity: 0.4;
-		filter: grayscale(15%);
+		opacity: 0.45;
+		filter: grayscale(35%);
 		cursor: not-allowed;
 	}
 
 	.card.face-down {
-		background: linear-gradient(135deg, #1a3c5e 25%, #2563a8 50%, #1a3c5e 75%);
+		background: linear-gradient(
+			145deg,
+			var(--card-back-1) 0%,
+			var(--card-back-2) 55%,
+			var(--card-back-1) 100%
+		);
+		border-color: var(--gold-600);
 		cursor: default;
+	}
+
+	/* Woven lattice pattern on the card back, framed by an inner border */
+	.back-inner {
+		position: absolute;
+		inset: 9%;
+		border: 1px solid rgba(240, 230, 211, 0.45);
+		border-radius: calc(var(--card-radius) * 0.6);
+		background-image:
+			repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.13) 0 2px, transparent 2px 7px),
+			repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.13) 0 2px, transparent 2px 7px);
 	}
 
 	.corner {
 		position: absolute;
-		font-size: 14px;
-		line-height: 1.1;
+		font-size: calc(var(--card-w) * 0.24);
+		line-height: 1.05;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 	}
 
 	.top-left {
-		top: 4px;
-		left: 6px;
+		top: 5%;
+		left: 8%;
 	}
 
 	.bottom-right {
-		bottom: 4px;
-		right: 6px;
+		bottom: 5%;
+		right: 8%;
 		transform: rotate(180deg);
 	}
 
 	.center-suit {
-		font-size: 28px;
+		font-size: calc(var(--card-w) * 0.44);
 		line-height: 1;
+		opacity: 0.9;
 	}
 
 	.rank {
-		font-size: 14px;
+		font-size: calc(var(--card-w) * 0.24);
 		font-weight: bold;
 		line-height: 1;
 	}
 
 	.suit {
-		font-size: 12px;
+		font-size: calc(var(--card-w) * 0.2);
 		line-height: 1;
 	}
 
 	.red {
-		color: #c0392b;
+		color: var(--suit-red);
 	}
 
 	.black {
-		color: #1a1a2e;
-	}
-
-	.back-pattern {
-		font-size: 64px;
-		opacity: 0.4;
-		color: #fff;
-	}
-
-	/* ── Compact card for small screens ── */
-	@media (max-width: 480px) {
-		.card {
-			width: var(--card-mobile-width);
-			height: var(--card-mobile-height);
-			border-radius: 5px;
-			border-width: 1px;
-			padding: 2px;
-		}
-
-		.corner {
-			font-size: 18px;
-		}
-
-		.top-left {
-			top: 2px;
-			left: 3px;
-		}
-
-		.bottom-right {
-			bottom: 2px;
-			right: 3px;
-		}
-
-		.rank {
-			font-size: 18px;
-		}
-
-		.suit {
-			font-size: 16px;
-		}
-
-		.center-suit {
-			display: block;
-			font-size: 24px;
-		}
-
-		.back-pattern {
-			font-size: 36px;
-		}
-
-		.card:hover.playable {
-			transform: translateY(-8px);
-		}
-
-		.card.selected {
-			transform: translateY(-10px);
-		}
+		color: var(--suit-black);
 	}
 </style>

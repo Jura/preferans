@@ -126,19 +126,34 @@
 
 <style>
 	.bidding-panel {
-		background: rgba(0, 0, 0, 0.7);
-		border: 1px solid #c8a96e;
-		border-radius: 10px;
-		padding: 16px 20px;
-		color: #f0e6d3;
+		background: var(--surface-3);
+		border: 1px solid var(--border-gold);
+		border-radius: var(--radius-md);
+		padding: var(--space-4) var(--space-5);
+		color: var(--cream-200);
 		max-width: 360px;
+		box-shadow: var(--shadow-md);
+		animation: panel-in var(--dur-med) var(--ease-out);
+	}
+
+	@keyframes panel-in {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	.title {
 		margin: 0 0 14px;
-		font-size: 14px;
-		color: #ffd700;
+		font-size: var(--text-base);
+		color: var(--highlight);
 		text-align: center;
+		text-transform: uppercase;
+		letter-spacing: 1px;
 	}
 
 	.level-row,
@@ -159,26 +174,32 @@
 		min-width: 48px;
 		height: 48px;
 		padding: 0 10px;
-		border: 1px solid rgba(200, 169, 110, 0.7);
-		border-radius: 10px;
-		background: rgba(255, 255, 255, 0.94);
-		color: #1a1a2e;
-		font-size: 20px;
+		border: 1px solid var(--border-gold);
+		border-radius: var(--radius-md);
+		background: var(--card-face);
+		color: var(--ink-800);
+		font-size: var(--text-lg);
 		font-weight: 700;
 		cursor: pointer;
 		transition:
-			background 0.15s,
-			border-color 0.15s,
-			box-shadow 0.15s,
-			transform 0.15s,
-			color 0.15s;
+			background var(--dur-fast) var(--ease-out),
+			border-color var(--dur-fast) var(--ease-out),
+			box-shadow var(--dur-fast) var(--ease-out),
+			transform var(--dur-fast) var(--ease-out),
+			color var(--dur-fast) var(--ease-out);
+	}
+
+	.level-btn:hover:not(:disabled),
+	.suit-btn:hover:not(:disabled) {
+		transform: translateY(-1px);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.level-btn.active,
 	.suit-btn.active {
 		background: #fff7d6;
-		border-color: #ffd700;
-		box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.28);
+		border-color: var(--highlight);
+		box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.35);
 		transform: translateY(-1px);
 	}
 
@@ -201,11 +222,11 @@
 	}
 
 	.suit-btn.black {
-		color: #111;
+		color: var(--suit-black);
 	}
 
 	.suit-btn.red {
-		color: #e74c3c;
+		color: var(--suit-red);
 	}
 
 	.suit-btn.nt {
@@ -218,28 +239,38 @@
 	.misere-btn,
 	.pass-btn {
 		padding: 8px 16px;
-		border-radius: 6px;
-		font-size: 14px;
+		border-radius: var(--radius-sm);
+		font-size: var(--text-base);
 		cursor: pointer;
 		border: none;
-		transition: opacity 0.15s;
+		transition:
+			opacity var(--dur-fast) var(--ease-out),
+			filter var(--dur-fast) var(--ease-out),
+			box-shadow var(--dur-fast) var(--ease-out);
+	}
+
+	.bid-btn:hover:not(:disabled),
+	.misere-btn:hover:not(:disabled),
+	.pass-btn:hover:not(:disabled) {
+		filter: brightness(1.12);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.bid-btn {
-		background: #c8a96e;
-		color: #1a1a2e;
+		background: linear-gradient(180deg, var(--gold-400), var(--gold-500));
+		color: var(--ink-800);
 		font-weight: bold;
 	}
 
 	.misere-btn {
-		background: #8b0000;
-		color: #fff;
+		background: var(--danger-strong);
+		color: var(--cream-100);
 	}
 
 	.pass-btn {
 		background: rgba(255, 255, 255, 0.1);
-		color: #f0e6d3;
-		border: 1px solid rgba(255, 255, 255, 0.2);
+		color: var(--cream-200);
+		border: 1px solid var(--border-subtle);
 	}
 
 	.bid-btn:disabled,
