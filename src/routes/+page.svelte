@@ -243,15 +243,15 @@
 	}
 
 	.target-label {
-		font-size: 16px;
+		font-size: var(--text-md);
 		font-weight: 600;
-		color: #f0e6d3;
+		color: var(--cream-200);
 	}
 
 	.target-value {
-		font-size: 28px;
+		font-size: var(--text-2xl);
 		font-weight: 700;
-		color: #ffd700;
+		color: var(--highlight);
 	}
 
 	.target-controls {
@@ -268,42 +268,44 @@
 
 	.target-number {
 		background: rgba(0, 0, 0, 0.28);
-		border: 1px solid rgba(200, 169, 110, 0.35);
-		border-radius: 10px;
-		color: #f0e6d3;
+		border: 1px solid var(--border-gold-soft);
+		border-radius: var(--radius-md);
+		color: var(--cream-200);
 		padding: 12px 14px;
-		font-size: 18px;
+		font-size: var(--text-lg);
 	}
 
 	.target-slider {
-		accent-color: #c8a96e;
+		accent-color: var(--gold-500);
 	}
 
 	.target-hint,
 	.table-lock-message {
 		margin: 0;
-		color: #c0b090;
+		color: var(--cream-500);
 		font-size: 14px;
 		line-height: 1.5;
 	}
 
 	.hero-title {
+		font-family: var(--font-display);
 		font-size: clamp(32px, 5vw, 56px);
 		margin: 0 0 12px;
-		color: #ffd700;
+		color: var(--highlight);
 		text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+		letter-spacing: 0.02em;
 	}
 
 	.hero-subtitle {
-		font-size: 18px;
-		color: #c8a96e;
+		font-size: var(--text-lg);
+		color: var(--gold-300);
 		margin: 0 0 32px;
 	}
 
 	.btn-create {
 		display: inline-block;
-		background: linear-gradient(135deg, #c8a96e, #e0c088);
-		color: #1a1a2e;
+		background: linear-gradient(135deg, var(--gold-500), var(--gold-300));
+		color: var(--ink-800);
 		padding: 14px 36px;
 		border-radius: 8px;
 		font-size: 18px;
@@ -345,8 +347,8 @@
 
 	.users-dropdown summary {
 		cursor: pointer;
-		color: #c8a96e;
-		font-size: 14px;
+		color: var(--gold-400);
+		font-size: var(--text-base);
 	}
 
 	.users-dropdown ul {
@@ -364,14 +366,15 @@
 	}
 
 	.presence-text {
-		font-size: 13px;
-		color: #d8ccb2;
+		font-size: var(--text-sm);
+		color: var(--cream-400);
 	}
 
 	h2 {
-		font-size: 22px;
-		color: #c8a96e;
-		border-bottom: 1px solid rgba(200, 169, 110, 0.3);
+		font-family: var(--font-display);
+		font-size: var(--text-xl);
+		color: var(--gold-400);
+		border-bottom: 1px solid var(--border-gold-soft);
 		padding-bottom: 8px;
 		margin-bottom: 16px;
 	}
@@ -379,7 +382,7 @@
 	.empty-games {
 		text-align: center;
 		padding: 48px;
-		color: #666;
+		color: var(--muted);
 	}
 
 	.online-users-indicator {
@@ -394,13 +397,13 @@
 		width: 10px;
 		height: 10px;
 		border-radius: 50%;
-		background: #2ecc71;
-		box-shadow: 0 0 8px rgba(46, 204, 113, 0.6);
+		background: var(--success);
+		box-shadow: 0 0 8px color-mix(in srgb, var(--success) 60%, transparent);
 	}
 
 	.login-prompt {
 		margin-top: 12px;
-		color: #c0b090;
+		color: var(--cream-500);
 	}
 
 	.empty-icon {
@@ -456,7 +459,7 @@
 	.pin-badge {
 		font-size: 12px;
 		background: rgba(255, 215, 0, 0.2);
-		color: #ffe898;
+		color: var(--gold-300);
 		padding: 2px 8px;
 		border-radius: 12px;
 	}
@@ -466,32 +469,32 @@
 	}
 
 	.game-players {
-		font-size: 13px;
-		color: #888;
+		font-size: var(--text-sm);
+		color: var(--muted);
 	}
 
 	.badge {
 		font-size: 12px;
 		background: rgba(200, 169, 110, 0.15);
-		color: #c8a96e;
+		color: var(--gold-400);
 		padding: 2px 8px;
 		border-radius: 12px;
 	}
 
 	.btn-join {
 		background: rgba(200, 169, 110, 0.15);
-		color: #c8a96e;
+		color: var(--gold-300);
 		padding: 6px 16px;
-		border-radius: 6px;
-		font-size: 14px;
+		border-radius: var(--radius-sm);
+		font-size: var(--text-base);
 		white-space: nowrap;
-		transition: background 0.15s;
+		transition: background var(--dur-fast) var(--ease-out);
 	}
 
 	.btn-admin {
 		background: rgba(200, 169, 110, 0.12);
-		color: #c8a96e;
-		border: 1px solid rgba(200, 169, 110, 0.35);
+		color: var(--gold-400);
+		border: 1px solid var(--border-gold-soft);
 		padding: 6px 10px;
 		border-radius: 6px;
 		font-size: 12px;
@@ -505,7 +508,7 @@
 	}
 
 	.btn-admin.danger {
-		color: #ffb3b3;
+		color: var(--danger);
 		border-color: rgba(255, 120, 120, 0.45);
 		background: rgba(255, 120, 120, 0.12);
 	}
@@ -530,14 +533,14 @@
 
 	.rule-card h3 {
 		margin: 0 0 8px;
-		font-size: 16px;
-		color: #ffd700;
+		font-size: var(--text-md);
+		color: var(--gold-300);
 	}
 
 	.rule-card p {
 		margin: 0;
-		font-size: 14px;
-		color: #c0b090;
+		font-size: var(--text-base);
+		color: var(--cream-500);
 		line-height: 1.5;
 	}
 

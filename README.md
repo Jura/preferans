@@ -20,6 +20,7 @@ This project uses SvelteKit for the web app UI and Cloudflare platform services 
 ```text
 preferans/
 |- src/                          # SvelteKit application
+|  |- app.css                    # Global design tokens (colors, type, spacing, motion)
 |  |- routes/                    # Pages, auth routes, game routes
 |  |- lib/components/            # UI components
 |  |- lib/stores/                # Client stores (auth, game websocket)

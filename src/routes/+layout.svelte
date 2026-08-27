@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '../app.css';
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { auth } from '$lib/stores/auth';
@@ -157,32 +158,6 @@
 <Toast />
 
 <style>
-	:global(*) {
-		box-sizing: border-box;
-	}
-
-	:global(body) {
-		margin: 0;
-		padding: 0;
-		font-family:
-			'Segoe UI',
-			system-ui,
-			-apple-system,
-			sans-serif;
-		background: #0d1f12;
-		color: #f0e6d3;
-		min-height: 100vh;
-	}
-
-	:global(a) {
-		color: #c8a96e;
-		text-decoration: none;
-	}
-
-	:global(a:hover) {
-		text-decoration: underline;
-	}
-
 	.app {
 		display: flex;
 		flex-direction: column;
@@ -193,9 +168,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 12px 24px;
-		background: rgba(0, 0, 0, 0.5);
-		border-bottom: 1px solid rgba(200, 169, 110, 0.3);
+		padding: var(--space-3) var(--space-5);
+		background: var(--surface-2);
+		border-bottom: 1px solid var(--border-gold-soft);
 		position: sticky;
 		top: 0;
 		z-index: 100;
@@ -205,10 +180,17 @@
 	.logo {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		color: #f0e6d3;
-		font-size: 20px;
+		gap: var(--space-2);
+		color: var(--cream-200);
+		font-family: var(--font-display);
+		font-size: var(--text-xl);
 		font-weight: bold;
+		letter-spacing: 0.02em;
+		text-decoration: none;
+	}
+
+	.logo:hover {
+		color: var(--gold-300);
 		text-decoration: none;
 	}
 
@@ -226,10 +208,16 @@
 
 	select {
 		background: rgba(255, 255, 255, 0.08);
-		border: 1px solid rgba(200, 169, 110, 0.35);
-		border-radius: 6px;
-		color: #f0e6d3;
+		border: 1px solid var(--border-gold-soft);
+		border-radius: var(--radius-sm);
+		color: var(--cream-200);
 		padding: 6px 8px;
+		font-size: var(--text-base);
+		transition: border-color var(--dur-fast) var(--ease-out);
+	}
+
+	select:hover {
+		border-color: var(--border-gold);
 	}
 
 	.visually-hidden {
@@ -262,15 +250,15 @@
 	.avatar,
 	.avatar-placeholder {
 		border-radius: 50%;
-		border: 2px solid #c8a96e;
+		border: 2px solid var(--gold-500);
 		width: 32px;
 		height: 32px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		background: rgba(255, 255, 255, 0.08);
-		color: #f0e6d3;
-		font-size: 14px;
+		color: var(--cream-200);
+		font-size: var(--text-base);
 		font-weight: 700;
 	}
 
@@ -282,11 +270,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
-		background: rgba(15, 15, 30, 0.96);
-		border: 1px solid rgba(200, 169, 110, 0.35);
-		border-radius: 10px;
+		background: var(--surface-menu);
+		border: 1px solid var(--border-gold);
+		border-radius: var(--radius-md);
 		padding: 10px;
 		z-index: 200;
+		box-shadow: var(--shadow-lg);
 	}
 
 	.menu-section {
@@ -301,41 +290,45 @@
 	}
 
 	.admin-section {
-		border-top: 1px solid rgba(200, 169, 110, 0.25);
+		border-top: 1px solid var(--border-gold-soft);
 		padding-top: 8px;
 	}
 
 	.btn-primary {
-		background: #c8a96e;
-		color: #1a1a2e;
+		background: linear-gradient(180deg, var(--gold-400), var(--gold-500));
+		color: var(--ink-800);
 		padding: 8px 18px;
-		border-radius: 6px;
+		border-radius: var(--radius-sm);
 		font-weight: bold;
 		text-decoration: none;
-		font-size: 14px;
-		transition: background 0.15s;
+		font-size: var(--text-base);
+		transition:
+			filter var(--dur-fast) var(--ease-out),
+			box-shadow var(--dur-fast) var(--ease-out);
 	}
 
 	.btn-primary:hover {
-		background: #e0c088;
+		filter: brightness(1.1);
+		box-shadow: var(--shadow-sm);
 		text-decoration: none;
 	}
 
 	.btn-outline {
 		background: transparent;
-		color: #c8a96e;
+		color: var(--gold-400);
 		padding: 6px 14px;
-		border-radius: 6px;
-		border: 1px solid #c8a96e;
-		font-size: 14px;
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--gold-500);
+		font-size: var(--text-base);
 		cursor: pointer;
 		transition:
-			background 0.15s,
-			color 0.15s;
+			background var(--dur-fast) var(--ease-out),
+			color var(--dur-fast) var(--ease-out);
 	}
 
 	.btn-outline:hover {
 		background: rgba(200, 169, 110, 0.15);
+		color: var(--gold-300);
 	}
 
 	main {
@@ -344,11 +337,11 @@
 	}
 
 	footer {
-		padding: 16px 24px;
+		padding: var(--space-4) var(--space-5);
 		text-align: center;
-		font-size: 13px;
-		color: #666;
-		border-top: 1px solid rgba(255, 255, 255, 0.05);
+		font-size: var(--text-sm);
+		color: var(--muted);
+		border-top: 1px solid rgba(255, 255, 255, 0.06);
 	}
 
 	@media (max-width: 640px) {
@@ -357,7 +350,7 @@
 		}
 
 		.logo-text {
-			font-size: 18px;
+			font-size: var(--text-lg);
 		}
 
 		nav {

@@ -68,19 +68,20 @@
 
 <style>
 	.scoreboard {
-		background: rgba(0, 0, 0, 0.6);
-		border: 1px solid #c8a96e;
-		border-radius: 8px;
-		padding: 12px 16px;
-		color: #f0e6d3;
+		background: var(--surface-3);
+		border: 1px solid var(--border-gold);
+		border-radius: var(--radius-md);
+		padding: var(--space-3) var(--space-4);
+		color: var(--cream-200);
 		min-width: 200px;
+		box-shadow: var(--shadow-md);
 	}
 
 	.title {
 		margin: 0 0 10px;
-		font-size: 14px;
+		font-size: var(--text-base);
 		text-align: center;
-		color: #ffd700;
+		color: var(--highlight);
 		text-transform: uppercase;
 		letter-spacing: 1px;
 	}
@@ -88,15 +89,20 @@
 	table {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 14px;
+		font-size: var(--text-base);
+		font-variant-numeric: tabular-nums;
 	}
 
 	th {
-		color: #c8a96e;
+		color: var(--gold-300);
 		font-weight: normal;
 		padding: 4px 8px;
 		text-align: left;
-		border-bottom: 1px solid rgba(200, 169, 110, 0.3);
+		border-bottom: 1px solid var(--border-gold-soft);
+	}
+
+	tbody tr + tr td {
+		border-top: 1px solid rgba(255, 255, 255, 0.06);
 	}
 
 	td {
@@ -109,34 +115,34 @@
 	}
 
 	.pool {
-		color: #ffd700;
+		color: var(--highlight);
 	}
 
 	.pool-target {
-		font-size: 10px;
-		color: rgba(200, 169, 110, 0.6);
+		font-size: var(--text-xs);
+		color: var(--cream-500);
 		font-weight: normal;
 	}
 
 	.pool-amount {
-		font-size: 18px;
+		font-size: var(--text-lg);
 		font-weight: bold;
-		color: #ffd700;
+		color: var(--highlight);
 	}
 
 	.mountain {
-		color: #ff9d76;
+		color: var(--warning);
 	}
 
 	.score {
 		font-weight: bold;
-		font-size: 16px;
+		font-size: var(--text-md);
 		text-align: right;
-		color: #7eff8a;
+		color: var(--success);
 	}
 
 	.score.negative {
-		color: #ff6b6b;
+		color: var(--danger);
 	}
 
 	.avatar {

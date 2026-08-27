@@ -101,7 +101,12 @@
 		{/if}
 	</div>
 {:else if showSuitGaps && suitGroups()}
-	<div class="hand hand-suit-gaps" aria-label={label ?? $t('app.game.yourCards')} role="group">
+	<div
+		class="hand hand-suit-gaps"
+		class:dense={cards.length > 8}
+		aria-label={label ?? $t('app.game.yourCards')}
+		role="group"
+	>
 		{#each suitGroups()! as group, gi}
 			{#if gi > 0}
 				<div class="suit-gap"></div>
@@ -121,7 +126,12 @@
 		{/if}
 	</div>
 {:else}
-	<div class="hand" aria-label={label ?? $t('app.game.yourCards')} role="group">
+	<div
+		class="hand"
+		class:dense={cards.length > 8}
+		aria-label={label ?? $t('app.game.yourCards')}
+		role="group"
+	>
 		{#each cards as card (card.suit + card.rank)}
 			<CardComponent
 				{card}
@@ -141,29 +151,40 @@
 	.hand {
 		display: flex;
 		flex-wrap: nowrap;
-		gap: -8px;
 		justify-content: center;
-		padding: 18px 0 8px;
+		padding: calc(var(--card-h) * 0.18) var(--space-2) var(--space-2);
 		overflow-x: auto;
 		-webkit-overflow-scrolling: touch;
 	}
 
+	/* Fanned overlap: cards overlap by a fraction of their own (fluid) width,
+	   tightening automatically when the hand grows (e.g. 12 cards in misère). */
 	.hand :global(.card) {
-		margin-right: -10px;
+		margin-right: calc(var(--card-w) * -0.18);
 		transition:
-			transform 0.15s ease,
-			margin 0.15s ease;
+			transform var(--dur-fast) var(--ease-out),
+			margin var(--dur-fast) var(--ease-out),
+			box-shadow var(--dur-fast) var(--ease-out);
+	}
+
+	.hand.dense :global(.card) {
+		margin-right: calc(var(--card-w) * -0.34);
+	}
+
+	.hand :global(.card:last-child) {
+		margin-right: 0;
 	}
 
 	.hand :global(.card:hover.playable),
-	.hand :global(.card.selected) {
-		margin-right: 4px;
+	.hand :global(.card.selected),
+	.hand :global(.card:focus-visible) {
+		margin-right: calc(var(--card-w) * 0.06);
 		z-index: 10;
 	}
 
 	/* Suit gap spacer: slightly widens the overlap gap between suit groups */
 	.suit-gap {
-		width: 8px;
+		width: calc(var(--card-w) * 0.18);
 		flex-shrink: 0;
 	}
 
@@ -181,10 +202,10 @@
 	}
 
 	.suit-row :global(.card) {
-		margin-right: -18px;
+		margin-right: calc(var(--card-w) * -0.3);
 		transition:
-			transform 0.15s ease,
-			margin 0.15s ease;
+			transform var(--dur-fast) var(--ease-out),
+			margin var(--dur-fast) var(--ease-out);
 	}
 
 	.suit-row :global(.card:last-child) {
@@ -192,29 +213,16 @@
 	}
 
 	.suit-row :global(.card:hover.playable),
-	.suit-row :global(.card.selected) {
-		margin-right: 4px;
+	.suit-row :global(.card.selected),
+	.suit-row :global(.card:focus-visible) {
+		margin-right: calc(var(--card-w) * 0.06);
 		z-index: 10;
 	}
 
 	.empty {
-		color: #aaa;
+		color: var(--cream-500);
 		font-style: italic;
-		padding: 16px;
-	}
-
-	@media (max-width: 480px) {
-		.hand :global(.card) {
-			margin-right: -6px;
-		}
-
-		.hand :global(.card:hover.playable),
-		.hand :global(.card.selected) {
-			margin-right: 2px;
-		}
-
-		.suit-row :global(.card) {
-			margin-right: -12px;
-		}
+		padding: var(--space-4);
+		font-size: var(--text-base);
 	}
 </style>
