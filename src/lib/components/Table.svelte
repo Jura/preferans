@@ -209,6 +209,7 @@
 
 <style>
 	.table {
+		/* Portrait defaults: wider relative to height for a landscape-leaning table */
 		--table-width: 420px;
 		--table-height: 280px;
 		--table-max-height: 60dvh;
@@ -223,6 +224,22 @@
 		align-items: center;
 		justify-content: center;
 		margin: 0 auto;
+	}
+
+	/* Landscape: use more available horizontal space */
+	@media (orientation: landscape) {
+		.table {
+			--table-width: min(55vw, 560px);
+			--table-height: min(40vh, 340px);
+		}
+	}
+
+	/* Portrait: narrower viewport – keep width bounded */
+	@media (orientation: portrait) {
+		.table {
+			--table-width: min(98vw, 420px);
+			--table-height: min(45vw, 300px);
+		}
 	}
 
 	.bullet-target-indicator {
@@ -517,8 +534,6 @@
 
 	@media (max-width: 480px) {
 		.table {
-			width: 280px;
-			height: 200px;
 			border-width: 3px;
 		}
 

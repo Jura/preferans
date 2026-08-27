@@ -1135,6 +1135,7 @@
 					selectedCards={discardSelection}
 					onPlayCard={handlePlayCard}
 					label={$t('app.game.yourCards')}
+					showSuitGaps={true}
 				/>
 				<p class="play-hint">
 					{$t('app.game.discardSelected', {
@@ -1151,6 +1152,7 @@
 					{eligibleCards}
 					onPlayCard={handlePlayCard}
 					label={$t('app.game.yourCards')}
+					showSuitGaps={true}
 				/>
 				{#if isDeclarer && $gamePhase === 'playing' && !isDeclarerHandOpen && $game.state?.whisters && $game.state.whisters.length > 0}
 					<button class="declare-open-btn" onclick={declareOpenHand}>
@@ -1685,7 +1687,7 @@
 
 	.table-layout {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: center;
 		gap: 12px;
 		width: 100%;
@@ -1696,6 +1698,7 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 10px;
+		flex-shrink: 0;
 	}
 
 	.open-hand {

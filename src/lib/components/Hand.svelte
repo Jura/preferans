@@ -14,6 +14,8 @@
 		label?: string;
 		/** When true, display cards grouped by suit in rows (for landscape open-hand panels) */
 		groupBySuit?: boolean;
+		/** When true, add a visible gap between suit groups in the flat row layout */
+		showSuitGaps?: boolean;
 	}
 
 	let {
@@ -24,7 +26,8 @@
 		eligibleCards = null,
 		onPlayCard,
 		label,
-		groupBySuit = false
+		groupBySuit = false,
+		showSuitGaps = false
 	}: Props = $props();
 
 	function isSelected(card: Card): boolean {
@@ -57,6 +60,25 @@
 		}
 		return SUIT_ORDER.filter((s) => bySuit.has(s)).map((s) => bySuit.get(s)!);
 	});
+
+	/**
+	 * For the flat hand layout with suit gaps: split the already-sorted `cards` array
+	 * into groups by suit (maintaining the incoming order).
+	 */
+	let suitGroups = $derived(() => {
+		if (!showSuitGaps || cards.length === 0) return null;
+		const groups: Card[][] = [];
+		let current: Card[] = [];
+		for (const card of cards) {
+			if (current.length > 0 && current[current.length - 1].suit !== card.suit) {
+				groups.push(current);
+				current = [];
+			}
+			current.push(card);
+		}
+		if (current.length > 0) groups.push(current);
+		return groups;
+	});
 </script>
 
 {#if groupBySuit}
@@ -73,6 +95,26 @@
 					/>
 				{/each}
 			</div>
+		{/each}
+		{#if cards.length === 0}
+			<span class="empty">{$t('app.hand.empty')}</span>
+		{/if}
+	</div>
+{:else if showSuitGaps && suitGroups()}
+	<div class="hand hand-suit-gaps" aria-label={label ?? $t('app.game.yourCards')} role="group">
+		{#each suitGroups()! as group, gi}
+			{#if gi > 0}
+				<div class="suit-gap"></div>
+			{/if}
+			{#each group as card (card.suit + card.rank)}
+				<CardComponent
+					{card}
+					selected={isSelected(card)}
+					{playable}
+					eligible={isEligible(card)}
+					onclick={() => handleCardClick(card)}
+				/>
+			{/each}
 		{/each}
 		{#if cards.length === 0}
 			<span class="empty">{$t('app.hand.empty')}</span>
@@ -117,6 +159,12 @@
 	.hand :global(.card.selected) {
 		margin-right: 4px;
 		z-index: 10;
+	}
+
+	/* Suit gap spacer: slightly widens the overlap gap between suit groups */
+	.suit-gap {
+		width: 8px;
+		flex-shrink: 0;
 	}
 
 	.hand-grouped {
