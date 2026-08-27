@@ -983,26 +983,6 @@ export function isControllingDeclarerHand(state: GameState, playerId: PlayerId):
 	);
 }
 
-/**
- * The declarer reveals their hand and hands control of it to the whisters.
- * Only allowed during the playing phase, before or during card play.
- */
-export function applyDeclarerOpenHand(state: GameState, playerId: PlayerId): GameState {
-	if (state.phase !== 'playing') {
-		throw new Error('Can only declare open hand during the playing phase');
-	}
-	if (playerId !== state.declarerId) {
-		throw new Error('Only the declarer can declare an open hand');
-	}
-	if (state.openHands.includes(playerId)) {
-		throw new Error('Hand is already open');
-	}
-	if (state.whisters.length === 0) {
-		throw new Error('Cannot play open hand when there are no whisters');
-	}
-	return { ...state, openHands: [...state.openHands, playerId] };
-}
-
 export function applyLightChoice(state: GameState, playerId: PlayerId, open: boolean): GameState {
 	if (state.phase !== 'playing' || state.lightDecisionBy !== playerId) {
 		throw new Error('No light/dark decision is awaited from you');
@@ -1020,7 +1000,22 @@ export function applyPlayCard(state: GameState, playerId: PlayerId, card: Card):
 	// A whister may play on behalf of the declarer when the declarer's hand is open.
 	const actingForDeclarer =
 		state.currentPlayerId === state.declarerId && isControllingDeclarerHand(state, playerId);
-	const effectivePlayerId = actingForDeclarer ? state.declarerId! : playerId;
+	// In light (open) play, the lone whister also controls the passer's open hand.
+	const passerId =
+		state.playedOpen && state.whisters.length === 1
+			? state.playerIds.find((p) => p !== state.declarerId && !state.whisters.includes(p))
+			: undefined;
+	const actingForPasser =
+		!actingForDeclarer &&
+		passerId != null &&
+		state.currentPlayerId === passerId &&
+		state.whisters.includes(playerId) &&
+		state.openHands.includes(passerId);
+	const effectivePlayerId = actingForDeclarer
+		? state.declarerId!
+		: actingForPasser
+			? passerId!
+			: playerId;
 
 	if (state.phase !== 'playing' || state.currentPlayerId !== effectivePlayerId) {
 		throw new Error('Not your turn to play');
@@ -1102,7 +1097,22 @@ export function applyConfirmTrick(state: GameState, playerId: PlayerId): GameSta
 	// declarer's hand is open and the declarer won the trick.
 	const actingForDeclarer =
 		state.pendingTrick.winnerId === state.declarerId && isControllingDeclarerHand(state, playerId);
-	const effectivePlayerId = actingForDeclarer ? state.declarerId! : playerId;
+	// In light (open) play, the lone whister also confirms tricks won by the passer.
+	const passerId =
+		state.playedOpen && state.whisters.length === 1
+			? state.playerIds.find((p) => p !== state.declarerId && !state.whisters.includes(p))
+			: undefined;
+	const actingForPasser =
+		!actingForDeclarer &&
+		passerId != null &&
+		state.pendingTrick.winnerId === passerId &&
+		state.whisters.includes(playerId) &&
+		state.openHands.includes(passerId);
+	const effectivePlayerId = actingForDeclarer
+		? state.declarerId!
+		: actingForPasser
+			? passerId!
+			: playerId;
 	if (state.pendingTrick.winnerId !== effectivePlayerId) {
 		throw new Error('Only the trick winner can confirm the trick');
 	}
@@ -1120,6 +1130,12 @@ export function applyConfirmTrick(state: GameState, playerId: PlayerId): GameSta
 			? scoreRaspass(next)
 			: scoreContract(next, tricksByPlayer(next)[next.declarerId!] ?? 0, true);
 		return applyOutcome(next, outcome);
+	}
+
+	// In распасовка, the first three tricks are always opened by the same player
+	// (firstHandId), regardless of who won.  From trick 4 onward the winner leads.
+	if (next.raspass && completedTricks.length < 3) {
+		return { ...next, currentPlayerId: next.firstHandId };
 	}
 
 	return next;
@@ -1183,5 +1199,39 @@ export function applyAgreement(state: GameState): GameState {
 	};
 
 	const outcome = scoreContract(syntheticState, agreedDeclarerTricks, true);
+	return applyOutcome(syntheticState, outcome);
+}
+
+/**
+ * Apply the agreed-upon early-end for a распасовка round.  The proposer
+ * takes all remaining tricks; all other players keep what they already won.
+ * Scoring is done via scoreRaspass on the synthetic completed-trick list.
+ */
+export function applyRaspassAgreement(state: GameState): GameState {
+	if (state.phase !== 'playing') throw new Error('Not in playing phase');
+	if (!state.agreementProposal) throw new Error('No agreement proposal active');
+	if (!state.raspass) throw new Error('Not a распасовка round');
+
+	const proposer = state.agreementProposal.proposedBy;
+	const allCompleted: Trick[] = [
+		...state.completedTricks,
+		...(state.pendingTrick ? [state.pendingTrick] : [])
+	];
+	const totalRemaining = 10 - allCompleted.length;
+
+	// All remaining tricks are awarded to the proposer.
+	const syntheticTricks: Trick[] = [...allCompleted];
+	for (let i = 0; i < totalRemaining; i++) {
+		syntheticTricks.push({ cards: [], winnerId: proposer, leadSuit: null });
+	}
+
+	const syntheticState: GameState = {
+		...state,
+		completedTricks: syntheticTricks,
+		pendingTrick: null,
+		agreementProposal: null
+	};
+
+	const outcome = scoreRaspass(syntheticState);
 	return applyOutcome(syntheticState, outcome);
 }
