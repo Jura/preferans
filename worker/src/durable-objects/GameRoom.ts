@@ -20,10 +20,10 @@ import {
 	applyWidowSelection,
 	applyWhistChoice,
 	applyLightChoice,
-	applyDeclarerOpenHand,
 	applyPlayCard,
 	applyConfirmTrick,
 	applyAgreement,
+	applyRaspassAgreement,
 	whistOptions,
 	requiredLeadSuit,
 	raspassPrice
@@ -58,7 +58,6 @@ type ClientMessage =
 	| { type: 'select_widow'; discard: [Card, Card]; contract: Contract }
 	| { type: 'whist'; choice: WhistChoice }
 	| { type: 'choose_open'; open: boolean }
-	| { type: 'declare_open_hand' }
 	| { type: 'play_card'; card: Card }
 	| { type: 'confirm_trick' }
 	| { type: 'request_finish_early' }
@@ -564,14 +563,6 @@ export class GameRoom implements DurableObject {
 				return;
 			}
 
-			case 'declare_open_hand': {
-				if (!this.gameState) return;
-				this.gameState = applyDeclarerOpenHand(this.gameState, playerId);
-				await this.persistState();
-				this.broadcastState();
-				return;
-			}
-
 			case 'play_card': {
 				if (!this.gameState) return;
 				this.gameState = applyPlayCard(this.gameState, playerId, msg.card);
@@ -660,10 +651,7 @@ export class GameRoom implements DurableObject {
 				if (this.gameState.phase !== 'playing') {
 					throw new Error('End by agreement is only available during play');
 				}
-				if (this.gameState.raspass) {
-					throw new Error('End by agreement is not available during распасовка');
-				}
-				if (!this.gameState.declarerId || !this.gameState.contract) {
+				if (!this.gameState.raspass && (!this.gameState.declarerId || !this.gameState.contract)) {
 					throw new Error('No active contract');
 				}
 				if (
@@ -673,10 +661,15 @@ export class GameRoom implements DurableObject {
 				) {
 					throw new Error('Another vote is already in progress');
 				}
-				// Only active players (declarer + whisters) may propose or vote.
-				const activePlayers = [this.gameState.declarerId, ...this.gameState.whisters];
+				// In распасовка and misère all players are active; otherwise only
+				// the declarer and whisters participate.
+				const isMisere = this.gameState.contract?.type === 'misere';
+				const activePlayers =
+					this.gameState.raspass || isMisere
+						? [...this.gameState.playerIds]
+						: [this.gameState.declarerId!, ...this.gameState.whisters];
 				if (!activePlayers.includes(playerId)) {
-					throw new Error('Only the declarer and whisters can propose end by agreement');
+					throw new Error('Only active players can propose end by agreement');
 				}
 				// Validate a numeric term.
 				if (
@@ -718,10 +711,13 @@ export class GameRoom implements DurableObject {
 				if (this.proposalRejected(agreementVotes)) {
 					this.gameState = { ...this.gameState, agreementProposal: null };
 				} else if (this.proposalApproved(agreementVotes)) {
-					this.gameState = applyAgreement({
+					const stateWithVotes = {
 						...this.gameState,
 						agreementProposal: { ...agreementProposal, votes: agreementVotes }
-					});
+					};
+					this.gameState = this.gameState.raspass
+						? applyRaspassAgreement(stateWithVotes)
+						: applyAgreement(stateWithVotes);
 					await this.saveRoundResult();
 				} else {
 					this.gameState = {

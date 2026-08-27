@@ -82,16 +82,32 @@
 		$game.state?.declarerId != null && $game.state.declarerId in ($game.state?.openHands ?? {})
 	);
 	let isWhister = $derived(($game.state?.whisters ?? []).includes(myPlayerId));
-	/** Whether this player can propose an end-by-agreement (declarer or whister, during play, non-raspass) */
+	/**
+	 * In light (open) play with a lone whister, the non-whister defender (passer) only
+	 * observes — the whister controls their open hand on their behalf.
+	 */
+	let isPasserInOpenPlay = $derived(
+		($game.state?.playedOpen ?? false) && !isDeclarer && !isWhister
+	);
+	/** The passer's playerId when light play is active (used by the whister). */
+	let passerId = $derived(
+		$game.state?.playedOpen && $game.state.whisters.length === 1
+			? ($game.state.players.find(
+					(p) => p.id !== $game.state?.declarerId && !$game.state?.whisters.includes(p.id)
+				)?.id ?? null)
+			: null
+	);
+	/** Whether this player can propose an end-by-agreement (all players during raspass/misère, declarer or whister during normal contract) */
 	let canProposeAgreement = $derived(
 		$gamePhase === 'playing' &&
-			!$game.state?.raspass &&
-			$game.state?.contract != null &&
-			(isDeclarer || isWhister)
+			($game.state?.raspass
+				? true
+				: $game.state?.contract != null &&
+					($game.state.contract.type === 'misere' || isDeclarer || isWhister))
 	);
 	/** UI state for the agreement-proposal form */
 	let showAgreementForm = $state(false);
-	let agreementTermSelected = $state<AgreementTerm>('fulfill');
+	let agreementTermSelected = $state<AgreementTerm>('rest_are_mine');
 	let agreementTricksInput = $state(6);
 	/** Scoreboard modal */
 	let showScoreModal = $state(false);
@@ -106,6 +122,16 @@
 			isWhister &&
 			$game.state?.currentPlayerId === $game.state?.declarerId
 	);
+	/** In light play, the lone whister controls the passer's open hand when it's the passer's turn. */
+	let canControlPasserHand = $derived(
+		$gamePhase === 'playing' &&
+			!lightDecisionPending &&
+			!pendingTrick &&
+			isWhister &&
+			passerId != null &&
+			$game.state?.currentPlayerId === passerId &&
+			passerId in ($game.state?.openHands ?? {})
+	);
 	/** True when the whister should confirm a trick won by the open-handed declarer. */
 	let isDeclarerTrickToConfirm = $derived(
 		pendingTrick != null &&
@@ -113,18 +139,30 @@
 			isDeclarerHandOpen &&
 			isWhister
 	);
+	/** True when the whister should confirm a trick won by the passer in light play. */
+	let isPasserTrickToConfirm = $derived(
+		pendingTrick != null &&
+			pendingTrick.winnerId === passerId &&
+			passerId != null &&
+			passerId in ($game.state?.openHands ?? {}) &&
+			isWhister
+	);
 
-	// Declarer cannot play their own hand once they've declared it open.
+	// Declarer cannot play their own hand once it's open; passer cannot play in light play.
 	let canPlayCard = $derived(
 		$gamePhase === 'playing' &&
 			isMyTurn &&
 			!lightDecisionPending &&
 			!pendingTrick &&
-			!(isDeclarer && isDeclarerHandOpen)
+			!(isDeclarer && isDeclarerHandOpen) &&
+			!isPasserInOpenPlay
 	);
-	// Declarer cannot confirm tricks from their open hand (whister does it).
+	// Declarer cannot confirm tricks from their open hand (whister does it);
+	// passer cannot confirm tricks in light play (whister does it).
 	let isMyTrickToConfirm = $derived(
-		pendingTrick?.winnerId === myPlayerId && !(isDeclarer && isDeclarerHandOpen)
+		pendingTrick?.winnerId === myPlayerId &&
+			!(isDeclarer && isDeclarerHandOpen) &&
+			!isPasserInOpenPlay
 	);
 
 	// ── Last trick modal ──
@@ -147,9 +185,7 @@
 		}
 		// Trick complete but awaiting confirmation: show the winner
 		if (pendingTrick?.winnerId) return pendingTrick.winnerId;
-		// Between tricks: show winner of last completed trick (they lead next)
-		if (lastCompletedTrick?.winnerId) return lastCompletedTrick.winnerId;
-		// First trick of round, no cards yet – show who plays first
+		// Between tricks: currentPlayerId already reflects the raspass first-player rule
 		return $game.state?.currentPlayerId ?? null;
 	});
 
@@ -224,6 +260,18 @@
 			: null
 	);
 
+	// ── Eligible cards in the passer's open hand (for the controlling whister in light play) ──
+	let passerOpenHandCards = $derived(
+		passerId != null && passerId in ($game.state?.openHands ?? {})
+			? (sortedOpenHands[passerId] ?? [])
+			: []
+	);
+	let passerOpenHandEligibleCards = $derived(
+		canControlPasserHand
+			? validCardsForPlay(passerOpenHandCards, $currentTrick, $game.state?.trump ?? null, null)
+			: null
+	);
+
 	// Pre-compute the open-hand layout so we don't re-filter in the template.
 	let openHandEntries = $derived(Object.entries(sortedOpenHands));
 	let openHandLeftPlayer = $derived(
@@ -287,6 +335,13 @@
 		}
 	});
 
+	$effect(() => {
+		// For распасовка, only rest_are_mine is valid; reset the selection when entering raspass
+		if ($game.state?.raspass && agreementTermSelected !== 'rest_are_mine') {
+			agreementTermSelected = 'rest_are_mine';
+		}
+	});
+
 	// Auto-play when there is exactly one legal card to play.
 	// A non-reactive guard prevents re-sending the same card if the server
 	// briefly echoes back an unchanged state.
@@ -319,6 +374,25 @@
 		const key = `${card.suit}:${card.rank}`;
 		if (key === lastOpenHandAutoPlayKey) return;
 		lastOpenHandAutoPlayKey = key;
+		selectedOpenHandCard = null;
+		game.send({ type: 'play_card', card });
+	});
+
+	// Auto-play the passer's open hand when there is exactly one legal card (light play).
+	let lastPasserHandAutoPlayKey: string | null = null;
+	$effect(() => {
+		if (
+			!canControlPasserHand ||
+			!passerOpenHandEligibleCards ||
+			passerOpenHandEligibleCards.length !== 1
+		) {
+			lastPasserHandAutoPlayKey = null;
+			return;
+		}
+		const card = passerOpenHandEligibleCards[0];
+		const key = `${card.suit}:${card.rank}`;
+		if (key === lastPasserHandAutoPlayKey) return;
+		lastPasserHandAutoPlayKey = key;
 		selectedOpenHandCard = null;
 		game.send({ type: 'play_card', card });
 	});
@@ -362,17 +436,13 @@
 	}
 
 	function handlePlayOpenHandCard(card: Card) {
-		if (!canControlDeclarerHand) return;
+		if (!canControlDeclarerHand && !canControlPasserHand) return;
 		if (selectedOpenHandCard && sameCard(selectedOpenHandCard, card)) {
 			game.send({ type: 'play_card', card });
 			selectedOpenHandCard = null;
 		} else {
 			selectedOpenHandCard = card;
 		}
-	}
-
-	function declareOpenHand() {
-		game.send({ type: 'declare_open_hand' });
 	}
 
 	function handleBid(bid: Bid) {
@@ -470,7 +540,10 @@
 			return $t('app.bidding.title');
 		}
 
-		if (pendingTrick && (isMyTrickToConfirm || isDeclarerTrickToConfirm)) {
+		if (
+			pendingTrick &&
+			(isMyTrickToConfirm || isDeclarerTrickToConfirm || isPasserTrickToConfirm)
+		) {
 			return $t('app.game.confirmTrick');
 		}
 
@@ -478,7 +551,7 @@
 			return $t('app.game.nextRound');
 		}
 
-		if (canControlDeclarerHand || (isMyTurn && $gamePhase === 'playing')) {
+		if (canControlDeclarerHand || canControlPasserHand || (isMyTurn && $gamePhase === 'playing')) {
 			return $t('app.game.yourTurn');
 		}
 
@@ -629,15 +702,17 @@
 	{#if showAgreementForm && canProposeAgreement && !activeProposal}
 		<div class="agreement-form">
 			<p class="agreement-form-label">{$t('app.game.agreementLabel')}</p>
-			<label class="agreement-radio">
-				<input
-					type="radio"
-					name="agreement-term"
-					value="fulfill"
-					bind:group={agreementTermSelected}
-				/>
-				{$t('app.game.agreementTermFulfill')}
-			</label>
+			{#if !$game.state?.raspass}
+				<label class="agreement-radio">
+					<input
+						type="radio"
+						name="agreement-term"
+						value="fulfill"
+						bind:group={agreementTermSelected}
+					/>
+					{$t('app.game.agreementTermFulfill')}
+				</label>
+			{/if}
 			<label class="agreement-radio">
 				<input
 					type="radio"
@@ -647,24 +722,26 @@
 				/>
 				{$t('app.game.agreementTermRestAreMine')}
 			</label>
-			<label class="agreement-radio">
-				<input
-					type="radio"
-					name="agreement-term"
-					value={agreementTricksInput}
-					bind:group={agreementTermSelected}
-				/>
-				<input
-					type="number"
-					min="0"
-					max="10"
-					class="tricks-input"
-					bind:value={agreementTricksInput}
-					onclick={() => (agreementTermSelected = agreementTricksInput)}
-					oninput={() => (agreementTermSelected = agreementTricksInput)}
-				/>
-				{$t('app.game.agreementTermTricks', { count: agreementTricksInput })}
-			</label>
+			{#if !$game.state?.raspass}
+				<label class="agreement-radio">
+					<input
+						type="radio"
+						name="agreement-term"
+						value={agreementTricksInput}
+						bind:group={agreementTermSelected}
+					/>
+					<input
+						type="number"
+						min="0"
+						max="10"
+						class="tricks-input"
+						bind:value={agreementTricksInput}
+						onclick={() => (agreementTermSelected = agreementTricksInput)}
+						oninput={() => (agreementTermSelected = agreementTricksInput)}
+					/>
+					{$t('app.game.agreementTermTricks', { count: agreementTricksInput })}
+				</label>
+			{/if}
 			<div class="agreement-form-actions">
 				<button type="button" class="vote-btn yes" onclick={proposeEndByAgreement}>
 					{$t('app.game.voteYes')}
@@ -839,15 +916,20 @@
 						<h4>{$t('app.game.openHandOf', { name: openHandLeftPlayer.name })}</h4>
 						<Hand
 							cards={sortedOpenHands[openHandLeftPlayer.id]}
-							playable={canControlDeclarerHand && openHandLeftPlayer.id === $game.state?.declarerId}
-							selectedCard={canControlDeclarerHand &&
-							openHandLeftPlayer.id === $game.state?.declarerId
+							playable={(canControlDeclarerHand &&
+								openHandLeftPlayer.id === $game.state?.declarerId) ||
+								(canControlPasserHand && openHandLeftPlayer.id === passerId)}
+							selectedCard={(canControlDeclarerHand &&
+								openHandLeftPlayer.id === $game.state?.declarerId) ||
+							(canControlPasserHand && openHandLeftPlayer.id === passerId)
 								? selectedOpenHandCard
 								: null}
 							eligibleCards={canControlDeclarerHand &&
 							openHandLeftPlayer.id === $game.state?.declarerId
 								? declarerOpenHandEligibleCards
-								: null}
+								: canControlPasserHand && openHandLeftPlayer.id === passerId
+									? passerOpenHandEligibleCards
+									: null}
 							onPlayCard={handlePlayOpenHandCard}
 							label={openHandLeftPlayer.name}
 							groupBySuit={true}
@@ -893,16 +975,20 @@
 						<h4>{$t('app.game.openHandOf', { name: openHandRightPlayer.name })}</h4>
 						<Hand
 							cards={sortedOpenHands[openHandRightPlayer.id]}
-							playable={canControlDeclarerHand &&
-								openHandRightPlayer.id === $game.state?.declarerId}
-							selectedCard={canControlDeclarerHand &&
-							openHandRightPlayer.id === $game.state?.declarerId
+							playable={(canControlDeclarerHand &&
+								openHandRightPlayer.id === $game.state?.declarerId) ||
+								(canControlPasserHand && openHandRightPlayer.id === passerId)}
+							selectedCard={(canControlDeclarerHand &&
+								openHandRightPlayer.id === $game.state?.declarerId) ||
+							(canControlPasserHand && openHandRightPlayer.id === passerId)
 								? selectedOpenHandCard
 								: null}
 							eligibleCards={canControlDeclarerHand &&
 							openHandRightPlayer.id === $game.state?.declarerId
 								? declarerOpenHandEligibleCards
-								: null}
+								: canControlPasserHand && openHandRightPlayer.id === passerId
+									? passerOpenHandEligibleCards
+									: null}
 							onPlayCard={handlePlayOpenHandCard}
 							label={openHandRightPlayer.name}
 							groupBySuit={true}
@@ -1097,7 +1183,7 @@
 			<!-- Turn indicator -->
 			{#if !lightDecisionPending}
 				{#if pendingTrick}
-					{#if isMyTrickToConfirm || isDeclarerTrickToConfirm}
+					{#if isMyTrickToConfirm || isDeclarerTrickToConfirm || isPasserTrickToConfirm}
 						<button class="confirm-btn confirm-trick-btn" onclick={confirmTrick}>
 							{$t('app.game.confirmTrick')}
 						</button>
@@ -1106,7 +1192,7 @@
 							{$t('app.game.awaitingTrickConfirm', { name: playerName(pendingTrick.winnerId) })}
 						</div>
 					{/if}
-				{:else if canControlDeclarerHand}
+				{:else if canControlDeclarerHand || canControlPasserHand}
 					<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
 				{:else if $game.state.currentPlayerId && $game.state.currentPlayerId !== data.user?.id}
 					<div class="turn-indicator" role="status">
@@ -1155,9 +1241,7 @@
 					showSuitGaps={true}
 				/>
 				{#if isDeclarer && $gamePhase === 'playing' && !isDeclarerHandOpen && $game.state?.whisters && $game.state.whisters.length > 0}
-					<button class="declare-open-btn" onclick={declareOpenHand}>
-						{$t('app.game.declareOpenHand')}
-					</button>
+					<!-- declarer open hand option removed -->
 				{/if}
 				{#if canPlayCard && selectedCard}
 					<p class="play-hint">{$t('app.game.playHint')}</p>
