@@ -229,6 +229,20 @@
 			if (!(pid in next)) {
 				next[pid] = sortHand(cards);
 				changed = true;
+				continue;
+			}
+			const current = next[pid] ?? [];
+			const stillPresent = current.filter((c) => cards.some((card) => sameCard(card, c)));
+			const newlyAppeared = sortHand(
+				cards.filter((card) => !current.some((existing) => sameCard(existing, card)))
+			);
+			const merged = [...stillPresent, ...newlyAppeared];
+			if (
+				merged.length !== current.length ||
+				merged.some((card, idx) => !sameCard(card, current[idx]))
+			) {
+				next[pid] = merged;
+				changed = true;
 			}
 		}
 		if (changed) frozenOpenHandCards = next;

@@ -843,7 +843,25 @@ export class GameRoom implements DurableObject {
 		const pendingWhist = whistOptions(gs);
 		const openHands: Record<PlayerId, Card[]> = {};
 		for (const pid of gs.openHands) {
-			if (pid !== forPlayerId) openHands[pid] = gs.hands[pid] ?? [];
+			if (pid === forPlayerId) continue;
+			const cards = gs.hands[pid] ?? [];
+			// On misère, when the declarer's hand is open to opponents, include the
+			// two discarded cards in the displayed open hand so opponents cannot infer
+			// the exact discard.
+			if (
+				gs.contract?.type === 'misere' &&
+				pid === gs.declarerId &&
+				forPlayerId !== gs.declarerId
+			) {
+				openHands[pid] = [...cards, ...gs.discarded].filter(
+					(card, idx, all) =>
+						all.findIndex(
+							(candidate) => candidate.suit === card.suit && candidate.rank === card.rank
+						) === idx
+				);
+			} else {
+				openHands[pid] = cards;
+			}
 		}
 		const upcardSuit = requiredLeadSuit(gs);
 		const raspassUpcard =
