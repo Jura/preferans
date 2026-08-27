@@ -841,6 +841,15 @@ export class GameRoom implements DurableObject {
 		}));
 
 		const pendingWhist = whistOptions(gs);
+		const declarerCardsPlayed =
+			gs.declarerId == null
+				? 0
+				: gs.completedTricks.reduce(
+						(sum, trick) =>
+							sum + trick.cards.filter((entry) => entry.playerId === gs.declarerId).length,
+						0
+					) +
+					(gs.currentTrick?.cards.filter((entry) => entry.playerId === gs.declarerId).length ?? 0);
 		const openHands: Record<PlayerId, Card[]> = {};
 		for (const pid of gs.openHands) {
 			if (pid === forPlayerId) continue;
@@ -851,9 +860,15 @@ export class GameRoom implements DurableObject {
 			if (
 				gs.contract?.type === 'misere' &&
 				pid === gs.declarerId &&
-				forPlayerId !== gs.declarerId
+				forPlayerId !== gs.declarerId &&
+				declarerCardsPlayed === 0
 			) {
-				openHands[pid] = [...cards, ...gs.discarded];
+				openHands[pid] = [...cards, ...gs.discarded].filter(
+					(card, idx, all) =>
+						all.findIndex(
+							(candidate) => candidate.suit === card.suit && candidate.rank === card.rank
+						) === idx
+				);
 			} else {
 				openHands[pid] = cards;
 			}
