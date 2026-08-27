@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Preferans">
+  <!-- Shield shape -->
+  <path d="M24 3 L42 10 L42 26 C42 36 34 43 24 46 C14 43 6 36 6 26 L6 10 Z"
+        fill="#1b4332" stroke="#c8a96e" stroke-width="1.5"/>
+  <!-- Inner shield border -->
+  <path d="M24 6 L39 12 L39 26 C39 34.5 32.5 41 24 43.5 C15.5 41 9 34.5 9 26 L9 12 Z"
+        fill="none" stroke="#c8a96e" stroke-width="0.75" opacity="0.5"/>
+
+  <!-- Spade (centre) -->
+  <path d="M24 12 C24 12 17 17 17 21 C17 23.5 19 25 21 24.5 C20 26 19.5 27.5 18 28 L30 28 C28.5 27.5 28 26 27 24.5 C29 25 31 23.5 31 21 C31 17 24 12 24 12 Z"
+        fill="#1a1a1a" stroke="#c8a96e" stroke-width="0.5"/>
+
+  <!-- Heart (left) -->
+  <path d="M14 17 C14 15.3 15.3 14 17 14 C18 14 18.9 14.5 19.5 15.3 C20.1 14.5 21 14 22 14 C23.7 14 25 15.3 25 17 C25 20 19.5 23 19.5 23 C19.5 23 14 20 14 17 Z"
+        fill="#c62f2a" opacity="0.9"/>
+
+  <!-- Diamond (right) -->
+  <path d="M29 14 L33 19 L29 24 L25 19 Z"
+        fill="#c62f2a" opacity="0.9"/>
+
+  <!-- Text: PREFERANS -->
+  <text x="24" y="35.5" text-anchor="middle"
+        font-family="Georgia,serif" font-size="6.5" font-weight="bold"
+        fill="#c8a96e" letter-spacing="0.5">PREFERANS</text>
+</svg>

@@ -103,7 +103,15 @@
 
 			{#if games.length === 0}
 				<div class="empty-games">
-					<span class="empty-icon">🎴</span>
+					<span class="empty-icon" aria-hidden="true">
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+							<path
+								d="M24 6 C24 6 10 16 10 24 C10 29 14 32 18 31 C16 34 14 37 11 38 L37 38 C34 37 32 34 30 31 C34 32 38 29 38 24 C38 16 24 6 24 6 Z"
+								fill="#c8a96e"
+								opacity="0.7"
+							/>
+						</svg>
+					</span>
 					<p>{$t('app.lobby.emptyGames')}</p>
 				</div>
 			{:else}
