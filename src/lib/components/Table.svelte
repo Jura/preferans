@@ -155,6 +155,7 @@
 						playerId={player.id}
 						name={player.name}
 						offline={player.isOnline === false}
+						connectionQuality={player.connectionQuality}
 					/>
 					{#if player.id === nextRoundLeaderId}
 						<span class="next-lead-marker" title={$t('app.table.leadsNext')}>▶</span>
@@ -184,7 +185,7 @@
 				</div>
 				{#if trickCount > 0}
 					<div class="tricks-taken" aria-label={$t('app.table.tricksTaken', { count: trickCount })}>
-						{#each Array(trickCount) as _, i (i)}
+						{#each Array(trickCount).keys() as i (i)}
 							<div class="trick-tile"></div>
 						{/each}
 					</div>

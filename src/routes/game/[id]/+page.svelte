@@ -18,7 +18,6 @@
 		Contract,
 		ContractLevel,
 		ContractSuit,
-		Suit,
 		WhistChoice,
 		AgreementTerm
 	} from '$lib/types/preferans';
@@ -62,6 +61,12 @@
 	});
 
 	let isMyTurn = $derived($game.state?.currentPlayerId === data.user?.id);
+	let actionPending = $derived($game.actionStatus !== 'idle');
+	let activeRemotePlayer = $derived(
+		$game.state?.players.find(
+			(player) => player.id === $game.state?.currentPlayerId && player.id !== data.user?.id
+		) ?? null
+	);
 	let myPlayerId = $derived(data.user?.id ?? '');
 	let currentContract = $derived($game.state?.contract ?? $game.state?.wonBid ?? null);
 	let finishProposal = $derived($game.state?.finishProposal ?? null);
@@ -477,10 +482,6 @@
 		game.send({ type: 'start_round' });
 	}
 
-	function isDiscardSelected(card: Card): boolean {
-		return discardSelection.some((c) => sameCard(c, card));
-	}
-
 	function playerName(playerId: string | null): string {
 		if (!playerId) return '';
 		return $game.state?.players.find((p) => p.id === playerId)?.name ?? '';
@@ -603,11 +604,18 @@
 	<title>{$t('app.game.title')}</title>
 </svelte:head>
 
-<div class="game-page">
+<div class="game-page" class:actions-pending={actionPending} aria-busy={actionPending}>
 	<!-- Toolbar: combined status + action buttons -->
 	<div class="toolbar">
 		<div class="toolbar-left">
-			<span class="connection-status">{$t(`app.game.status.${$game.status}`)}</span>
+			<span class="connection-status">
+				{#if $game.status === 'connected'}
+					{$t(`app.game.quality.${$game.connectionQuality}`)}
+					{#if $game.latencyMs !== null}<span class="latency">{$game.latencyMs} ms</span>{/if}
+				{:else}
+					{$t(`app.game.status.${$game.status}`)}
+				{/if}
+			</span>
 			{#if $game.state}
 				<span class="phase-label">{$t(`app.phase.${$gamePhase}`)}</span>
 				{#if $game.state.trump}
@@ -626,6 +634,18 @@
 				<span class="error-msg" role="alert">{$game.error}</span>
 			{/if}
 		</div>
+
+		{#if $game.isStale || $game.actionStatus === 'syncing'}
+			<div class="network-banner warning" role="status">{$t('app.game.network.resyncing')}</div>
+		{:else if $game.actionStatus === 'delayed'}
+			<div class="network-banner warning" role="status">{$t('app.game.network.actionDelayed')}</div>
+		{:else if $game.actionStatus === 'sending'}
+			<div class="network-banner" role="status">{$t('app.game.network.actionSending')}</div>
+		{:else if $game.connectionQuality === 'poor'}
+			<div class="network-banner warning" role="status">
+				{$t('app.game.network.poorConnection')}
+			</div>
+		{/if}
 		<div class="toolbar-right">
 			{#if $game.state}
 				<button
@@ -647,7 +667,6 @@
 					</button>
 				{/if}
 				{#if $gamePhase !== 'waiting' && $gamePhase !== 'finished'}
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
 						class="toolbar-menu-wrapper"
 						onfocusout={(e) => {
@@ -800,6 +819,7 @@
 								playerId={player.id}
 								name={player.name}
 								offline={player.isOnline === false}
+								connectionQuality={player.connectionQuality}
 							/>
 							<span class="vote-badge">
 								{vote === 'yes' ? '✓' : vote === 'no' ? '✗' : '…'}
@@ -887,6 +907,7 @@
 								playerId={player.id}
 								name={player.name}
 								offline={player.isOnline === false}
+								connectionQuality={player.connectionQuality}
 							/>
 							<span class="vote-badge">
 								{vote === 'yes' ? '✓' : vote === 'no' ? '✗' : '…'}
@@ -1218,6 +1239,11 @@
 				{:else if $game.state.currentPlayerId && $game.state.currentPlayerId !== data.user?.id}
 					<div class="turn-indicator" role="status">
 						{$t('app.game.turn', { name: playerName($game.state.currentPlayerId) })}
+						{#if activeRemotePlayer?.connectionQuality === 'poor'}
+							<span class="lag-wait">{$t('app.game.network.waitingSlowPlayer')}</span>
+						{:else if activeRemotePlayer?.connectionQuality === 'offline'}
+							<span class="lag-wait">{$t('app.game.network.waitingReconnect')}</span>
+						{/if}
 					</div>
 				{:else if isMyTurn && $gamePhase === 'playing'}
 					<div class="turn-indicator my-turn" role="status">{$t('app.game.yourTurn')}</div>
@@ -1355,6 +1381,33 @@
 		flex-direction: column;
 		gap: 12px;
 		min-height: min(100%, calc(100dvh - var(--layout-chrome-height)));
+	}
+
+	.game-page.actions-pending button {
+		pointer-events: none;
+		opacity: 0.7;
+	}
+
+	.latency {
+		margin-left: 4px;
+		color: var(--cream-500);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.network-banner {
+		align-self: center;
+		padding: 5px 14px;
+		border: 1px solid rgba(90, 190, 130, 0.45);
+		border-radius: 999px;
+		background: rgba(30, 110, 65, 0.2);
+		color: var(--cream-200);
+		font-size: 12px;
+	}
+
+	.network-banner.warning {
+		border-color: rgba(255, 198, 92, 0.5);
+		background: rgba(120, 85, 20, 0.25);
+		color: var(--warning);
 	}
 
 	/* ── Combined toolbar ── */
@@ -1882,6 +1935,13 @@
 		padding: 6px 18px;
 		font-size: 14px;
 		color: var(--cream-500);
+	}
+
+	.lag-wait {
+		display: block;
+		margin-top: 2px;
+		color: var(--warning);
+		font-size: 11px;
 	}
 
 	.turn-indicator.my-turn {

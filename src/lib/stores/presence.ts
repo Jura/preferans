@@ -90,8 +90,11 @@ function createPresenceStore() {
 	 * Register the function that the active WebSocket store (lobby or game) will use to
 	 * send an `activity` message to the server. Pass `null` to unregister (e.g. on disconnect).
 	 */
-	function setActivitySender(fn: (() => void) | null) {
+	function setActivitySender(fn: (() => void) | null): () => void {
 		activitySender = fn;
+		return () => {
+			if (activitySender === fn) activitySender = null;
+		};
 	}
 
 	return { subscribe, start, stop, setActivitySender };

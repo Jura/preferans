@@ -1,47 +1,79 @@
-import { writable } from 'svelte/store';
-import type { LobbyGame, LobbyServerMessage, UserPresence } from '$lib/types/preferans';
+import { get, writable } from 'svelte/store';
+import type {
+	ConnectionQuality,
+	LobbyClientMessage,
+	LobbyGame,
+	LobbyServerMessage,
+	UserPresence
+} from '$lib/types/preferans';
 import { toasts } from '$lib/stores/toasts';
-import { get } from 'svelte/store';
 import { t } from '$lib/i18n';
 import { presence } from '$lib/stores/presence';
 import { isTestLoginHost } from '$lib/utils/test-login';
 
 const HEARTBEAT_INTERVAL_MS = 20_000;
+const DEGRADED_HEARTBEAT_INTERVAL_MS = 30_000;
+const STALE_CONNECTION_MS = 60_000;
+const RECONNECT_BASE_DELAY_MS = 800;
+const RECONNECT_MAX_DELAY_MS = 30_000;
+
+type LobbyConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
 export interface LobbyState {
 	games: LobbyGame[];
 	users: UserPresence[];
 	connected: boolean;
+	hasSnapshot: boolean;
+	status: LobbyConnectionStatus;
+	connectionQuality: ConnectionQuality;
+	latencyMs: number | null;
+	isStale: boolean;
 }
 
 function createLobbyStore() {
 	const { subscribe, set, update } = writable<LobbyState>({
 		games: [],
 		users: [],
-		connected: false
+		connected: false,
+		hasSnapshot: false,
+		status: 'disconnected',
+		connectionQuality: 'offline',
+		latencyMs: null,
+		isStale: false
 	});
 
 	let ws: WebSocket | null = null;
-	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+	let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+	let healthTimer: ReturnType<typeof setInterval> | null = null;
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-	let currentToken: string | null = null;
-
-	/** Track previous game player counts so we can detect join/leave in lobby */
+	let reconnectAttempt = 0;
+	let enabled = false;
+	let lastMessageAt = 0;
+	let latencyMs: number | null = null;
+	let releasePresenceSender: (() => void) | null = null;
+	const pendingPings = new Map<string, number>();
 	let prevGameCounts: Map<string, number> = new Map();
 
 	function visibleGames(games: LobbyGame[]): LobbyGame[] {
-		if (typeof window === 'undefined' || isTestLoginHost(window.location.hostname)) {
-			return games;
-		}
-
+		if (typeof window === 'undefined' || isTestLoginHost(window.location.hostname)) return games;
 		return games.filter((game) => game.is_dummy !== 1);
 	}
 
-	function clearTimers() {
+	function clearHeartbeat() {
 		if (heartbeatTimer) {
-			clearInterval(heartbeatTimer);
+			clearTimeout(heartbeatTimer);
 			heartbeatTimer = null;
 		}
+	}
+
+	function clearHealthTimer() {
+		if (healthTimer) {
+			clearInterval(healthTimer);
+			healthTimer = null;
+		}
+	}
+
+	function clearReconnect() {
 		if (reconnectTimer) {
 			clearTimeout(reconnectTimer);
 			reconnectTimer = null;
@@ -49,54 +81,141 @@ function createLobbyStore() {
 	}
 
 	function connect(token: string) {
-		if (ws) return; // already connected
-		currentToken = token;
+		enabled = true;
+		if (ws) return;
+		openSocket(token, false);
+	}
+
+	function openSocket(token: string, reconnecting: boolean) {
+		latencyMs = null;
+		pendingPings.clear();
+		update((state) => ({
+			...state,
+			connected: false,
+			status: reconnecting ? 'reconnecting' : 'connecting',
+			connectionQuality: 'offline',
+			latencyMs: null,
+			isStale: false
+		}));
 
 		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 		const url = `${protocol}//${window.location.host}/api/lobby/ws?token=${encodeURIComponent(token)}`;
+		const socket = new WebSocket(url);
+		ws = socket;
 
-		ws = new WebSocket(url);
-
-		ws.addEventListener('open', () => {
-			update((s) => ({ ...s, connected: true }));
-			// Register this socket as the presence activity sender so the presence store
-			// can route heartbeats here instead of using HTTP PATCH /api/presence.
-			presence.setActivitySender(() => {
-				if (ws?.readyState === WebSocket.OPEN) {
-					ws.send(JSON.stringify({ type: 'activity' }));
-				}
-			});
-			heartbeatTimer = setInterval(() => {
-				if (ws?.readyState === WebSocket.OPEN) {
-					ws.send(JSON.stringify({ type: 'ping' }));
-				}
-			}, HEARTBEAT_INTERVAL_MS);
+		socket.addEventListener('open', () => {
+			if (ws !== socket) return;
+			reconnectAttempt = 0;
+			lastMessageAt = Date.now();
+			update((state) => ({
+				...state,
+				connected: true,
+				status: 'connected',
+				connectionQuality: 'good',
+				isStale: false
+			}));
+			releasePresenceSender?.();
+			releasePresenceSender = presence.setActivitySender(() => send({ type: 'activity' }));
+			startHealthTimer();
+			sendPing();
 		});
 
-		ws.addEventListener('message', (event) => {
+		socket.addEventListener('message', (event) => {
+			if (ws !== socket) return;
+			lastMessageAt = Date.now();
+			update((state) => ({ ...state, isStale: false }));
 			try {
-				const msg: LobbyServerMessage = JSON.parse(event.data as string);
-				handleMessage(msg);
+				handleMessage(JSON.parse(event.data as string) as LobbyServerMessage);
 			} catch {
-				// ignore parse errors
+				console.error('Failed to parse lobby message');
 			}
 		});
 
-		ws.addEventListener('close', () => {
-			clearTimers();
+		socket.addEventListener('close', () => {
+			if (ws !== socket) return;
 			ws = null;
-			presence.setActivitySender(null);
-			update((s) => ({ ...s, connected: false }));
-			// Note: no automatic reconnection here because lobby tokens are single-use.
-			// The next page navigation will trigger a fresh token + connection from the layout.
+			clearHeartbeat();
+			clearHealthTimer();
+			pendingPings.clear();
+			latencyMs = null;
+			releasePresenceSender?.();
+			releasePresenceSender = null;
+			update((state) => ({
+				...state,
+				connected: false,
+				status: enabled ? 'reconnecting' : 'disconnected',
+				connectionQuality: 'offline',
+				latencyMs: null,
+				isStale: false
+			}));
+			if (enabled) scheduleReconnect();
 		});
 
-		ws.addEventListener('error', () => {
-			ws = null;
-			clearTimers();
-			presence.setActivitySender(null);
-			update((s) => ({ ...s, connected: false }));
+		socket.addEventListener('error', () => {
+			if (ws !== socket) return;
+			update((state) => ({ ...state, status: 'error' }));
 		});
+	}
+
+	function scheduleReconnect() {
+		clearReconnect();
+		const delay =
+			Math.min(RECONNECT_BASE_DELAY_MS * 2 ** reconnectAttempt, RECONNECT_MAX_DELAY_MS) +
+			Math.floor(Math.random() * 500);
+		reconnectAttempt++;
+		reconnectTimer = setTimeout(async () => {
+			if (!enabled || ws) return;
+			try {
+				const response = await fetch('/api/lobby/ws-token');
+				if (response.status === 401 || response.status === 403) {
+					enabled = false;
+					update((state) => ({ ...state, status: 'error' }));
+					return;
+				}
+				if (!response.ok) {
+					scheduleReconnect();
+					return;
+				}
+				const data = (await response.json()) as { token: string };
+				if (enabled && !ws) openSocket(data.token, true);
+			} catch {
+				if (enabled) scheduleReconnect();
+			}
+		}, delay);
+	}
+
+	function startHealthTimer() {
+		clearHealthTimer();
+		healthTimer = setInterval(() => {
+			const isStale = lastMessageAt > 0 && Date.now() - lastMessageAt > STALE_CONNECTION_MS;
+			update((state) => ({ ...state, isStale }));
+			if (isStale && ws?.readyState === WebSocket.OPEN) ws.close();
+		}, 1000);
+	}
+
+	function scheduleHeartbeat() {
+		clearHeartbeat();
+		const interval =
+			latencyMs !== null && latencyMs > 1200
+				? DEGRADED_HEARTBEAT_INTERVAL_MS
+				: HEARTBEAT_INTERVAL_MS;
+		heartbeatTimer = setTimeout(sendPing, interval);
+	}
+
+	function sendPing() {
+		if (!ws || ws.readyState !== WebSocket.OPEN) return;
+		const pingId = crypto.randomUUID();
+		pendingPings.set(pingId, performance.now());
+		send({
+			type: 'ping',
+			pingId,
+			clientRttMs: latencyMs === null ? undefined : Math.round(latencyMs)
+		});
+		scheduleHeartbeat();
+	}
+
+	function send(message: LobbyClientMessage) {
+		if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
 	}
 
 	function handleMessage(msg: LobbyServerMessage) {
@@ -104,13 +223,14 @@ function createLobbyStore() {
 			case 'lobby_state': {
 				const translate = get(t);
 				const games = visibleGames(msg.games);
-				const newCounts = new Map<string, number>(games.map((g) => [g.id, g.player_count]));
+				const newCounts = new Map<string, number>(
+					games.map((game) => [game.id, game.player_count])
+				);
 
-				// Detect player join/leave in waiting games and show lobby toast
 				for (const [gameId, newCount] of newCounts) {
 					const prevCount = prevGameCounts.get(gameId);
-					const game = games.find((g) => g.id === gameId);
-					if (prevCount !== undefined && game && game.phase === 'waiting') {
+					const game = games.find((candidate) => candidate.id === gameId);
+					if (prevCount !== undefined && game?.phase === 'waiting') {
 						if (newCount > prevCount) {
 							toasts.add({
 								type: 'info',
@@ -130,25 +250,60 @@ function createLobbyStore() {
 				}
 
 				prevGameCounts = newCounts;
-				set({ games, users: msg.users, connected: true });
+				update((state) => ({
+					...state,
+					games,
+					users: msg.users,
+					connected: true,
+					hasSnapshot: true,
+					status: 'connected'
+				}));
 				break;
 			}
-			case 'game_event':
-				// Future: handle game_event messages for richer notifications
+			case 'pong': {
+				if (!msg.pingId) break;
+				const startedAt = pendingPings.get(msg.pingId);
+				if (startedAt === undefined) break;
+				pendingPings.delete(msg.pingId);
+				const sample = performance.now() - startedAt;
+				latencyMs = latencyMs === null ? sample : latencyMs * 0.7 + sample * 0.3;
+				const connectionQuality: ConnectionQuality =
+					latencyMs > 1200 ? 'poor' : latencyMs > 400 ? 'fair' : 'good';
+				update((state) => ({
+					...state,
+					latencyMs: Math.round(latencyMs!),
+					connectionQuality
+				}));
 				break;
-			case 'pong':
-				break;
+			}
 			default:
 				break;
 		}
 	}
 
 	function disconnect() {
-		clearTimers();
-		currentToken = null;
-		ws?.close();
+		enabled = false;
+		clearHeartbeat();
+		clearHealthTimer();
+		clearReconnect();
+		releasePresenceSender?.();
+		releasePresenceSender = null;
+		const socket = ws;
 		ws = null;
-		set({ games: [], users: [], connected: false });
+		socket?.close();
+		latencyMs = null;
+		pendingPings.clear();
+		prevGameCounts = new Map();
+		set({
+			games: [],
+			users: [],
+			connected: false,
+			hasSnapshot: false,
+			status: 'disconnected',
+			connectionQuality: 'offline',
+			latencyMs: null,
+			isStale: false
+		});
 	}
 
 	return { subscribe, connect, disconnect };

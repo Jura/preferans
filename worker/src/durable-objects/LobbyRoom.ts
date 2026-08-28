@@ -63,7 +63,7 @@ type LobbyServerMessage =
 			gameId: string;
 			playerName: string;
 	  }
-	| { type: 'pong' }
+	| { type: 'pong'; pingId?: string; serverTime: number }
 	| { type: 'error'; message: string };
 
 interface LobbyState {
@@ -158,7 +158,11 @@ export class LobbyRoom implements DurableObject {
 		if (!msg) return;
 
 		if (msg.type === 'ping') {
-			this.sendToSocket(ws, { type: 'pong' });
+			this.sendToSocket(ws, {
+				type: 'pong',
+				pingId: typeof msg.pingId === 'string' ? msg.pingId : undefined,
+				serverTime: Date.now()
+			});
 			return;
 		}
 
@@ -207,7 +211,9 @@ export class LobbyRoom implements DurableObject {
 		}
 	}
 
-	private parseMessage(data: string | ArrayBuffer): { type: string } | null {
+	private parseMessage(
+		data: string | ArrayBuffer
+	): { type: string; pingId?: unknown; clientRttMs?: unknown } | null {
 		try {
 			return JSON.parse(typeof data === 'string' ? data : new TextDecoder().decode(data));
 		} catch {
