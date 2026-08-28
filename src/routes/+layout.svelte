@@ -31,8 +31,7 @@
 	// Manage the lobby WebSocket reactively based on the current route.
 	// Game pages have their own socket that handles presence; the lobby socket is
 	// redundant there and is disconnected to avoid keeping two sockets open at once.
-	// On return to non-game routes the layout server issues a fresh token, so we
-	// can reconnect here whenever $page.url changes.
+	// The lobby store obtains fresh single-use tokens itself after transient drops.
 	$effect(() => {
 		// Destructure at the top so Svelte always tracks both `user` and `lobbyToken`
 		// as reactive dependencies. If we read them conditionally (e.g. behind an early
@@ -50,7 +49,7 @@
 		if (isGamePage) {
 			lobby.disconnect();
 		} else if (lobbyToken) {
-			// lobby.connect() is a no-op when a connection is already open
+			// lobby.connect() is a no-op when a connection is already open.
 			lobby.connect(lobbyToken);
 		}
 	});

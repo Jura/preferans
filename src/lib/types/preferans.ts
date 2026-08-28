@@ -83,6 +83,7 @@ export function contractValue(c: Contract): number {
 // ─── Player & Game types ──────────────────────────────────────────────────────
 
 export type PlayerId = string;
+export type ConnectionQuality = 'good' | 'fair' | 'poor' | 'offline';
 
 export interface Player {
 	id: PlayerId;
@@ -92,6 +93,8 @@ export interface Player {
 	position: 0 | 1 | 2;
 	/** Whether the player currently has an active game WebSocket session. */
 	isOnline: boolean;
+	/** Coarse transport health reported by the player's client. */
+	connectionQuality: ConnectionQuality;
 }
 
 export type GamePhase =
@@ -165,6 +168,8 @@ export interface RoundSummary {
 
 export interface GameState {
 	id: string;
+	/** Monotonically increasing authoritative state revision. */
+	stateVersion: number;
 	phase: GamePhase;
 	players: Player[];
 	/** Whose turn it is */
@@ -234,7 +239,7 @@ export interface GameState {
 
 // ─── WebSocket message types ──────────────────────────────────────────────────
 
-export type ClientMessage =
+export type ClientMessage = (
 	| { type: 'join'; gameId: string; token: string }
 	| { type: 'bid'; bid: Bid }
 	| { type: 'take_widow' }
@@ -252,10 +257,26 @@ export type ClientMessage =
 	| { type: 'request_pause'; durationMinutes: number | null }
 	| { type: 'vote_pause'; approve: boolean }
 	| { type: 'ping' }
-	| { type: 'activity' };
+	| { type: 'activity' }
+) & {
+	/** Idempotency key for state-changing actions. */
+	actionId?: string;
+	/** Last authoritative revision applied by the client. */
+	knownStateVersion?: number;
+	/** Correlates ping/pong for RTT measurement. */
+	pingId?: string;
+	/** Most recently measured RTT, reported coarsely to peers. */
+	clientRttMs?: number;
+};
 
 export type ServerMessage =
 	| { type: 'game_state'; state: GameState }
+	| {
+			type: 'game_patch';
+			baseVersion: number;
+			stateVersion: number;
+			patch: Partial<GameState>;
+	  }
 	| { type: 'player_joined'; player: Player }
 	| { type: 'player_left'; playerId: PlayerId }
 	| { type: 'bid_made'; playerId: PlayerId; bid: Bid }
@@ -265,8 +286,9 @@ export type ServerMessage =
 	| { type: 'game_over'; scores: Record<PlayerId, number> }
 	| { type: 'proposal_started'; proposal: FinishProposal | PauseProposal }
 	| { type: 'proposal_closed' }
-	| { type: 'error'; message: string }
-	| { type: 'pong' };
+	| { type: 'action_ack'; actionId: string; stateVersion: number }
+	| { type: 'error'; message: string; actionId?: string }
+	| { type: 'pong'; pingId?: string; serverTime: number; stateVersion: number };
 
 // ─── Lobby types ──────────────────────────────────────────────────────────────
 
@@ -301,7 +323,8 @@ export type LobbyGame = {
 	paused_until: string | null;
 };
 
-export type LobbyClientMessage = { type: 'ping' } | { type: 'activity' };
+export type LobbyClientMessage =
+	{ type: 'ping'; pingId?: string; clientRttMs?: number } | { type: 'activity' };
 
 export type LobbyServerMessage =
 	| {
@@ -315,5 +338,5 @@ export type LobbyServerMessage =
 			gameId: string;
 			playerName: string;
 	  }
-	| { type: 'pong' }
+	| { type: 'pong'; pingId?: string; serverTime: number }
 	| { type: 'error'; message: string };

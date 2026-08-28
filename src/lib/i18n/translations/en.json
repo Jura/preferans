@@ -84,6 +84,10 @@
 				"away": "away",
 				"offline": "offline"
 			},
+			"network": {
+				"reconnecting": "Live lobby updates paused. Reconnecting while keeping the latest list visible…",
+				"slow": "Lobby updates may arrive slowly."
+			},
 			"rules": "Game rules",
 			"ruleGoalTitle": "🎯 Goal",
 			"ruleGoalText": "Fulfill your contract and take enough tricks.",
@@ -127,6 +131,20 @@
 				"connecting": "🟡 Connecting…",
 				"connected": "🟢 Connected",
 				"error": "🔴 Error"
+			},
+			"quality": {
+				"good": "🟢 Good connection",
+				"fair": "🟡 Fair connection",
+				"poor": "🟠 Slow connection",
+				"offline": "⚫ Offline"
+			},
+			"network": {
+				"actionSending": "Sending action…",
+				"actionDelayed": "Still sending — your action is safe; please wait…",
+				"resyncing": "Restoring the latest table state…",
+				"poorConnection": "Slow connection detected. Non-essential updates are reduced.",
+				"waitingSlowPlayer": "Their connection is slow; please allow a little extra time.",
+				"waitingReconnect": "Waiting for them to reconnect."
 			},
 			"trump": "Trump",
 			"contract": "Contract",

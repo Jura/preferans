@@ -14,9 +14,10 @@
 	let { data }: { data: PageData } = $props();
 	let bulletTarget = $state(DEFAULT_BULLET_TARGET);
 
-	// Use real-time lobby data when the WebSocket is connected; fall back to SSR data
-	const games = $derived($lobby.connected ? $lobby.games : data.games);
-	const usersPresence = $derived($lobby.connected ? $lobby.users : data.usersPresence);
+	// Keep the latest live snapshot visible during short reconnects instead of
+	// replacing it with older SSR data and making tables appear to jump.
+	const games = $derived($lobby.hasSnapshot ? $lobby.games : data.games);
+	const usersPresence = $derived($lobby.hasSnapshot ? $lobby.users : data.usersPresence);
 	const isAdmin = $derived(data.user?.role === 'admin');
 
 	const presenceStatusDot: Record<'online' | 'away' | 'offline', string> = {
@@ -31,6 +32,16 @@
 </svelte:head>
 
 <div class="lobby">
+	{#if data.user && ($lobby.status === 'reconnecting' || $lobby.isStale)}
+		<div class="network-status warning" role="status">
+			{$t('app.lobby.network.reconnecting')}
+		</div>
+	{:else if data.user && $lobby.connectionQuality === 'poor'}
+		<div class="network-status warning" role="status">
+			{$t('app.lobby.network.slow')}
+			{#if $lobby.latencyMs !== null}<span>{$lobby.latencyMs} ms</span>{/if}
+		</div>
+	{/if}
 	<div class="hero">
 		<h1 class="hero-title">{$t('app.lobby.heroTitle')}</h1>
 		<p class="hero-subtitle">{$t('app.lobby.heroSubtitle')}</p>
@@ -219,6 +230,23 @@
 	.lobby {
 		max-width: 960px;
 		margin: 0 auto;
+	}
+
+	.network-status {
+		display: flex;
+		justify-content: center;
+		gap: 8px;
+		width: fit-content;
+		margin: 12px auto 0;
+		padding: 6px 14px;
+		border-radius: 999px;
+		font-size: var(--text-sm);
+	}
+
+	.network-status.warning {
+		border: 1px solid rgba(255, 198, 92, 0.5);
+		background: rgba(120, 85, 20, 0.25);
+		color: var(--warning);
 	}
 
 	.hero {

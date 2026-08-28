@@ -50,6 +50,12 @@ The project is now documented and configured with Cloudflare Pages as the primar
 
 The `worker/` directory is still used for local realtime API development and for legacy split deployments.
 
+Game WebSocket messages use authoritative state revisions and idempotent action IDs. Heartbeats
+only request a full snapshot when the client revision is stale, while coarse connection-quality
+updates let the table explain slow or reconnecting players without continuously sending latency data.
+The lobby also refreshes its single-use token automatically after transient disconnects and keeps the
+latest live snapshot visible while reconnecting.
+
 ## Quick Start (Local Development)
 
 ### 1. Install dependencies

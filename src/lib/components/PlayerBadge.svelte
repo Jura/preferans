@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t } from '$lib/i18n';
+	import type { ConnectionQuality } from '$lib/types/preferans';
 
 	interface PlayerStats {
 		name: string;
@@ -19,11 +20,20 @@
 		stats?: PlayerStats | null;
 		/** Marks the player as currently disconnected from the table. */
 		offline?: boolean;
+		/** Coarse connection health shown without exposing exact latency. */
+		connectionQuality?: ConnectionQuality;
 		/** Extra CSS class(es) forwarded to the wrapper element. */
 		class?: string;
 	}
 
-	let { playerId, name, stats = null, offline = false, class: className = '' }: Props = $props();
+	let {
+		playerId,
+		name,
+		stats = null,
+		offline = false,
+		connectionQuality = offline ? 'offline' : 'good',
+		class: className = ''
+	}: Props = $props();
 
 	let loaded = $state(false);
 	let loading = $state(false);
@@ -112,6 +122,10 @@
 	{name}
 	{#if offline}
 		<span class="status-chip offline">{$t('app.lobby.presence.offline')}</span>
+	{:else if connectionQuality === 'poor' || connectionQuality === 'fair'}
+		<span class="status-chip {connectionQuality}">
+			{$t(`app.game.quality.${connectionQuality}`)}
+		</span>
 	{/if}
 	{#if showTooltip}
 		<div class="tooltip" role="tooltip" id={tooltipId}>
@@ -166,6 +180,18 @@
 		color: var(--cream-400);
 		background: rgba(130, 130, 130, 0.3);
 		border: 1px solid rgba(170, 170, 170, 0.45);
+	}
+
+	.status-chip.fair {
+		color: var(--warning);
+		background: rgba(120, 85, 20, 0.35);
+		border: 1px solid rgba(255, 198, 92, 0.45);
+	}
+
+	.status-chip.poor {
+		color: var(--danger);
+		background: rgba(139, 26, 26, 0.35);
+		border: 1px solid rgba(255, 128, 128, 0.45);
 	}
 
 	.tooltip {

@@ -40,6 +40,9 @@ interface WebSocketSession {
 	ws: WebSocket;
 	playerId: PlayerId;
 	playerName: string;
+	connectionQuality: ConnectionQuality;
+	processedActions: Map<string, number>;
+	lastClientState: ClientGameState | null;
 }
 
 interface AccessStatusCacheEntry {
@@ -50,8 +53,9 @@ interface AccessStatusCacheEntry {
 const MS_PER_MINUTE = 60 * 1000;
 // Keep in sync with src/lib/server/test-login.ts.
 const DUMMY_USER_ID_PREFIX = 'dummy_';
+type ConnectionQuality = 'good' | 'fair' | 'poor';
 
-type ClientMessage =
+type ClientMessage = (
 	| { type: 'join'; token: string }
 	| { type: 'bid'; bid: Bid }
 	| { type: 'take_widow' }
@@ -68,16 +72,30 @@ type ClientMessage =
 	| { type: 'vote_pause'; approve: boolean }
 	| { type: 'start_round' }
 	| { type: 'ping' }
-	| { type: 'activity' };
+	| { type: 'activity' }
+) & {
+	actionId?: string;
+	knownStateVersion?: number;
+	pingId?: string;
+	clientRttMs?: number;
+};
 
 type ServerMessage =
 	| { type: 'game_state'; state: ClientGameState }
-	| { type: 'error'; message: string }
-	| { type: 'pong' };
+	| {
+			type: 'game_patch';
+			baseVersion: number;
+			stateVersion: number;
+			patch: Partial<ClientGameState>;
+	  }
+	| { type: 'action_ack'; actionId: string; stateVersion: number }
+	| { type: 'error'; message: string; actionId?: string }
+	| { type: 'pong'; pingId?: string; serverTime: number; stateVersion: number };
 
 /** Game state sent to clients (hands are filtered per player) */
 interface ClientGameState {
 	id: string;
+	stateVersion: number;
 	phase: string;
 	players: {
 		id: string;
@@ -85,6 +103,7 @@ interface ClientGameState {
 		avatarUrl: string | null;
 		position: number;
 		isOnline: boolean;
+		connectionQuality: ConnectionQuality | 'offline';
 	}[];
 	currentPlayerId: string | null;
 	hand: Card[];
@@ -134,6 +153,7 @@ export class GameRoom implements DurableObject {
 	private gameState: GameState | null = null;
 	private gameId = '';
 	private playerInfo: Map<PlayerId, { name: string; avatarUrl: string | null }> = new Map();
+	private stateVersion = 0;
 
 	constructor(state: DurableObjectState, env: Env) {
 		this.state = state;
@@ -223,7 +243,7 @@ export class GameRoom implements DurableObject {
 		if (!this.gameState) {
 			await this.loadGameState();
 		}
-		const rosterChanged = await this.syncWaitingPlayersFromDatabase();
+		await this.syncWaitingPlayersFromDatabase();
 
 		const pair = new WebSocketPair();
 		const [client, server] = Object.values(pair);
@@ -231,7 +251,17 @@ export class GameRoom implements DurableObject {
 		this.state.acceptWebSocket(server);
 
 		const sessionId = crypto.randomUUID();
-		this.sessions.set(sessionId, { ws: server, playerId, playerName: tokenRow.name });
+		const processedActions = new Map(
+			(await this.state.storage.get<[string, number][]>(this.actionHistoryKey(playerId))) ?? []
+		);
+		this.sessions.set(sessionId, {
+			ws: server,
+			playerId,
+			playerName: tokenRow.name,
+			connectionQuality: 'good',
+			processedActions,
+			lastClientState: null
+		});
 
 		// Attach session id to the WebSocket for later retrieval
 		(server as unknown as { sessionId: string }).sessionId = sessionId;
@@ -239,6 +269,7 @@ export class GameRoom implements DurableObject {
 		// Persist session metadata on the WebSocket so it can be recovered after
 		// the DO wakes from hibernation (in-memory sessions are cleared on sleep).
 		server.serializeAttachment({
+			gameId: this.gameId,
 			playerId,
 			playerName: tokenRow.name,
 			avatarUrl: tokenRow.avatar_url,
@@ -246,13 +277,10 @@ export class GameRoom implements DurableObject {
 		});
 
 		// Send current state to the newly connected player
-		this.sendToSocket(server, {
-			type: 'game_state',
-			state: this.buildClientState(playerId)
-		});
-		if (rosterChanged) {
-			this.broadcastState();
-		}
+		this.sendCurrentState(this.sessions.get(sessionId)!, true);
+		// Existing players must immediately see this player return online. This also
+		// carries a roster change when a waiting-table join updated the game state.
+		this.broadcastState();
 
 		return new Response(null, { status: 101, webSocket: client });
 	}
@@ -282,11 +310,40 @@ export class GameRoom implements DurableObject {
 			return;
 		}
 
+		if (msg.actionId) {
+			await this.loadProcessedActions(session);
+		}
+		const processedVersion = msg.actionId ? session.processedActions.get(msg.actionId) : undefined;
+		if (msg.actionId && processedVersion !== undefined) {
+			this.sendToSocket(ws, {
+				type: 'action_ack',
+				actionId: msg.actionId,
+				stateVersion: processedVersion
+			});
+			return;
+		}
+
 		try {
 			await this.handleMessage(session, msg);
+			if (msg.actionId) {
+				session.processedActions.set(msg.actionId, this.stateVersion);
+				if (session.processedActions.size > 100) {
+					const oldestActionId = session.processedActions.keys().next().value;
+					if (oldestActionId) session.processedActions.delete(oldestActionId);
+				}
+				await this.state.storage.put(
+					this.actionHistoryKey(session.playerId),
+					Array.from(session.processedActions.entries())
+				);
+				this.sendToSocket(ws, {
+					type: 'action_ack',
+					actionId: msg.actionId,
+					stateVersion: this.stateVersion
+				});
+			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Unknown error';
-			this.sendToSocket(ws, { type: 'error', message });
+			this.sendToSocket(ws, { type: 'error', message, actionId: msg.actionId });
 		}
 	}
 
@@ -294,11 +351,15 @@ export class GameRoom implements DurableObject {
 		const session = this.getSession(ws);
 		if (session) {
 			this.removeSession(ws);
+			if (!this.gameState) await this.loadGameState();
+			this.broadcastState();
 		}
 	}
 
 	async webSocketError(ws: WebSocket): Promise<void> {
 		this.removeSession(ws);
+		if (!this.gameState) await this.loadGameState();
+		this.broadcastState();
 	}
 
 	// ─── Private helpers ────────────────────────────────────────────────────────
@@ -311,13 +372,22 @@ export class GameRoom implements DurableObject {
 	private restoreSessionsFromHibernation(): void {
 		for (const ws of this.state.getWebSockets()) {
 			const att = ws.deserializeAttachment() as {
+				gameId?: string;
 				playerId: string;
 				playerName: string;
 				avatarUrl: string | null;
 				sessionId: string;
 			} | null;
 			if (!att?.sessionId) continue;
-			this.sessions.set(att.sessionId, { ws, playerId: att.playerId, playerName: att.playerName });
+			if (att.gameId) this.gameId = att.gameId;
+			this.sessions.set(att.sessionId, {
+				ws,
+				playerId: att.playerId,
+				playerName: att.playerName,
+				connectionQuality: 'good',
+				processedActions: new Map(),
+				lastClientState: null
+			});
 			(ws as unknown as { sessionId: string }).sessionId = att.sessionId;
 			this.playerInfo.set(att.playerId, { name: att.playerName, avatarUrl: att.avatarUrl });
 		}
@@ -363,14 +433,16 @@ export class GameRoom implements DurableObject {
 	}
 
 	private async loadGameState() {
+		const stored = await this.state.storage.get<GameState>('gameState');
+		if (!this.gameId && stored?.id) this.gameId = stored.id;
 		const gameRow = await this.env.DB.prepare(`SELECT bullet_target FROM games WHERE id = ?`)
 			.bind(this.gameId)
 			.first<{ bullet_target: number }>();
 		const bulletTarget = gameRow?.bullet_target ?? 100;
 
-		const stored = await this.state.storage.get<GameState>('gameState');
 		if (stored) {
 			this.gameState = normalizeState({ ...stored, bulletTarget });
+			this.stateVersion = (await this.state.storage.get<number>('stateVersion')) ?? 1;
 			await this.hydratePlayerInfoFromDatabase();
 			return;
 		}
@@ -427,7 +499,11 @@ export class GameRoom implements DurableObject {
 
 	private async persistState() {
 		if (!this.gameState) return;
-		await this.state.storage.put('gameState', this.gameState);
+		this.stateVersion++;
+		await this.state.storage.put({
+			gameState: this.gameState,
+			stateVersion: this.stateVersion
+		});
 		// Mirror phase to D1
 		await this.env.DB.prepare(
 			`UPDATE games SET phase = ?, paused_until = ?, updated_at = datetime('now') WHERE id = ?`
@@ -481,19 +557,22 @@ export class GameRoom implements DurableObject {
 		const { playerId } = session;
 
 		switch (msg.type) {
-			case 'ping':
-				if (await this.syncWaitingPlayersFromDatabase()) {
+			case 'ping': {
+				const qualityChanged = this.updateConnectionQuality(session, msg.clientRttMs);
+				const rosterChanged = await this.syncWaitingPlayersFromDatabase();
+				if (rosterChanged || qualityChanged) {
 					this.broadcastState();
+				} else if (msg.knownStateVersion !== this.stateVersion) {
+					this.sendCurrentState(session, true);
 				}
-				// Always send fresh state back to the pinging client so it recovers from
-				// stale state after a Durable Object hibernation/wake cycle without needing
-				// a page reload. The pong is sent after so the client can track round-trips.
 				this.sendToSocket(session.ws, {
-					type: 'game_state',
-					state: this.buildClientState(session.playerId)
+					type: 'pong',
+					pingId: msg.pingId,
+					serverTime: Date.now(),
+					stateVersion: this.stateVersion
 				});
-				this.sendToSocket(session.ws, { type: 'pong' });
 				return;
+			}
 
 			case 'activity':
 				// Update the player's presence in D1 (throttled by the WHERE condition),
@@ -828,8 +907,8 @@ export class GameRoom implements DurableObject {
 
 	private buildClientState(forPlayerId: PlayerId): ClientGameState {
 		const gs = this.gameState!;
-		const onlinePlayerIds = new Set(
-			Array.from(this.sessions.values(), (session) => session.playerId)
+		const onlineSessions = new Map(
+			Array.from(this.sessions.values(), (session) => [session.playerId, session])
 		);
 		const myIdx = gs.playerIds.indexOf(forPlayerId);
 		const players = gs.playerIds.map((id, idx) => ({
@@ -837,7 +916,8 @@ export class GameRoom implements DurableObject {
 			name: this.playerInfo.get(id)?.name ?? id,
 			avatarUrl: this.playerInfo.get(id)?.avatarUrl ?? null,
 			position: (myIdx >= 0 ? (idx - myIdx + 3) % 3 : idx) as 0 | 1 | 2,
-			isOnline: onlinePlayerIds.has(id)
+			isOnline: onlineSessions.has(id),
+			connectionQuality: onlineSessions.get(id)?.connectionQuality ?? 'offline'
 		}));
 
 		const pendingWhist = whistOptions(gs);
@@ -871,6 +951,7 @@ export class GameRoom implements DurableObject {
 
 		return {
 			id: gs.id,
+			stateVersion: this.stateVersion,
 			phase: gs.phase,
 			players,
 			currentPlayerId: gs.currentPlayerId,
@@ -912,16 +993,64 @@ export class GameRoom implements DurableObject {
 	}
 
 	private broadcastState() {
+		if (!this.gameState) return;
 		for (const [, session] of this.sessions) {
 			try {
-				this.sendToSocket(session.ws, {
-					type: 'game_state',
-					state: this.buildClientState(session.playerId)
-				});
+				this.sendCurrentState(session);
 			} catch {
 				// Session disconnected
 			}
 		}
+	}
+
+	private sendCurrentState(session: WebSocketSession, forceFull = false) {
+		const current = this.buildClientState(session.playerId);
+		const previous = session.lastClientState;
+		session.lastClientState = current;
+
+		if (!previous || forceFull) {
+			this.sendToSocket(session.ws, { type: 'game_state', state: current });
+			return;
+		}
+
+		const patch: Partial<ClientGameState> = {};
+		for (const key of Object.keys(current) as (keyof ClientGameState)[]) {
+			if (JSON.stringify(current[key]) !== JSON.stringify(previous[key])) {
+				Object.assign(patch, { [key]: current[key] });
+			}
+		}
+
+		const patchMessage: ServerMessage = {
+			type: 'game_patch',
+			baseVersion: previous.stateVersion,
+			stateVersion: current.stateVersion,
+			patch
+		};
+		const fullMessage: ServerMessage = { type: 'game_state', state: current };
+		const message =
+			JSON.stringify(patchMessage).length < JSON.stringify(fullMessage).length
+				? patchMessage
+				: fullMessage;
+		this.sendToSocket(session.ws, message);
+	}
+
+	private updateConnectionQuality(session: WebSocketSession, rttMs: number | undefined): boolean {
+		if (typeof rttMs !== 'number' || !Number.isFinite(rttMs) || rttMs < 0) return false;
+		const quality: ConnectionQuality = rttMs > 1200 ? 'poor' : rttMs > 400 ? 'fair' : 'good';
+		if (quality === session.connectionQuality) return false;
+		session.connectionQuality = quality;
+		return true;
+	}
+
+	private actionHistoryKey(playerId: PlayerId): string {
+		return `processedActions:${playerId}`;
+	}
+
+	private async loadProcessedActions(session: WebSocketSession): Promise<void> {
+		const stored =
+			(await this.state.storage.get<[string, number][]>(this.actionHistoryKey(session.playerId))) ??
+			[];
+		session.processedActions = new Map(stored);
 	}
 
 	private sendToSocket(ws: WebSocket, msg: ServerMessage) {
